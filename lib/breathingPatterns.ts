@@ -1,4 +1,16 @@
-import { BreathingPattern } from '../types/global';
+export interface BreathingPattern {
+  id: string;
+  name: string;
+  description: string;
+  benefits: string[];
+  phases: {
+    name: string;
+    duration: number;
+    instruction: string;
+  }[];
+  totalDuration: number;
+  supportsIntention?: boolean;
+}
 
 export const breathingPatterns: BreathingPattern[] = [
   {

@@ -1,7 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { NotificationSchedule, Manifestation } from '../types/global';
 import { storageService } from './storage';
+import type { Database } from './supabase';
+
+type NotificationSchedule = Database['public']['Tables']['notification_schedules']['Row'];
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -49,11 +51,13 @@ export const notificationService = {
       let message = schedule.message;
       
       // If using random manifestation, get a random one
-      if (schedule.useRandomManifestation) {
+      if (schedule.use_random_manifestation) {
         const manifestations = await storageService.getManifestations();
         if (manifestations.length > 0) {
           const randomManifestation = manifestations[Math.floor(Math.random() * manifestations.length)];
-          message = randomManifestation.transformedText;
+          message = randomManifestation.transformed_text;
+        } else {
+          message = 'Take a moment to reflect on your dreams and aspirations today.';
         }
       }
 

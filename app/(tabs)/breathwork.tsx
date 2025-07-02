@@ -7,12 +7,12 @@ import {
   StyleSheet,
   Animated,
   TextInput,
-  Alert,
+  Image,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Play, Pause, RotateCcw, Heart } from 'lucide-react-native';
-import { breathingPatterns } from '../../lib/breathingPatterns';
-import { BreathingPattern } from '../../types/global';
+import { breathingPatterns, BreathingPattern } from '../../lib/breathingPatterns';
 
 export default function Breathwork() {
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern | null>(null);
@@ -199,10 +199,18 @@ export default function Breathwork() {
         colors={['#ede9fe', '#ddd6fe', '#c4b5fd']}
         style={styles.header}
       >
-        <Text style={styles.title}>Breathwork</Text>
-        <Text style={styles.subtitle}>
-          Guided breathing exercises for wellness and focus
-        </Text>
+        <View style={styles.headerContent}>
+          <Wind size={32} color="#581c87" />
+          <Text style={styles.title}>Breathwork</Text>
+          <Text style={styles.subtitle}>
+            Guided breathing exercises for wellness and focus
+          </Text>
+        </View>
+        
+        <Image
+          source={{ uri: 'https://images.pexels.com/photos/3822622/pexels-photo-3822622.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+          style={styles.headerImage}
+        />
       </LinearGradient>
 
       <View style={styles.content}>
@@ -212,23 +220,11 @@ export default function Breathwork() {
             pattern={pattern}
             onStart={() => {
               if (pattern.supportsIntention) {
-                Alert.prompt(
-                  'Set Your Intention',
-                  'What would you like to focus on during this session?',
-                  [
-                    { text: 'Skip', onPress: () => startSession(pattern) },
-                    {
-                      text: 'Set',
-                      onPress: (text) => {
-                        setIntention(text || '');
-                        startSession(pattern);
-                      }
-                    }
-                  ],
-                  'plain-text',
-                  '',
-                  'default'
-                );
+                if (Platform.OS === 'web') {
+                  const intentionText = prompt('Set Your Intention (optional):');
+                  setIntention(intentionText || '');
+                }
+                startSession(pattern);
               } else {
                 startSession(pattern);
               }
@@ -287,17 +283,33 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
+    position: 'relative',
+  },
+  headerContent: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  headerImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.3,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#581c87',
     marginBottom: 8,
+    marginTop: 12,
   },
   subtitle: {
     fontSize: 16,
     color: '#7c3aed',
     opacity: 0.8,
+    textAlign: 'center',
   },
   content: {
     padding: 20,

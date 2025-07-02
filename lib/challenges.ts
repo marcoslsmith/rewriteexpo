@@ -1,31 +1,7 @@
-import { Challenge } from '../types/global';
+import { supabase } from './supabase';
+import type { Database } from './supabase';
 
-export const challenges: Challenge[] = [
-  {
-    id: 'gratitude-7',
-    title: '7-Day Gratitude Journey',
-    description: 'Transform your mindset with daily gratitude practice',
-    duration: 7,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'manifestation-21',
-    title: '21-Day Manifestation Mastery',
-    description: 'Build powerful manifestation habits over 21 days',
-    duration: 21,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'abundance-14',
-    title: '14-Day Abundance Mindset',
-    description: 'Shift into an abundance mindset in just 2 weeks',
-    duration: 14,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-];
+type Challenge = Database['public']['Tables']['challenges']['Row'];
 
 export const challengePrompts: { [challengeId: string]: { [day: number]: string } } = {
   'gratitude-7': {
@@ -75,5 +51,49 @@ export const challengePrompts: { [challengeId: string]: { [day: number]: string 
     12: 'What legacy do you want to leave?',
     13: 'How do you practice generosity in your daily life?',
     14: 'What abundance affirmations resonate most with you?',
+  },
+};
+
+export const challengeService = {
+  async getChallenges(): Promise<Challenge[]> {
+    try {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error loading challenges:', error);
+      // Return default challenges as fallback
+      return [
+        {
+          id: 'gratitude-7',
+          title: '7-Day Gratitude Journey',
+          description: 'Transform your mindset with daily gratitude practice',
+          duration: 7,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 'manifestation-21',
+          title: '21-Day Manifestation Mastery',
+          description: 'Build powerful manifestation habits over 21 days',
+          duration: 21,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 'abundance-14',
+          title: '14-Day Abundance Mindset',
+          description: 'Shift into an abundance mindset in just 2 weeks',
+          duration: 14,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+      ];
+    }
   },
 };

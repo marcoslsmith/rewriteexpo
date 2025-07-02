@@ -6,33 +6,36 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Save } from 'lucide-react-native';
+import { Sparkles, Save, BookOpen } from 'lucide-react-native';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
-import { Manifestation } from '../../types/global';
 
 export default function DreamLab() {
   const [journalEntry, setJournalEntry] = useState('');
   const [transformedText, setTransformedText] = useState('');
   const [isTransforming, setIsTransforming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleTransform = async () => {
     if (!journalEntry.trim()) {
-      Alert.alert('Empty Entry', 'Please write something in your journal first.');
+      setError('Please write something in your journal first.');
       return;
     }
 
     setIsTransforming(true);
+    setError(null);
+    
     try {
       const transformed = await transformJournalEntry(journalEntry);
       setTransformedText(transformed);
     } catch (error) {
-      Alert.alert('Error', 'Failed to transform your entry. Please try again.');
+      setError('Failed to transform your entry. Please try again.');
       console.error('Transformation error:', error);
     } finally {
       setIsTransforming(false);
@@ -41,30 +44,31 @@ export default function DreamLab() {
 
   const handleSave = async () => {
     if (!transformedText.trim()) {
-      Alert.alert('Nothing to Save', 'Please transform your journal entry first.');
+      setError('Please transform your journal entry first.');
       return;
     }
 
     setIsSaving(true);
+    setError(null);
+    
     try {
-      const manifestation: Manifestation = {
-        id: Date.now().toString(),
-        originalEntry: journalEntry,
-        transformedText: transformedText,
-        isFavorite: false,
+      await storageService.addManifestation({
+        original_entry: journalEntry,
+        transformed_text: transformedText,
+        is_favorite: false,
         tags: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      await storageService.addManifestation(manifestation);
-      Alert.alert('Saved!', 'Your manifestation has been saved to My Rewrite.');
+      });
+      
+      setSuccess('Your manifestation has been saved to My Rewrite!');
       
       // Clear the form
       setJournalEntry('');
       setTransformedText('');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save your manifestation. Please try again.');
+      setError('Failed to save your manifestation. Please try again.');
       console.error('Save error:', error);
     } finally {
       setIsSaving(false);
@@ -77,13 +81,33 @@ export default function DreamLab() {
         colors={['#faf5ff', '#f3e8ff', '#e0e7ff']}
         style={styles.header}
       >
-        <Text style={styles.title}>Dream Lab</Text>
-        <Text style={styles.subtitle}>
-          Transform your thoughts into powerful manifestations
-        </Text>
+        <View style={styles.headerContent}>
+          <BookOpen size={32} color="#581c87" />
+          <Text style={styles.title}>Dream Lab</Text>
+          <Text style={styles.subtitle}>
+            Transform your thoughts into powerful manifestations
+          </Text>
+        </View>
+        
+        <Image
+          source={{ uri: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+          style={styles.headerImage}
+        />
       </LinearGradient>
 
       <View style={styles.content}>
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        
+        {success && (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{success}</Text>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Journal Entry</Text>
           <TextInput
@@ -165,20 +189,58 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
+    position: 'relative',
+  },
+  headerContent: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  headerImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    opacity: 0.3,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#581c87',
     marginBottom: 8,
+    marginTop: 12,
   },
   subtitle: {
     fontSize: 16,
     color: '#7c3aed',
     opacity: 0.8,
+    textAlign: 'center',
   },
   content: {
     padding: 20,
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  successContainer: {
+    backgroundColor: '#d1fae5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  successText: {
+    color: '#065f46',
+    fontSize: 14,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 30,

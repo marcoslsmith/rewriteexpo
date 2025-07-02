@@ -5,10 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   TextInput,
   Modal,
   Switch,
+  Image,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -24,12 +25,18 @@ import {
 import { supabase } from '../../lib/supabase';
 import { storageService } from '../../lib/storage';
 import { notificationService } from '../../lib/notifications';
-import { NotificationSchedule } from '../../types/global';
+import type { Database } from '../../lib/supabase';
+
+type NotificationSchedule = Database['public']['Tables']['notification_schedules']['Row'];
 
 export default function Settings() {
   const [user, setUser] = useState<any>(null);
   const [notificationSchedules, setNotificationSchedules] = useState<NotificationSchedule[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [newSchedule, setNewSchedule] = useState({
     title: 'Daily Manifestation',
     message: '',
@@ -59,90 +66,53 @@ export default function Settings() {
   };
 
   const signIn = async () => {
-    Alert.prompt(
-      'Sign In',
-      'Enter your email address',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Magic Link',
-          onPress: async (email) => {
-            if (email) {
-              try {
-                const { error } = await supabase.auth.signInWithOtp({ email });
-                if (error) throw error;
-                Alert.alert('Check your email', 'We sent you a magic link to sign in.');
-              } catch (error: any) {
-                Alert.alert('Error', error.message);
-              }
-            }
-          }
-        }
-      ],
-      'plain-text',
-      '',
-      'email-address'
-    );
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) throw error;
+      setSuccess('Check your email for a magic link to sign in!');
+      setShowSignInModal(false);
+      setEmail('');
+    } catch (error: any) {
+      setError(error.message);
+    }
   };
 
   const signOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await supabase.auth.signOut();
-            setUser(null);
-            Alert.alert('Signed Out', 'You have been signed out successfully.');
-          }
-        }
-      ]
-    );
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSuccess('You have been signed out successfully.');
+    } catch (error: any) {
+      setError(error.message);
+    }
   };
 
-  const clearAllData = () => {
-    Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your manifestations, challenges, and settings. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await storageService.clearAllData();
-              await notificationService.cancelAllNotifications();
-              setNotificationSchedules([]);
-              Alert.alert('Data Cleared', 'All your data has been cleared.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear data. Please try again.');
-            }
-          }
-        }
-      ]
-    );
+  const clearAllData = async () => {
+    try {
+      await storageService.clearAllData();
+      await notificationService.cancelAllNotifications();
+      setNotificationSchedules([]);
+      setSuccess('All your data has been cleared.');
+    } catch (error) {
+      setError('Failed to clear data. Please try again.');
+    }
   };
 
   const addNotificationSchedule = async () => {
     try {
-      const schedule: NotificationSchedule = {
-        id: Date.now().toString(),
-        ...newSchedule,
-        createdAt: new Date().toISOString(),
-      };
-
-      // Schedule the notifications
-      await notificationService.scheduleNotification(schedule);
-      
-      // Save to storage
-      const schedules = await storageService.getNotificationSchedules();
-      schedules.push(schedule);
-      await storageService.saveNotificationSchedules(schedules);
+      await storageService.addNotificationSchedule({
+        title: newSchedule.title,
+        message: newSchedule.message,
+        use_random_manifestation: newSchedule.useRandomManifestation,
+        time: newSchedule.time,
+        days: newSchedule.days,
+        is_active: newSchedule.isActive,
+      });
       
       setShowScheduleModal(false);
       setNewSchedule({
@@ -155,48 +125,32 @@ export default function Settings() {
       });
       
       await loadNotificationSchedules();
-      Alert.alert('Success', 'Notification schedule created successfully!');
+      setSuccess('Notification schedule created successfully!');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create notification schedule.');
+      setError(error.message || 'Failed to create notification schedule.');
     }
   };
 
   const toggleSchedule = async (id: string) => {
     try {
-      const schedules = await storageService.getNotificationSchedules();
-      const index = schedules.findIndex(s => s.id === id);
-      if (index !== -1) {
-        schedules[index].isActive = !schedules[index].isActive;
-        await storageService.saveNotificationSchedules(schedules);
+      const schedule = notificationSchedules.find(s => s.id === id);
+      if (schedule) {
+        await storageService.updateNotificationSchedule(id, { is_active: !schedule.is_active });
         await loadNotificationSchedules();
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update notification schedule.');
+      setError('Failed to update notification schedule.');
     }
   };
 
   const deleteSchedule = async (id: string) => {
-    Alert.alert(
-      'Delete Schedule',
-      'Are you sure you want to delete this notification schedule?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const schedules = await storageService.getNotificationSchedules();
-              const filtered = schedules.filter(s => s.id !== id);
-              await storageService.saveNotificationSchedules(filtered);
-              await loadNotificationSchedules();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete notification schedule.');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      await storageService.deleteNotificationSchedule(id);
+      await loadNotificationSchedules();
+      setSuccess('Notification schedule deleted successfully.');
+    } catch (error) {
+      setError('Failed to delete notification schedule.');
+    }
   };
 
   const testNotification = async () => {
@@ -205,9 +159,9 @@ export default function Settings() {
         'Test Manifestation',
         'This is a test notification from The Rewrite app!'
       );
-      Alert.alert('Test Sent', 'Check your notifications to see if it worked!');
+      setSuccess('Test notification sent! Check your notifications.');
     } catch (error: any) {
-      Alert.alert('Test Failed', error.message || 'Unable to send test notification.');
+      setError(error.message || 'Unable to send test notification.');
     }
   };
 
@@ -216,17 +170,48 @@ export default function Settings() {
     return days[day];
   };
 
+  // Clear messages after 3 seconds
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError(null);
+        setSuccess(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
+
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={['#f3f4f6', '#e5e7eb', '#d1d5db']}
         style={styles.header}
       >
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>
-          Manage your account and preferences
-        </Text>
+        <View style={styles.headerContent}>
+          <SettingsIcon size={32} color="#374151" />
+          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.subtitle}>
+            Manage your account and preferences
+          </Text>
+        </View>
+        
+        <Image
+          source={{ uri: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+          style={styles.headerImage}
+        />
       </LinearGradient>
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+      
+      {success && (
+        <View style={styles.successContainer}>
+          <Text style={styles.successText}>{success}</Text>
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Account Section */}
@@ -244,7 +229,7 @@ export default function Settings() {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={styles.signInButton} onPress={signIn}>
+            <TouchableOpacity style={styles.signInButton} onPress={() => setShowSignInModal(true)}>
               <User size={20} color="#ffffff" />
               <Text style={styles.signInButtonText}>Sign In</Text>
             </TouchableOpacity>
@@ -273,7 +258,7 @@ export default function Settings() {
               <View style={styles.scheduleHeader}>
                 <Text style={styles.scheduleTitle}>{schedule.title}</Text>
                 <Switch
-                  value={schedule.isActive}
+                  value={schedule.is_active}
                   onValueChange={() => toggleSchedule(schedule.id)}
                 />
               </View>
@@ -291,7 +276,7 @@ export default function Settings() {
               </View>
               
               <Text style={styles.scheduleMessage}>
-                {schedule.useRandomManifestation 
+                {schedule.use_random_manifestation 
                   ? 'Random manifestation from your collection'
                   : schedule.message
                 }
@@ -323,6 +308,48 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Sign In Modal */}
+      <Modal
+        visible={showSignInModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Sign In</Text>
+            <TouchableOpacity
+              onPress={() => setShowSignInModal(false)}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.modalContent}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              style={styles.textInput}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={signIn}
+            >
+              <Text style={styles.createButtonText}>Send Magic Link</Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.helpText}>
+              We'll send you a secure link to sign in without a password.
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add Schedule Modal */}
       <Modal
@@ -408,17 +435,57 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
+    position: 'relative',
+  },
+  headerContent: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  headerImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.3,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 8,
+    marginTop: 12,
   },
   subtitle: {
     fontSize: 16,
     color: '#6b7280',
     opacity: 0.8,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  successContainer: {
+    backgroundColor: '#d1fae5',
+    padding: 12,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  successText: {
+    color: '#065f46',
+    fontSize: 14,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
@@ -643,5 +710,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  helpText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 20,
   },
 });
