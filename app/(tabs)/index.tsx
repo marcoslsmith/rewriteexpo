@@ -25,6 +25,7 @@ export default function DreamLab() {
   const handleTransform = async () => {
     if (!journalEntry.trim()) {
       setError('Please write something in your journal first.');
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -34,9 +35,11 @@ export default function DreamLab() {
     try {
       const transformed = await transformJournalEntry(journalEntry);
       setTransformedText(transformed);
+      setError(null); // Clear any previous errors on success
     } catch (error) {
-      setError('Failed to transform your entry. Please try again.');
+      setError('Failed to transform your entry. Please check your connection and try again.');
       console.error('Transformation error:', error);
+      setTimeout(() => setError(null), 5000);
     } finally {
       setIsTransforming(false);
     }
@@ -112,7 +115,7 @@ export default function DreamLab() {
           <Text style={styles.sectionTitle}>Your Journal Entry</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="Write about your thoughts, feelings, dreams, or challenges..."
+            placeholder="Write about your thoughts, feelings, dreams, or challenges... Our AI will transform them into powerful manifestations."
             value={journalEntry}
             onChangeText={setJournalEntry}
             multiline
@@ -126,11 +129,14 @@ export default function DreamLab() {
             disabled={isTransforming}
           >
             {isTransforming ? (
-              <ActivityIndicator color="#ffffff" />
+              <>
+                <ActivityIndicator color="#ffffff" size="small" />
+                <Text style={styles.buttonText}>Transforming...</Text>
+              </>
             ) : (
               <>
                 <Sparkles size={20} color="#ffffff" />
-                <Text style={styles.buttonText}>Transform</Text>
+                <Text style={styles.buttonText}>Transform with AI</Text>
               </>
             )}
           </TouchableOpacity>
@@ -163,16 +169,16 @@ export default function DreamLab() {
         <View style={styles.tipsSection}>
           <Text style={styles.tipsTitle}>Tips for Better Manifestations</Text>
           <View style={styles.tip}>
-            <Text style={styles.tipText}>• Write honestly about your current situation</Text>
+            <Text style={styles.tipText}>• Write honestly about your current thoughts and feelings</Text>
           </View>
           <View style={styles.tip}>
-            <Text style={styles.tipText}>• Include your emotions and feelings</Text>
+            <Text style={styles.tipText}>• Share your challenges, fears, or limiting beliefs</Text>
           </View>
           <View style={styles.tip}>
-            <Text style={styles.tipText}>• Focus on what you want to create or change</Text>
+            <Text style={styles.tipText}>• Describe what you want to create or change in your life</Text>
           </View>
           <View style={styles.tip}>
-            <Text style={styles.tipText}>• Be specific about your dreams and goals</Text>
+            <Text style={styles.tipText}>• Our AI will transform your words into empowering affirmations</Text>
           </View>
         </View>
       </View>
