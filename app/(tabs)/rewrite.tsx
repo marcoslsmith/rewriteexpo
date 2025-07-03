@@ -145,18 +145,19 @@ export default function Library() {
         <FloatingActionButton visible={showFAB} />
         
         {/* Header */}
-        <Text style={styles.greeting}>Your sacred collection</Text>
-        <Text style={styles.greeting}>Your collection</Text>
-        <Text style={styles.title}>Manifestation Library</Text>
-        
-        <View style={styles.statsContainer}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{manifestations.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{manifestations.filter(m => m.is_favorite).length}</Text>
-            <Text style={styles.statLabel}>Favorites</Text>
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Your sacred collection</Text>
+          <Text style={styles.title}>Manifestation Library</Text>
+          
+          <View style={styles.statsContainer}>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{manifestations.length}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{manifestations.filter(m => m.is_favorite).length}</Text>
+              <Text style={styles.statLabel}>Favorites</Text>
+            </View>
           </View>
         </View>
 
@@ -242,24 +243,27 @@ interface ManifestationCardProps {
 function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
   return (
     <View style={styles.card}>
-      <TouchableOpacity
-        onPress={() => onToggleFavorite(manifestation.id)}
-        style={styles.favoriteButton}
-      >
-        <Heart
-          color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
-          fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
-          strokeWidth={1.5}
-        />
-      </TouchableOpacity>
-      
-      <Text style={styles.cardDate}>
-        {new Date(manifestation.created_at).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })}
-      </Text>
+      <View style={styles.cardHeader}>
+        <TouchableOpacity
+          onPress={() => onToggleFavorite(manifestation.id)}
+          style={styles.favoriteButton}
+        >
+          <Heart
+            size={20}
+            color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
+            fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
+            strokeWidth={1.5}
+          />
+        </TouchableOpacity>
+        
+        <Text style={styles.cardDate}>
+          {new Date(manifestation.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          })}
+        </Text>
+      </View>
       
       <Text style={styles.manifestationText}>
         {manifestation.transformed_text}
@@ -452,30 +456,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
   actionButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
   },
   actionText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: '#2563eb',
   },
-  deleteButton: {
-    backgroundColor: '#fef2f2',
-  },
   deleteText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: '#ef4444',
-  },
-  bottomPadding: {
-    height: 40,
   },
 });

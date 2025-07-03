@@ -13,6 +13,9 @@ import { Target, Play, Calendar, Award, Check, ArrowLeft, X } from 'lucide-react
 import { challengeService, challengePrompts } from '../../lib/challenges';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
+import GradientBackground from '../../components/GradientBackground';
+import AnimatedButton from '../../components/AnimatedButton';
+import FloatingActionButton from '../../components/FloatingActionButton';
 
 type Challenge = Database['public']['Tables']['challenges']['Row'];
 type ChallengeProgress = Database['public']['Tables']['challenge_progress']['Row'];
@@ -27,7 +30,19 @@ export default function Challenges() {
   const [dayResponse, setDayResponse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showFAB, setShowFAB] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        setShowFAB(currentScrollY < 100);
+      },
+    }
+  );
 
   useEffect(() => {
     loadData();
@@ -142,114 +157,117 @@ export default function Challenges() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Your journey</Text>
-        <Text style={styles.title}>Growth Challenges</Text>
+    <GradientBackground colors={['#fef3c7', '#fde68a', '#fcd34d']}>
+      <View style={styles.container}>
+        <FloatingActionButton visible={showFAB} />
         
-        <View style={styles.statsContainer}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{activeProgress.length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>
-              {activeProgress.reduce((sum, p) => sum + p.points, 0)}
-            </Text>
-            <Text style={styles.statLabel}>Points</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Status Messages */}
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-      
-      {success && (
-        <View style={styles.successContainer}>
-          <Text style={styles.successText}>{success}</Text>
-        </View>
-      )}
-
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {challenges.map((challenge) => {
-          const progress = getProgressForChallenge(challenge.id);
-          return (
-            <ChallengeCard
-              key={challenge.id}
-              challenge={challenge}
-              progress={progress}
-              onStart={() => startChallenge(challenge)}
-              onContinue={() => progress && continueChallenge(challenge, progress)}
-            />
-          );
-        })}
-      </Animated.ScrollView>
-
-      {/* Day Modal */}
-      <Modal
-        visible={showDayModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setShowDayModal(false)}
-              style={styles.closeButton}
-            >
-              <X size={24} color="#64748b" strokeWidth={1.5} />
-            </TouchableOpacity>
-            
-            <View style={styles.modalTitleContainer}>
-              <Text style={styles.modalTitle}>
-                {selectedChallenge?.title}
-              </Text>
-              <Text style={styles.modalSubtitle}>Day {currentDay}</Text>
-            </View>
-          </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Your journey</Text>
+          <Text style={styles.title}>Growth Challenges</Text>
           
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.promptContainer}>
-              <Text style={styles.promptText}>
-                {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
+          <View style={styles.statsContainer}>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{activeProgress.length}</Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>
+                {activeProgress.reduce((sum, p) => sum + p.points, 0)}
               </Text>
+              <Text style={styles.statLabel}>Points</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Status Messages */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        
+        {success && (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{success}</Text>
+          </View>
+        )}
+
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {challenges.map((challenge) => {
+            const progress = getProgressForChallenge(challenge.id);
+            return (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                progress={progress}
+                onStart={() => startChallenge(challenge)}
+                onContinue={() => progress && continueChallenge(challenge, progress)}
+              />
+            );
+          })}
+        </Animated.ScrollView>
+
+        {/* Day Modal */}
+        <Modal
+          visible={showDayModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowDayModal(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#64748b" strokeWidth={1.5} />
+              </TouchableOpacity>
+              
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>
+                  {selectedChallenge?.title}
+                </Text>
+                <Text style={styles.modalSubtitle}>Day {currentDay}</Text>
+              </View>
             </View>
             
-            <TextInput
-              style={styles.responseInput}
-              placeholder="Write your response here..."
-              placeholderTextColor="#94a3b8"
-              value={dayResponse}
-              onChangeText={setDayResponse}
-              multiline
-              textAlignVertical="top"
-            />
-            
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={submitDayResponse}
-            >
-              <Check size={18} color="#ffffff" strokeWidth={1.5} />
-              <Text style={styles.submitButtonText}>Submit Response</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
-    </View>
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.promptContainer}>
+                <Text style={styles.promptText}>
+                  {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
+                </Text>
+              </View>
+              
+              <TextInput
+                style={styles.responseInput}
+                placeholder="Write your response here..."
+                placeholderTextColor="#94a3b8"
+                value={dayResponse}
+                onChangeText={setDayResponse}
+                multiline
+                textAlignVertical="top"
+              />
+              
+              <AnimatedButton
+                style={styles.submitButton}
+                onPress={submitDayResponse}
+              >
+                <View style={styles.submitButtonContent}>
+                  <Check size={18} color="#ffffff" strokeWidth={1.5} />
+                  <Text style={styles.submitButtonText}>Submit Response</Text>
+                </View>
+              </AnimatedButton>
+            </ScrollView>
+          </View>
+        </Modal>
+      </View>
+    </GradientBackground>
   );
 }
 
@@ -280,7 +298,7 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
               <Text style={styles.progressText}>{completionPercentage}%</Text>
             </View>
           ) : (
-            <Target size={20} color="#64748b" strokeWidth={1.5} />
+            <Target size={20} color="#f59e0b" strokeWidth={1.5} />
           )}
         </View>
       </View>
@@ -305,15 +323,17 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
         </View>
       )}
       
-      <TouchableOpacity
+      <AnimatedButton
         style={[styles.actionButton, isStarted ? styles.continueButton : styles.startButton]}
         onPress={isStarted ? onContinue : onStart}
       >
-        <Play size={16} color="#ffffff" strokeWidth={1.5} />
-        <Text style={styles.actionButtonText}>
-          {isStarted ? 'Continue Journey' : 'Start Challenge'}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.actionButtonContent}>
+          <Play size={16} color="#ffffff" strokeWidth={1.5} />
+          <Text style={styles.actionButtonText}>
+            {isStarted ? 'Continue Journey' : 'Start Challenge'}
+          </Text>
+        </View>
+      </AnimatedButton>
     </View>
   );
 }
@@ -321,7 +341,6 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   header: {
     paddingTop: 60,
@@ -394,7 +413,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -431,7 +450,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#fef3c7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -479,16 +498,18 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
+  },
+  actionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   startButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#f59e0b',
   },
   continueButton: {
     backgroundColor: '#059669',
@@ -576,15 +597,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#059669',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    gap: 8,
     marginBottom: 40,
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   submitButtonText: {
     color: '#ffffff',

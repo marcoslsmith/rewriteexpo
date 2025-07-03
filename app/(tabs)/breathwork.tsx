@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { Wind, Play, Pause, RotateCcw, ArrowLeft } from 'lucide-react-native';
 import { breathingPatterns, BreathingPattern } from '../../lib/breathingPatterns';
+import GradientBackground from '../../components/GradientBackground';
+import AnimatedButton from '../../components/AnimatedButton';
+import FloatingActionButton from '../../components/FloatingActionButton';
 
 export default function Breathwork() {
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern | null>(null);
@@ -20,10 +23,22 @@ export default function Breathwork() {
   const [cycleCount, setCycleCount] = useState(0);
   const [intention, setIntention] = useState('');
   const [showIntention, setShowIntention] = useState(false);
+  const [showFAB, setShowFAB] = useState(true);
 
   const animatedValue = useRef(new Animated.Value(0.5)).current;
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        setShowFAB(currentScrollY < 100);
+      },
+    }
+  );
 
   useEffect(() => {
     if (isActive && selectedPattern && timeRemaining > 0) {
@@ -118,115 +133,118 @@ export default function Breathwork() {
 
   if (selectedPattern) {
     return (
-      <View style={styles.sessionContainer}>
-        <View style={styles.sessionHeader}>
-          <TouchableOpacity onPress={stopSession} style={styles.backButton}>
-            <ArrowLeft size={24} color="#0f172a" strokeWidth={1.5} />
-          </TouchableOpacity>
-          
-          <View style={styles.sessionInfo}>
-            <Text style={styles.sessionTitle}>{selectedPattern.name}</Text>
-            <Text style={styles.sessionSubtitle}>Cycle {cycleCount + 1}</Text>
+      <GradientBackground colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}>
+        <View style={styles.sessionContainer}>
+          <View style={styles.sessionHeader}>
+            <TouchableOpacity onPress={stopSession} style={styles.backButton}>
+              <ArrowLeft size={24} color="#0f172a" strokeWidth={1.5} />
+            </TouchableOpacity>
+            
+            <View style={styles.sessionInfo}>
+              <Text style={styles.sessionTitle}>{selectedPattern.name}</Text>
+              <Text style={styles.sessionSubtitle}>Cycle {cycleCount + 1}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.visualizerContainer}>
-          <Animated.View
-            style={[
-              styles.breathingCircle,
-              {
-                transform: [{
-                  scale: animatedValue.interpolate({
+          <View style={styles.visualizerContainer}>
+            <Animated.View
+              style={[
+                styles.breathingCircle,
+                {
+                  transform: [{
+                    scale: animatedValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.6, 1.1],
+                    })
+                  }],
+                  opacity: animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.6, 1.1],
+                    outputRange: [0.4, 0.8],
                   })
-                }],
-                opacity: animatedValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.4, 0.8],
-                })
-              }
-            ]}
-          />
-          
-          <View style={styles.phaseInfo}>
-            <Text style={styles.phaseText}>
-              {selectedPattern.phases[currentPhase].name}
-            </Text>
-            <Text style={styles.instructionText}>
-              {selectedPattern.phases[currentPhase].instruction}
-            </Text>
-            <Text style={styles.timerText}>{timeRemaining}</Text>
+                }
+              ]}
+            />
+            
+            <View style={styles.phaseInfo}>
+              <Text style={styles.phaseText}>
+                {selectedPattern.phases[currentPhase].name}
+              </Text>
+              <Text style={styles.instructionText}>
+                {selectedPattern.phases[currentPhase].instruction}
+              </Text>
+              <Text style={styles.timerText}>{timeRemaining}</Text>
+            </View>
+          </View>
+
+          {showIntention && intention && (
+            <View style={styles.intentionDisplay}>
+              <Text style={styles.intentionText}>"{intention}"</Text>
+            </View>
+          )}
+
+          <View style={styles.sessionControls}>
+            <TouchableOpacity style={styles.controlButton} onPress={resetSession}>
+              <RotateCcw size={20} color="#64748b" strokeWidth={1.5} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.controlButton, styles.playButton]}
+              onPress={toggleSession}
+            >
+              {isActive ? (
+                <Pause size={28} color="#ffffff" strokeWidth={1.5} />
+              ) : (
+                <Play size={28} color="#ffffff" strokeWidth={1.5} />
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.controlButton} onPress={stopSession}>
+              <Text style={styles.stopButtonText}>Stop</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        {showIntention && intention && (
-          <View style={styles.intentionDisplay}>
-            <Text style={styles.intentionText}>"{intention}"</Text>
-          </View>
-        )}
-
-        <View style={styles.sessionControls}>
-          <TouchableOpacity style={styles.controlButton} onPress={resetSession}>
-            <RotateCcw size={20} color="#64748b" strokeWidth={1.5} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.controlButton, styles.playButton]}
-            onPress={toggleSession}
-          >
-            {isActive ? (
-              <Pause size={28} color="#ffffff" strokeWidth={1.5} />
-            ) : (
-              <Play size={28} color="#ffffff" strokeWidth={1.5} />
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.controlButton} onPress={stopSession}>
-            <Text style={styles.stopButtonText}>Stop</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      </GradientBackground>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Find your center</Text>
-        <Text style={styles.title}>Breathwork</Text>
-      </View>
+    <GradientBackground colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}>
+      <View style={styles.container}>
+        <FloatingActionButton visible={showFAB} />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Find your center</Text>
+          <Text style={styles.title}>Breathwork</Text>
+        </View>
 
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {breathingPatterns.map((pattern) => (
-          <PatternCard
-            key={pattern.id}
-            pattern={pattern}
-            onStart={() => {
-              if (pattern.supportsIntention) {
-                if (Platform.OS === 'web') {
-                  const intentionText = prompt('Set Your Intention (optional):');
-                  setIntention(intentionText || '');
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {breathingPatterns.map((pattern) => (
+            <PatternCard
+              key={pattern.id}
+              pattern={pattern}
+              onStart={() => {
+                if (pattern.supportsIntention) {
+                  if (Platform.OS === 'web') {
+                    const intentionText = prompt('Set Your Intention (optional):');
+                    setIntention(intentionText || '');
+                  }
+                  startSession(pattern);
+                } else {
+                  startSession(pattern);
                 }
-                startSession(pattern);
-              } else {
-                startSession(pattern);
-              }
-            }}
-          />
-        ))}
-      </Animated.ScrollView>
-    </View>
+              }}
+            />
+          ))}
+        </Animated.ScrollView>
+      </View>
+    </GradientBackground>
   );
 }
 
@@ -244,7 +262,7 @@ function PatternCard({ pattern, onStart }: PatternCardProps) {
           <Text style={styles.cardDuration}>{pattern.totalDuration}s cycle</Text>
         </View>
         <View style={styles.iconContainer}>
-          <Wind size={20} color="#64748b" strokeWidth={1.5} />
+          <Wind size={20} color="#0ea5e9" strokeWidth={1.5} />
         </View>
       </View>
       
@@ -264,14 +282,16 @@ function PatternCard({ pattern, onStart }: PatternCardProps) {
       <View style={styles.benefits}>
         <Text style={styles.benefitsTitle}>Benefits</Text>
         {pattern.benefits.map((benefit, index) => (
-          <Text key={index} style={styles.benefitItem}>{benefit}</Text>
+          <Text key={index} style={styles.benefitItem}>• {benefit}</Text>
         ))}
       </View>
       
-      <TouchableOpacity style={styles.startButton} onPress={onStart}>
-        <Play size={16} color="#ffffff" strokeWidth={1.5} />
-        <Text style={styles.startButtonText}>Start Session</Text>
-      </TouchableOpacity>
+      <AnimatedButton onPress={onStart} style={styles.startButton}>
+        <View style={styles.startButtonContent}>
+          <Play size={16} color="#ffffff" strokeWidth={1.5} />
+          <Text style={styles.startButtonText}>Start Session</Text>
+        </View>
+      </AnimatedButton>
     </View>
   );
 }
@@ -279,7 +299,6 @@ function PatternCard({ pattern, onStart }: PatternCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   header: {
     paddingTop: 60,
@@ -303,7 +322,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -340,7 +359,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#e0f2fe',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -364,7 +383,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#cbd5e1',
+    backgroundColor: '#0ea5e9',
   },
   phaseItemText: {
     fontSize: 14,
@@ -388,13 +407,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0ea5e9',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
+  },
+  startButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   startButtonText: {
@@ -404,7 +425,6 @@ const styles = StyleSheet.create({
   },
   sessionContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   sessionHeader: {
     flexDirection: 'row',
@@ -451,7 +471,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#0ea5e9',
     position: 'absolute',
   },
   phaseInfo: {
@@ -514,7 +534,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0ea5e9',
   },
   stopButtonText: {
     color: '#64748b',

@@ -114,16 +114,18 @@ export default function Journal() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={handleScroll}
           scrollEventThrottle={16}
         >
+          {/* Brand Header */}
+          <View style={styles.brandHeader}>
+            <Text style={styles.brandTitle}>The Rewrite</Text>
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.greeting}>Good morning</Text>
-            <Text style={styles.title}>How are you feeling today?</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.title}>{getMotivationalGreeting()}</Text>
           </View>
 
           {/* Status Messages */}
@@ -148,31 +150,30 @@ export default function Journal() {
             
             <TextInput
               style={styles.textInput}
-              onScroll={handleScroll}
+              placeholder="Write about your thoughts, feelings, dreams, or challenges..."
+              placeholderTextColor="#94a3b8"
+              value={journalEntry}
+              onChangeText={setJournalEntry}
               multiline
               textAlignVertical="top"
             />
             
-            <View style={styles.brandHeader}>
-              <Text style={styles.brandTitle}>The Rewrite</Text>
-            </View>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.title}>{getMotivationalGreeting()}</Text>
-            <TouchableOpacity
+            <AnimatedButton
               onPress={handleTransform}
               disabled={isTransforming}
+              style={[styles.button, styles.transformButton]}
             >
               <View style={styles.buttonContent}>
-              {isTransforming ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
-              )}
-              <Text style={styles.buttonText}>
-                {isTransforming ? 'Transforming...' : 'Transform with AI'}
-              </Text>
+                {isTransforming ? (
+                  <LoadingShimmer width={18} height={18} borderRadius={9} />
+                ) : (
+                  <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
+                )}
+                <Text style={styles.buttonText}>
+                  {isTransforming ? 'Transforming...' : 'Transform with AI'}
+                </Text>
               </View>
-            </TouchableOpacity>
+            </AnimatedButton>
           </View>
 
           {/* Manifestation Result */}
@@ -237,9 +238,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  header: {
-    marginBottom: 32,
-  },
   brandHeader: {
     alignItems: 'center',
     marginBottom: 24,
@@ -249,6 +247,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: '#1e293b',
     letterSpacing: -0.5,
+  },
+  header: {
+    marginBottom: 32,
+    alignItems: 'center',
   },
   greeting: {
     fontSize: 16,

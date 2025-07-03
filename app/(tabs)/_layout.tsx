@@ -1,11 +1,10 @@
 import { Tabs } from 'expo-router';
 import { useRef, useEffect } from 'react';
 import { Animated } from 'react-native';
-import { CreditCard as Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
+import { Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   const translateY = useRef(new Animated.Value(0)).current;
-  const lastScrollY = useRef(0);
 
   return (
     <Tabs
