@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,9 @@ import {
   StyleSheet,
   TextInput,
   Modal,
-  Image,
+  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Play, Calendar, Award, Target, Check } from 'lucide-react-native';
+import { Target, Play, Calendar, Award, Check, ArrowLeft, X } from 'lucide-react-native';
 import { challengeService, challengePrompts } from '../../lib/challenges';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
@@ -28,6 +27,7 @@ export default function Challenges() {
   const [dayResponse, setDayResponse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadData();
@@ -69,7 +69,6 @@ export default function Challenges() {
       
       await loadData();
       
-      // Start the first day
       const newProgress = (await storageService.getChallengeProgress())
         .find(p => p.challenge_id === challenge.id && !p.completed_at);
       
@@ -88,13 +87,11 @@ export default function Challenges() {
     setSelectedChallenge(challenge);
     setCurrentProgress(progress);
     
-    // Determine the next day to work on
     const nextDay = progress.completed_days.length + 1;
     if (nextDay <= challenge.duration) {
       setCurrentDay(nextDay);
       setShowDayModal(true);
     } else {
-      // Challenge is complete
       setSuccess(`Congratulations! You've completed the ${challenge.title}. Total points earned: ${progress.points}`);
       setTimeout(() => setSuccess(null), 5000);
     }
@@ -115,10 +112,9 @@ export default function Challenges() {
         streak: currentProgress.streak + 1,
       };
 
-      // Check if challenge is complete
       if (updatedProgress.completed_days!.length === selectedChallenge.duration) {
         updatedProgress.completed_at = new Date().toISOString();
-        updatedProgress.points = updatedProgress.points! + 50; // Bonus for completion
+        updatedProgress.points = updatedProgress.points! + 50;
       }
 
       await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
@@ -147,22 +143,10 @@ export default function Challenges() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#fef3c7', '#fcd34d', '#f59e0b']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Trophy size={32} color="#78350f" />
-          <Text style={styles.title}>Challenges</Text>
-          <Text style={styles.subtitle}>
-            Transform your life through guided journeys
-          </Text>
-        </View>
-        
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>Your journey</Text>
+        <Text style={styles.title}>Growth Challenges</Text>
         
         <View style={styles.statsContainer}>
           <View style={styles.stat}>
@@ -176,8 +160,9 @@ export default function Challenges() {
             <Text style={styles.statLabel}>Points</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
+      {/* Status Messages */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -190,7 +175,16 @@ export default function Challenges() {
         </View>
       )}
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {challenges.map((challenge) => {
           const progress = getProgressForChallenge(challenge.id);
           return (
@@ -203,8 +197,9 @@ export default function Challenges() {
             />
           );
         })}
-      </ScrollView>
+      </Animated.ScrollView>
 
+      {/* Day Modal */}
       <Modal
         visible={showDayModal}
         animationType="slide"
@@ -212,29 +207,35 @@ export default function Challenges() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {selectedChallenge?.title} - Day {currentDay}
-            </Text>
             <TouchableOpacity
               onPress={() => setShowDayModal(false)}
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <X size={24} color="#64748b" strokeWidth={1.5} />
             </TouchableOpacity>
+            
+            <View style={styles.modalTitleContainer}>
+              <Text style={styles.modalTitle}>
+                {selectedChallenge?.title}
+              </Text>
+              <Text style={styles.modalSubtitle}>Day {currentDay}</Text>
+            </View>
           </View>
           
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.promptText}>
-              {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
-            </Text>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.promptContainer}>
+              <Text style={styles.promptText}>
+                {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
+              </Text>
+            </View>
             
             <TextInput
               style={styles.responseInput}
               placeholder="Write your response here..."
+              placeholderTextColor="#94a3b8"
               value={dayResponse}
               onChangeText={setDayResponse}
               multiline
-              numberOfLines={8}
               textAlignVertical="top"
             />
             
@@ -242,7 +243,7 @@ export default function Challenges() {
               style={styles.submitButton}
               onPress={submitDayResponse}
             >
-              <Check size={20} color="#ffffff" />
+              <Check size={18} color="#ffffff" strokeWidth={1.5} />
               <Text style={styles.submitButtonText}>Submit Response</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -273,11 +274,15 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
           <Text style={styles.cardDuration}>{challenge.duration} days</Text>
         </View>
         
-        {isStarted && (
-          <View style={styles.progressBadge}>
-            <Text style={styles.progressText}>{completionPercentage}%</Text>
-          </View>
-        )}
+        <View style={styles.iconContainer}>
+          {isStarted ? (
+            <View style={styles.progressBadge}>
+              <Text style={styles.progressText}>{completionPercentage}%</Text>
+            </View>
+          ) : (
+            <Target size={20} color="#64748b" strokeWidth={1.5} />
+          )}
+        </View>
       </View>
       
       <Text style={styles.cardDescription}>{challenge.description}</Text>
@@ -304,17 +309,10 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
         style={[styles.actionButton, isStarted ? styles.continueButton : styles.startButton]}
         onPress={isStarted ? onContinue : onStart}
       >
-        {isStarted ? (
-          <>
-            <Play size={20} color="#ffffff" />
-            <Text style={styles.actionButtonText}>Continue Journey</Text>
-          </>
-        ) : (
-          <>
-            <Target size={20} color="#ffffff" />
-            <Text style={styles.actionButtonText}>Start Challenge</Text>
-          </>
-        )}
+        <Play size={16} color="#ffffff" strokeWidth={1.5} />
+        <Text style={styles.actionButtonText}>
+          {isStarted ? 'Continue Journey' : 'Start Challenge'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -323,149 +321,153 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 30,
     paddingHorizontal: 20,
-    position: 'relative',
+    paddingBottom: 24,
   },
-  headerContent: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.3,
+  greeting: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+    marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#78350f',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#b45309',
-    opacity: 0.8,
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+    lineHeight: 34,
+    marginBottom: 24,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
+    gap: 32,
   },
   stat: {
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#78350f',
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
   },
   statLabel: {
     fontSize: 12,
-    color: '#b45309',
-    opacity: 0.8,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
+    marginTop: 2,
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#d1fae5',
-    padding: 12,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   successText: {
-    color: '#065f46',
+    color: '#16a34a',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    padding: 24,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   challengeInfo: {
     flex: 1,
   },
   cardTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
     marginBottom: 4,
   },
   cardDuration: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressBadge: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#059669',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
+    minWidth: 40,
+    alignItems: 'center',
   },
   progressText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Inter-SemiBold',
   },
   cardDescription: {
     fontSize: 16,
-    color: '#4b5563',
-    lineHeight: 22,
-    marginBottom: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#475569',
+    lineHeight: 24,
+    marginBottom: 20,
   },
   progressInfo: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    marginBottom: 8,
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 3,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 4,
+    backgroundColor: '#059669',
+    borderRadius: 3,
   },
   progressStats: {
     flexDirection: 'row',
@@ -473,91 +475,120 @@ const styles = StyleSheet.create({
   },
   progressStat: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    gap: 8,
-  },
-  startButton: {
-    backgroundColor: '#f59e0b',
-  },
-  continueButton: {
-    backgroundColor: '#10b981',
-  },
-  actionButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    flex: 1,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    color: '#6b7280',
-    fontSize: 16,
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  promptText: {
-    fontSize: 18,
-    color: '#1f2937',
-    lineHeight: 26,
-    marginBottom: 24,
-    fontWeight: '600',
-  },
-  responseInput: {
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 200,
-    backgroundColor: '#f9fafb',
-    color: '#1f2937',
-    textAlignVertical: 'top',
-    marginBottom: 24,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#10b981',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
   },
+  startButton: {
+    backgroundColor: '#2563eb',
+  },
+  continueButton: {
+    backgroundColor: '#059669',
+  },
+  actionButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    gap: 16,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  modalTitleContainer: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  promptContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  promptText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    color: '#0f172a',
+    lineHeight: 26,
+  },
+  responseInput: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    minHeight: 200,
+    color: '#0f172a',
+    marginBottom: 24,
+    textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    lineHeight: 24,
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 40,
+  },
   submitButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Inter-SemiBold',
   },
 });

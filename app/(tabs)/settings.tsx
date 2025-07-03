@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,19 @@ import {
   TextInput,
   Modal,
   Switch,
-  Image,
   Platform,
+  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  Settings as SettingsIcon, 
   User, 
   Bell, 
   Trash2, 
   LogOut, 
   Plus,
   Clock,
-  TestTube
+  TestTube,
+  X,
+  Mail
 } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { storageService } from '../../lib/storage';
@@ -37,12 +37,13 @@ export default function Settings() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [newSchedule, setNewSchedule] = useState({
     title: 'Daily Manifestation',
     message: '',
     useRandomManifestation: true,
     time: '09:00',
-    days: [1, 2, 3, 4, 5, 6, 0], // Monday to Sunday
+    days: [1, 2, 3, 4, 5, 6, 0],
     isActive: true,
   });
 
@@ -170,7 +171,6 @@ export default function Settings() {
     return days[day];
   };
 
-  // Clear messages after 3 seconds
   useEffect(() => {
     if (error || success) {
       const timer = setTimeout(() => {
@@ -183,24 +183,13 @@ export default function Settings() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#f3f4f6', '#e5e7eb', '#d1d5db']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <SettingsIcon size={32} color="#374151" />
-          <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>
-            Manage your account and preferences
-          </Text>
-        </View>
-        
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
-      </LinearGradient>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>Your account</Text>
+        <Text style={styles.title}>Profile & Settings</Text>
+      </View>
 
+      {/* Status Messages */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -213,24 +202,38 @@ export default function Settings() {
         </View>
       )}
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           {user ? (
-            <View style={styles.userInfo}>
-              <User size={24} color="#4b5563" />
-              <View style={styles.userDetails}>
-                <Text style={styles.userEmail}>{user.email}</Text>
-                <Text style={styles.userStatus}>Signed in</Text>
+            <View style={styles.userCard}>
+              <View style={styles.userInfo}>
+                <View style={styles.userAvatar}>
+                  <User size={20} color="#64748b" strokeWidth={1.5} />
+                </View>
+                <View style={styles.userDetails}>
+                  <Text style={styles.userEmail}>{user.email}</Text>
+                  <Text style={styles.userStatus}>Signed in</Text>
+                </View>
               </View>
               <TouchableOpacity onPress={signOut} style={styles.signOutButton}>
-                <LogOut size={20} color="#dc2626" />
+                <LogOut size={18} color="#ef4444" strokeWidth={1.5} />
+                <Text style={styles.signOutText}>Sign Out</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity style={styles.signInButton} onPress={() => setShowSignInModal(true)}>
-              <User size={20} color="#ffffff" />
+              <Mail size={18} color="#ffffff" strokeWidth={1.5} />
               <Text style={styles.signInButtonText}>Sign In</Text>
             </TouchableOpacity>
           )}
@@ -244,12 +247,12 @@ export default function Settings() {
               style={styles.addButton}
               onPress={() => setShowScheduleModal(true)}
             >
-              <Plus size={20} color="#ffffff" />
+              <Plus size={18} color="#ffffff" strokeWidth={1.5} />
             </TouchableOpacity>
           </View>
           
           <TouchableOpacity style={styles.testButton} onPress={testNotification}>
-            <TestTube size={20} color="#6366f1" />
+            <TestTube size={18} color="#2563eb" strokeWidth={1.5} />
             <Text style={styles.testButtonText}>Test Notifications</Text>
           </TouchableOpacity>
 
@@ -260,19 +263,24 @@ export default function Settings() {
                 <Switch
                   value={schedule.is_active}
                   onValueChange={() => toggleSchedule(schedule.id)}
+                  trackColor={{ false: '#e2e8f0', true: '#dbeafe' }}
+                  thumbColor={schedule.is_active ? '#2563eb' : '#94a3b8'}
                 />
               </View>
               
-              <Text style={styles.scheduleTime}>
-                <Clock size={16} color="#6b7280" /> {schedule.time}
-              </Text>
-              
-              <View style={styles.scheduleDays}>
-                {schedule.days.map(day => (
-                  <Text key={day} style={styles.dayBadge}>
-                    {getDayName(day)}
-                  </Text>
-                ))}
+              <View style={styles.scheduleDetails}>
+                <View style={styles.scheduleTime}>
+                  <Clock size={14} color="#64748b" strokeWidth={1.5} />
+                  <Text style={styles.scheduleTimeText}>{schedule.time}</Text>
+                </View>
+                
+                <View style={styles.scheduleDays}>
+                  {schedule.days.map(day => (
+                    <Text key={day} style={styles.dayBadge}>
+                      {getDayName(day)}
+                    </Text>
+                  ))}
+                </View>
               </View>
               
               <Text style={styles.scheduleMessage}>
@@ -286,16 +294,19 @@ export default function Settings() {
                 style={styles.deleteScheduleButton}
                 onPress={() => deleteSchedule(schedule.id)}
               >
-                <Trash2 size={16} color="#dc2626" />
+                <Trash2 size={14} color="#ef4444" strokeWidth={1.5} />
                 <Text style={styles.deleteScheduleText}>Delete</Text>
               </TouchableOpacity>
             </View>
           ))}
           
           {notificationSchedules.length === 0 && (
-            <Text style={styles.emptyText}>
-              No notification schedules yet. Tap + to create one.
-            </Text>
+            <View style={styles.emptyState}>
+              <Bell size={32} color="#cbd5e1" strokeWidth={1.5} />
+              <Text style={styles.emptyText}>
+                No notification schedules yet. Tap + to create one.
+              </Text>
+            </View>
           )}
         </View>
 
@@ -303,11 +314,11 @@ export default function Settings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data</Text>
           <TouchableOpacity style={styles.dangerButton} onPress={clearAllData}>
-            <Trash2 size={20} color="#ffffff" />
+            <Trash2 size={18} color="#ffffff" strokeWidth={1.5} />
             <Text style={styles.dangerButtonText}>Clear All Data</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Sign In Modal */}
       <Modal
@@ -317,25 +328,32 @@ export default function Settings() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sign In</Text>
             <TouchableOpacity
               onPress={() => setShowSignInModal(false)}
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <X size={24} color="#64748b" strokeWidth={1.5} />
             </TouchableOpacity>
+            
+            <View style={styles.modalTitleContainer}>
+              <Text style={styles.modalTitle}>Sign In</Text>
+              <Text style={styles.modalSubtitle}>Access your account</Text>
+            </View>
           </View>
           
           <View style={styles.modalContent}>
-            <Text style={styles.inputLabel}>Email Address</Text>
-            <TextInput
-              style={styles.textInput}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                style={styles.textInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                placeholderTextColor="#94a3b8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
             
             <TouchableOpacity
               style={styles.createButton}
@@ -359,16 +377,20 @@ export default function Settings() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Notification Schedule</Text>
             <TouchableOpacity
               onPress={() => setShowScheduleModal(false)}
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <X size={24} color="#64748b" strokeWidth={1.5} />
             </TouchableOpacity>
+            
+            <View style={styles.modalTitleContainer}>
+              <Text style={styles.modalTitle}>New Notification</Text>
+              <Text style={styles.modalSubtitle}>Create a reminder schedule</Text>
+            </View>
           </View>
           
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Title</Text>
               <TextInput
@@ -376,6 +398,7 @@ export default function Settings() {
                 value={newSchedule.title}
                 onChangeText={(text) => setNewSchedule({...newSchedule, title: text})}
                 placeholder="e.g., Morning Manifestation"
+                placeholderTextColor="#94a3b8"
               />
             </View>
             
@@ -386,6 +409,7 @@ export default function Settings() {
                 value={newSchedule.time}
                 onChangeText={(text) => setNewSchedule({...newSchedule, time: text})}
                 placeholder="HH:MM (24-hour format)"
+                placeholderTextColor="#94a3b8"
               />
             </View>
             
@@ -395,6 +419,8 @@ export default function Settings() {
                 <Switch
                   value={newSchedule.useRandomManifestation}
                   onValueChange={(value) => setNewSchedule({...newSchedule, useRandomManifestation: value})}
+                  trackColor={{ false: '#e2e8f0', true: '#dbeafe' }}
+                  thumbColor={newSchedule.useRandomManifestation ? '#2563eb' : '#94a3b8'}
                 />
               </View>
             </View>
@@ -407,8 +433,9 @@ export default function Settings() {
                   value={newSchedule.message}
                   onChangeText={(text) => setNewSchedule({...newSchedule, message: text})}
                   placeholder="Enter your custom notification message"
+                  placeholderTextColor="#94a3b8"
                   multiline
-                  numberOfLines={3}
+                  textAlignVertical="top"
                 />
               </View>
             )}
@@ -429,67 +456,61 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 30,
     paddingHorizontal: 20,
-    position: 'relative',
+    paddingBottom: 24,
   },
-  headerContent: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.3,
+  greeting: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+    marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    opacity: 0.8,
-    textAlign: 'center',
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+    lineHeight: 34,
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#d1fae5',
-    padding: 12,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   successText: {
-    color: '#065f46',
+    color: '#16a34a',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   section: {
     marginBottom: 32,
@@ -502,46 +523,72 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
   },
   addButton: {
-    backgroundColor: '#3b82f6',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: '#2563eb',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  userCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: 16,
     gap: 12,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userDetails: {
     flex: 1,
   },
   userEmail: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+    marginBottom: 2,
   },
   userStatus: {
     fontSize: 14,
-    color: '#10b981',
+    fontFamily: 'Inter-Regular',
+    color: '#059669',
   },
   signOutButton: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#ef4444',
   },
   signInButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
+    backgroundColor: '#2563eb',
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
@@ -549,7 +596,7 @@ const styles = StyleSheet.create({
   signInButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   testButton: {
     flexDirection: 'row',
@@ -563,74 +610,98 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   testButtonText: {
-    color: '#6366f1',
+    color: '#2563eb',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   scheduleCard: {
-    backgroundColor: '#f9fafb',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   scheduleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   scheduleTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+  },
+  scheduleDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   scheduleTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scheduleTimeText: {
     fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
   },
   scheduleDays: {
     flexDirection: 'row',
     gap: 4,
-    marginBottom: 8,
   },
   dayBadge: {
-    backgroundColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
-    fontSize: 12,
-    color: '#374151',
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#475569',
   },
   scheduleMessage: {
     fontSize: 14,
-    color: '#4b5563',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
     fontStyle: 'italic',
     marginBottom: 12,
+    lineHeight: 20,
   },
   deleteScheduleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    paddingVertical: 4,
   },
   deleteScheduleText: {
     fontSize: 14,
-    color: '#dc2626',
+    fontFamily: 'Inter-Medium',
+    color: '#ef4444',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
   },
   emptyText: {
     fontSize: 14,
-    color: '#9ca3af',
+    fontFamily: 'Inter-Regular',
+    color: '#94a3b8',
     textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: 12,
+    lineHeight: 20,
   },
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#dc2626',
-    paddingVertical: 12,
+    backgroundColor: '#ef4444',
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
@@ -638,56 +709,73 @@ const styles = StyleSheet.create({
   dangerButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 60,
-    paddingBottom: 20,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingBottom: 24,
+    gap: 16,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  modalTitleContainer: {
+    flex: 1,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    flex: 1,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+    marginBottom: 2,
   },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    color: '#6b7280',
+  modalSubtitle: {
     fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
   },
   modalContent: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
     marginBottom: 8,
   },
   textInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
     backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#0f172a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   textArea: {
     minHeight: 80,
@@ -699,23 +787,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#2563eb',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
+    marginBottom: 20,
   },
   createButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Inter-SemiBold',
   },
   helpText: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
     textAlign: 'center',
-    marginTop: 16,
     lineHeight: 20,
   },
 });
