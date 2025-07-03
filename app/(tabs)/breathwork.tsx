@@ -208,7 +208,6 @@ export default function Breathwork() {
       />
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <LinearGradient
             colors={['#3b82f6', '#2563eb']}
