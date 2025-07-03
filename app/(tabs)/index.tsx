@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,23 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Image,
+  Animated,
+  Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Save, BookOpen } from 'lucide-react-native';
+import { Sparkles, Save, Plus } from 'lucide-react-native';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
 
-export default function DreamLab() {
+const { width } = Dimensions.get('window');
+
+export default function Journal() {
   const [journalEntry, setJournalEntry] = useState('');
   const [transformedText, setTransformedText] = useState('');
   const [isTransforming, setIsTransforming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const handleTransform = async () => {
     if (!journalEntry.trim()) {
@@ -35,7 +38,7 @@ export default function DreamLab() {
     try {
       const transformed = await transformJournalEntry(journalEntry);
       setTransformedText(transformed);
-      setError(null); // Clear any previous errors on success
+      setError(null);
     } catch (error) {
       setError('Failed to transform your entry. Please check your connection and try again.');
       console.error('Transformation error:', error);
@@ -62,13 +65,11 @@ export default function DreamLab() {
         tags: [],
       });
       
-      setSuccess('Your manifestation has been saved to My Rewrite!');
+      setSuccess('Your manifestation has been saved!');
       
-      // Clear the form
       setJournalEntry('');
       setTransformedText('');
       
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       setError('Failed to save your manifestation. Please try again.');
@@ -79,26 +80,24 @@ export default function DreamLab() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient
-        colors={['#faf5ff', '#f3e8ff', '#e0e7ff']}
-        style={styles.header}
+    <View style={styles.container}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       >
-        <View style={styles.headerContent}>
-          <BookOpen size={32} color="#581c87" />
-          <Text style={styles.title}>Dream Lab</Text>
-          <Text style={styles.subtitle}>
-            Transform your thoughts into powerful manifestations
-          </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Good morning</Text>
+          <Text style={styles.title}>How are you feeling today?</Text>
         </View>
-        
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
-      </LinearGradient>
 
-      <View style={styles.content}>
+        {/* Status Messages */}
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -111,15 +110,20 @@ export default function DreamLab() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Journal Entry</Text>
+        {/* Journal Entry Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Plus size={20} color="#64748b" strokeWidth={1.5} />
+            <Text style={styles.cardTitle}>New Entry</Text>
+          </View>
+          
           <TextInput
             style={styles.textInput}
-            placeholder="Write about your thoughts, feelings, dreams, or challenges... Our AI will transform them into powerful manifestations."
+            placeholder="Write about your thoughts, feelings, dreams, or challenges..."
+            placeholderTextColor="#94a3b8"
             value={journalEntry}
             onChangeText={setJournalEntry}
             multiline
-            numberOfLines={6}
             textAlignVertical="top"
           />
           
@@ -129,22 +133,24 @@ export default function DreamLab() {
             disabled={isTransforming}
           >
             {isTransforming ? (
-              <>
-                <ActivityIndicator color="#ffffff" size="small" />
-                <Text style={styles.buttonText}>Transforming...</Text>
-              </>
+              <ActivityIndicator color="#ffffff" size="small" />
             ) : (
-              <>
-                <Sparkles size={20} color="#ffffff" />
-                <Text style={styles.buttonText}>Transform with AI</Text>
-              </>
+              <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
             )}
+            <Text style={styles.buttonText}>
+              {isTransforming ? 'Transforming...' : 'Transform with AI'}
+            </Text>
           </TouchableOpacity>
         </View>
 
+        {/* Manifestation Result */}
         {transformedText ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Manifestation</Text>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Sparkles size={20} color="#2563eb" strokeWidth={1.5} />
+              <Text style={styles.cardTitle}>Your Manifestation</Text>
+            </View>
+            
             <View style={styles.manifestationCard}>
               <Text style={styles.manifestationText}>{transformedText}</Text>
             </View>
@@ -155,170 +161,182 @@ export default function DreamLab() {
               disabled={isSaving}
             >
               {isSaving ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color="#ffffff" size="small" />
               ) : (
-                <>
-                  <Save size={20} color="#ffffff" />
-                  <Text style={styles.buttonText}>Save to My Rewrite</Text>
-                </>
+                <Save size={18} color="#ffffff" strokeWidth={1.5} />
               )}
+              <Text style={styles.buttonText}>
+                {isSaving ? 'Saving...' : 'Save to Library'}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        <View style={styles.tipsSection}>
-          <Text style={styles.tipsTitle}>Tips for Better Manifestations</Text>
-          <View style={styles.tip}>
-            <Text style={styles.tipText}>• Write honestly about your current thoughts and feelings</Text>
-          </View>
-          <View style={styles.tip}>
+        {/* Tips Section */}
+        <View style={styles.tipsCard}>
+          <Text style={styles.tipsTitle}>Writing Tips</Text>
+          <View style={styles.tipsList}>
+            <Text style={styles.tipText}>• Be honest about your current thoughts and feelings</Text>
             <Text style={styles.tipText}>• Share your challenges, fears, or limiting beliefs</Text>
-          </View>
-          <View style={styles.tip}>
-            <Text style={styles.tipText}>• Describe what you want to create or change in your life</Text>
-          </View>
-          <View style={styles.tip}>
-            <Text style={styles.tipText}>• Our AI will transform your words into empowering affirmations</Text>
+            <Text style={styles.tipText}>• Describe what you want to create or change</Text>
+            <Text style={styles.tipText}>• Let AI transform your words into empowering affirmations</Text>
           </View>
         </View>
-      </View>
-    </ScrollView>
+      </Animated.ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    position: 'relative',
+    marginBottom: 32,
   },
-  headerContent: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    opacity: 0.3,
+  greeting: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+    marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#581c87',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#7c3aed',
-    opacity: 0.8,
-    textAlign: 'center',
-  },
-  content: {
-    padding: 20,
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+    lineHeight: 34,
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#d1fae5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
   },
   successText: {
-    color: '#065f46',
+    color: '#16a34a',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  section: {
-    marginBottom: 30,
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 15,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
   },
   textInput: {
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    minHeight: 120,
-    backgroundColor: '#f9fafb',
-    color: '#1f2937',
+    fontFamily: 'Inter-Regular',
+    minHeight: 140,
+    backgroundColor: '#f8fafc',
+    color: '#0f172a',
+    marginBottom: 20,
+    lineHeight: 24,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
-    marginTop: 15,
     gap: 8,
   },
   transformButton: {
-    backgroundColor: '#a855f7',
+    backgroundColor: '#2563eb',
   },
   saveButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#059669',
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Inter-SemiBold',
   },
   manifestationCard: {
-    backgroundColor: '#faf5ff',
-    borderWidth: 2,
-    borderColor: '#e9d5ff',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 20,
+    marginBottom: 20,
   },
   manifestationText: {
     fontSize: 18,
     lineHeight: 28,
-    color: '#581c87',
-    fontWeight: '500',
+    color: '#1e293b',
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  tipsSection: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: 12,
-    padding: 20,
+  tipsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   tipsTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1e3a8a',
-    marginBottom: 15,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+    marginBottom: 16,
   },
-  tip: {
-    marginBottom: 8,
+  tipsList: {
+    gap: 12,
   },
   tipText: {
-    fontSize: 14,
-    color: '#1e40af',
-    lineHeight: 20,
+    fontSize: 15,
+    color: '#475569',
+    fontFamily: 'Inter-Regular',
+    lineHeight: 22,
   },
 });

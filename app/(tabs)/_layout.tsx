@@ -1,68 +1,76 @@
 import { Tabs } from 'expo-router';
-import { BookOpen, Heart, Wind, Trophy, Settings } from 'lucide-react-native';
+import { Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#a855f7',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 88,
+          borderTopWidth: 0,
+          paddingBottom: 34,
+          paddingTop: 12,
+          height: 90,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 11,
+          fontFamily: 'Inter-Medium',
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dream Lab',
+          title: 'Journal',
           tabBarIcon: ({ size, color }) => (
-            <BookOpen size={size} color={color} />
+            <Edit3 size={22} color={color} strokeWidth={1.5} />
           ),
         }}
       />
       <Tabs.Screen
         name="rewrite"
         options={{
-          title: 'My Rewrite',
+          title: 'Library',
           tabBarIcon: ({ size, color }) => (
-            <Heart size={size} color={color} />
+            <Heart size={22} color={color} strokeWidth={1.5} />
           ),
         }}
       />
       <Tabs.Screen
         name="breathwork"
         options={{
-          title: 'Breathwork',
+          title: 'Breathe',
           tabBarIcon: ({ size, color }) => (
-            <Wind size={size} color={color} />
+            <Wind size={22} color={color} strokeWidth={1.5} />
           ),
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
-          title: 'Challenges',
+          title: 'Growth',
           tabBarIcon: ({ size, color }) => (
-            <Trophy size={size} color={color} />
+            <Target size={22} color={color} strokeWidth={1.5} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: 'Profile',
           tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} />
+            <User size={22} color={color} strokeWidth={1.5} />
           ),
         }}
       />

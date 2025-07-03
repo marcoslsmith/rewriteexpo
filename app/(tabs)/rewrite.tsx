@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Image,
   Platform,
+  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Search, Filter, Copy, Star, StarOff, Clipboard } from 'lucide-react-native';
+import { Heart, Search, Star, Copy, Trash2, Filter } from 'lucide-react-native';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
 
 type Manifestation = Database['public']['Tables']['manifestations']['Row'];
 
-export default function MyRewrite() {
+export default function Library() {
   const [manifestations, setManifestations] = useState<Manifestation[]>([]);
   const [filteredManifestations, setFilteredManifestations] = useState<Manifestation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +23,7 @@ export default function MyRewrite() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadManifestations();
@@ -73,6 +73,7 @@ export default function MyRewrite() {
       }
     } catch (error) {
       setError('Failed to update favorite status.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -80,13 +81,12 @@ export default function MyRewrite() {
     if (Platform.OS === 'web') {
       try {
         await navigator.clipboard.writeText(text);
-        setSuccess('Manifestation copied to clipboard!');
+        setSuccess('Copied to clipboard!');
       } catch (error) {
         setError('Failed to copy to clipboard');
       }
     } else {
-      // For mobile platforms, you would use Expo Clipboard
-      setSuccess('Manifestation copied to clipboard!');
+      setSuccess('Copied to clipboard!');
     }
     
     setTimeout(() => setSuccess(null), 2000);
@@ -96,39 +96,28 @@ export default function MyRewrite() {
     try {
       await storageService.deleteManifestation(id);
       await loadManifestations();
-      setSuccess('Manifestation deleted successfully');
+      setSuccess('Manifestation deleted');
       setTimeout(() => setSuccess(null), 2000);
     } catch (error) {
       setError('Failed to delete manifestation.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading your manifestations...</Text>
+        <Text style={styles.loadingText}>Loading your library...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#fef3c7', '#fed7aa', '#fecaca']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Heart size={32} color="#78350f" />
-          <Text style={styles.title}>My Rewrite</Text>
-          <Text style={styles.subtitle}>
-            Your collection of powerful manifestations
-          </Text>
-        </View>
-        
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>Your collection</Text>
+        <Text style={styles.title}>Manifestation Library</Text>
         
         <View style={styles.statsContainer}>
           <View style={styles.stat}>
@@ -140,8 +129,9 @@ export default function MyRewrite() {
             <Text style={styles.statLabel}>Favorites</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
+      {/* Status Messages */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -154,12 +144,14 @@ export default function MyRewrite() {
         </View>
       )}
 
+      {/* Search and Filter */}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
-          <Search size={20} color="#9ca3af" />
+          <Search size={18} color="#64748b" strokeWidth={1.5} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search manifestations..."
+            placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -169,14 +161,24 @@ export default function MyRewrite() {
           style={[styles.filterButton, showFavoritesOnly && styles.filterButtonActive]}
           onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
         >
-          <Filter size={20} color={showFavoritesOnly ? '#ffffff' : '#9ca3af'} />
+          <Filter size={18} color={showFavoritesOnly ? '#ffffff' : '#64748b'} strokeWidth={1.5} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Content */}
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {filteredManifestations.length === 0 ? (
           <View style={styles.emptyState}>
-            <Heart size={48} color="#d1d5db" />
+            <Heart size={48} color="#cbd5e1" strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>
               {manifestations.length === 0 
                 ? 'No manifestations yet' 
@@ -185,7 +187,7 @@ export default function MyRewrite() {
             </Text>
             <Text style={styles.emptySubtitle}>
               {manifestations.length === 0 
-                ? 'Visit Dream Lab to create your first manifestation'
+                ? 'Visit Journal to create your first manifestation'
                 : 'Try adjusting your search or filters'
               }
             </Text>
@@ -201,7 +203,7 @@ export default function MyRewrite() {
             />
           ))
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -221,15 +223,20 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
           onPress={() => onToggleFavorite(manifestation.id)}
           style={styles.favoriteButton}
         >
-          {manifestation.is_favorite ? (
-            <Star size={24} color="#f59e0b" fill="#f59e0b" />
-          ) : (
-            <StarOff size={24} color="#9ca3af" />
-          )}
+          <Heart 
+            size={20} 
+            color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
+            fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
+            strokeWidth={1.5}
+          />
         </TouchableOpacity>
         
         <Text style={styles.cardDate}>
-          {new Date(manifestation.created_at).toLocaleDateString()}
+          {new Date(manifestation.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          })}
         </Text>
       </View>
       
@@ -242,7 +249,7 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
           style={styles.actionButton}
           onPress={() => onCopy(manifestation.transformed_text)}
         >
-          <Copy size={18} color="#6366f1" />
+          <Copy size={16} color="#2563eb" strokeWidth={1.5} />
           <Text style={styles.actionText}>Copy</Text>
         </TouchableOpacity>
         
@@ -250,6 +257,7 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
           style={[styles.actionButton, styles.deleteButton]}
           onPress={() => onDelete(manifestation.id)}
         >
+          <Trash2 size={16} color="#ef4444" strokeWidth={1.5} />
           <Text style={styles.deleteText}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -260,143 +268,151 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 30,
     paddingHorizontal: 20,
-    position: 'relative',
+    paddingBottom: 24,
   },
-  headerContent: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.3,
+  greeting: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+    marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#78350f',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#b45309',
-    opacity: 0.8,
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+    lineHeight: 34,
+    marginBottom: 24,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
+    gap: 32,
   },
   stat: {
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#78350f',
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
   },
   statLabel: {
     fontSize: 12,
-    color: '#b45309',
-    opacity: 0.8,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
+    marginTop: 2,
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#d1fae5',
-    padding: 12,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    padding: 16,
     marginHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   successText: {
-    color: '#065f46',
+    color: '#16a34a',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   searchSection: {
     flexDirection: 'row',
-    padding: 20,
+    paddingHorizontal: 20,
+    marginBottom: 20,
     gap: 12,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
     fontSize: 16,
-    color: '#1f2937',
+    fontFamily: 'Inter-Regular',
+    color: '#0f172a',
   },
   filterButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   filterButtonActive: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2563eb',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#374151',
+    fontFamily: 'Inter-SemiBold',
+    color: '#1e293b',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
     textAlign: 'center',
   },
   card: {
@@ -405,12 +421,10 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -423,12 +437,14 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    color: '#9ca3af',
+    fontFamily: 'Inter-Medium',
+    color: '#94a3b8',
   },
   manifestationText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#1f2937',
+    color: '#1e293b',
+    fontFamily: 'Inter-Regular',
     marginBottom: 16,
     fontStyle: 'italic',
   },
@@ -443,17 +459,19 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    borderRadius: 8,
   },
   actionText: {
     fontSize: 14,
-    color: '#6366f1',
+    fontFamily: 'Inter-Medium',
+    color: '#2563eb',
   },
   deleteButton: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
+    backgroundColor: '#fef2f2',
   },
   deleteText: {
     fontSize: 14,
-    color: '#dc2626',
+    fontFamily: 'Inter-Medium',
+    color: '#ef4444',
   },
 });
