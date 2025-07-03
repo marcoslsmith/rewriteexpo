@@ -287,7 +287,7 @@ function PatternCard({ pattern, onStart }: PatternCardProps) {
           <View style={styles.benefitsList}>
             {pattern.benefits.map((benefit, index) => (
               <View key={index} style={styles.benefitItem}>
-                <View style={styles.benefitDot} />
+                  <Text>{phase.name} ({phase.duration}s)</Text>
                 <Text style={styles.benefitText}>{benefit}</Text>
               </View>
             ))}

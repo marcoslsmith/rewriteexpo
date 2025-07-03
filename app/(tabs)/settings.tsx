@@ -299,7 +299,7 @@ export default function Settings() {
                 <View style={styles.scheduleDays}>
                   {schedule.days.map(day => (
                     <View key={day} style={styles.dayBadge}>
-                      <Text style={styles.dayBadgeText}>{getDayName(day)}</Text>
+                      <Text style={styles.dayBadgeText}><Text>{getDayName(day)}</Text></Text>
                     </View>
                   ))}
                 </View>

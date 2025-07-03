@@ -316,11 +316,11 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
             </View>
             <View style={styles.progressStats}>
               <Text style={styles.progressStat}>
-                Day {progress.completed_days.length + 1} of {challenge.duration}
+                <Text>Day {progress.completed_days.length + 1} of {challenge.duration}</Text>
               </Text>
               <View style={styles.pointsContainer}>
                 <Star size={14} color="#f59e0b" fill="#f59e0b" strokeWidth={2} />
-                <Text style={styles.progressStat}>{progress.points} points</Text>
+                <Text style={styles.progressStat}><Text>{progress.points} points</Text></Text>
               </View>
             </View>
           </View>
