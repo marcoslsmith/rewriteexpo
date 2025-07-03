@@ -13,6 +13,11 @@ import {
 import { Sparkles, Save, Plus } from 'lucide-react-native';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
+import { getGreeting, getMotivationalGreeting } from '../../lib/greetings';
+import GradientBackground from '../../components/GradientBackground';
+import AnimatedButton from '../../components/AnimatedButton';
+import LoadingShimmer from '../../components/LoadingShimmer';
+import FloatingActionButton from '../../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
 
@@ -23,7 +28,28 @@ export default function Journal() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showFAB, setShowFAB] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        const isScrollingDown = currentScrollY > lastScrollY.current;
+        
+        if (isScrollingDown && currentScrollY > 100) {
+          setShowFAB(false);
+        } else if (!isScrollingDown) {
+          setShowFAB(true);
+        }
+        
+        lastScrollY.current = currentScrollY;
+      },
+    }
+  );
 
   const handleTransform = async () => {
     if (!journalEntry.trim()) {
@@ -80,7 +106,10 @@ export default function Journal() {
   };
 
   return (
-    <View style={styles.container}>
+    <GradientBackground colors={['#fefbff', '#f8fafc', '#f1f5f9']}>
+      <View style={styles.container}>
+        <FloatingActionButton visible={showFAB} />
+        
       <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -119,16 +148,16 @@ export default function Journal() {
           
           <TextInput
             style={styles.textInput}
-            placeholder="Write about your thoughts, feelings, dreams, or challenges..."
-            placeholderTextColor="#94a3b8"
-            value={journalEntry}
-            onChangeText={setJournalEntry}
+          onScroll={handleScroll}
             multiline
             textAlignVertical="top"
           />
           
-          <TouchableOpacity
-            style={[styles.button, styles.transformButton]}
+            <View style={styles.brandHeader}>
+              <Text style={styles.brandTitle}>The Rewrite</Text>
+            </View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.title}>{getMotivationalGreeting()}</Text>
             onPress={handleTransform}
             disabled={isTransforming}
           >
@@ -155,20 +184,24 @@ export default function Journal() {
               <Text style={styles.manifestationText}>{transformedText}</Text>
             </View>
             
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Save size={18} color="#ffffff" strokeWidth={1.5} />
-              )}
-              <Text style={styles.buttonText}>
-                {isSaving ? 'Saving...' : 'Save to Library'}
-              </Text>
-            </TouchableOpacity>
+            <AnimatedButton
+              onPress={handleTransform}
+              <AnimatedButton
+                onPress={handleSave}
+                disabled={isSaving}
+                style={[styles.button, styles.saveButton]}
+              >
+                <View style={styles.buttonContent}>
+                  {isSaving ? (
+                    <LoadingShimmer width={18} height={18} borderRadius={9} />
+                  ) : (
+                    <Save size={18} color="#ffffff" strokeWidth={1.5} />
+                  )}
+                  <Text style={styles.buttonText}>
+                    {isSaving ? 'Saving...' : 'Save to Library'}
+                  </Text>
+                </View>
+              </AnimatedButton>
           </View>
         ) : null}
 
@@ -176,21 +209,24 @@ export default function Journal() {
         <View style={styles.tipsCard}>
           <Text style={styles.tipsTitle}>Writing Tips</Text>
           <View style={styles.tipsList}>
-            <Text style={styles.tipText}>• Be honest about your current thoughts and feelings</Text>
-            <Text style={styles.tipText}>• Share your challenges, fears, or limiting beliefs</Text>
-            <Text style={styles.tipText}>• Describe what you want to create or change</Text>
-            <Text style={styles.tipText}>• Let AI transform your words into empowering affirmations</Text>
+              <Text style={styles.tipText}>✨ Be honest about your current thoughts and feelings</Text>
+              <Text style={styles.tipText}>💭 Share your challenges, fears, or limiting beliefs</Text>
+              <Text style={styles.tipText}>🌟 Describe what you want to create or change</Text>
+              <Text style={styles.tipText}>🚀 Let AI transform your words into empowering affirmations</Text>
           </View>
         </View>
+          
+          {/* Bottom padding for FAB */}
+          <View style={styles.bottomPadding} />
       </Animated.ScrollView>
-    </View>
+      </View>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
@@ -198,22 +234,34 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     marginBottom: 32,
+  },
+  brandHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#1e293b',
+    letterSpacing: -0.5,
   },
   greeting: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     color: '#64748b',
     marginBottom: 4,
+    textAlign: 'center',
   },
   title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontSize: 20,
+    fontFamily: 'Inter-SemiBold',
     color: '#0f172a',
-    lineHeight: 34,
+    lineHeight: 28,
+    textAlign: 'center',
   },
   errorContainer: {
     backgroundColor: '#fef2f2',
@@ -279,12 +327,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   transformButton: {
@@ -338,5 +388,8 @@ const styles = StyleSheet.create({
     color: '#475569',
     fontFamily: 'Inter-Regular',
     lineHeight: 22,
+  },
+  bottomPadding: {
+    height: 40,
   },
 });

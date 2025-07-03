@@ -25,6 +25,10 @@ import {
 import { supabase } from '../../lib/supabase';
 import { storageService } from '../../lib/storage';
 import { notificationService } from '../../lib/notifications';
+import { getInspirationalQuote } from '../../lib/greetings';
+import GradientBackground from '../../components/GradientBackground';
+import AnimatedButton from '../../components/AnimatedButton';
+import FloatingActionButton from '../../components/FloatingActionButton';
 import type { Database } from '../../lib/supabase';
 
 type NotificationSchedule = Database['public']['Tables']['notification_schedules']['Row'];
@@ -37,7 +41,32 @@ export default function Settings() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showFAB, setShowFAB] = useState(true);
+  const [inspirationalQuote] = useState(getInspirationalQuote());
+  const [totalManifestations, setTotalManifestations] = useState(0);
+  const [writingStreak, setWritingStreak] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        const isScrollingDown = currentScrollY > lastScrollY.current;
+        
+        if (isScrollingDown && currentScrollY > 100) {
+          setShowFAB(false);
+        } else if (!isScrollingDown) {
+          setShowFAB(true);
+        }
+        
+        lastScrollY.current = currentScrollY;
+      },
+    }
+  );
+
   const [newSchedule, setNewSchedule] = useState({
     title: 'Daily Manifestation',
     message: '',
@@ -50,6 +79,7 @@ export default function Settings() {
   useEffect(() => {
     checkUser();
     loadNotificationSchedules();
+    loadUserStats();
   }, []);
 
   const checkUser = async () => {
@@ -63,6 +93,33 @@ export default function Settings() {
       setNotificationSchedules(schedules);
     } catch (error) {
       console.error('Error loading notification schedules:', error);
+    }
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const manifestations = await storageService.getManifestations();
+      setTotalManifestations(manifestations.length);
+      
+      // Calculate writing streak (simplified - consecutive days with entries)
+      const today = new Date();
+      let streak = 0;
+      for (let i = 0; i < 30; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const hasEntry = manifestations.some(m => {
+          const entryDate = new Date(m.created_at);
+          return entryDate.toDateString() === checkDate.toDateString();
+        });
+        if (hasEntry) {
+          streak++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+      setWritingStreak(streak);
+    } catch (error) {
+      console.error('Error loading user stats:', error);
     }
   };
 
@@ -98,6 +155,8 @@ export default function Settings() {
       await storageService.clearAllData();
       await notificationService.cancelAllNotifications();
       setNotificationSchedules([]);
+      setTotalManifestations(0);
+      setWritingStreak(0);
       setSuccess('All your data has been cleared.');
     } catch (error) {
       setError('Failed to clear data. Please try again.');
@@ -182,7 +241,10 @@ export default function Settings() {
   }, [error, success]);
 
   return (
-    <View style={styles.container}>
+    <GradientBackground>
+      <View style={styles.container}>
+        <FloatingActionButton visible={showFAB} />
+        
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.greeting}>Your account</Text>
@@ -200,8 +262,47 @@ export default function Settings() {
         <View style={styles.successContainer}>
           <Text style={styles.successText}>{success}</Text>
         </View>
-      )}
-
+          <Text style={styles.greeting}>Welcome back</Text>
+          <Text style={styles.title}>Your Journey</Text>
+          
+          {/* User Stats */}
+          <View style={styles.statsCard}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <User size={24} color="#64748b" strokeWidth={1.5} />
+              </View>
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>
+                  {user?.email?.split('@')[0] || 'Guest'}
+                </Text>
+                <Text style={styles.userStatus}>
+                  {user ? 'Signed in' : 'Guest mode'}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{writingStreak}</Text>
+                <Text style={styles.statLabel}>Day Streak</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{totalManifestations}</Text>
+                <Text style={styles.statLabel}>Manifestations</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {Math.floor(totalManifestations * 50 / 10) * 10}
+                </Text>
+                <Text style={styles.statLabel}>Words Written</Text>
+              </View>
+            </View>
+          </View>
+          
+          {/* Inspirational Quote */}
+          <View style={styles.quoteCard}>
+            <Text style={styles.quoteText}>"{inspirationalQuote}"</Text>
+          </View>
       <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -408,44 +509,39 @@ export default function Settings() {
                 style={styles.textInput}
                 value={newSchedule.time}
                 onChangeText={(text) => setNewSchedule({...newSchedule, time: text})}
-                placeholder="HH:MM (24-hour format)"
-                placeholderTextColor="#94a3b8"
-              />
-            </View>
+          onScroll={handleScroll}
             
             <View style={styles.inputGroup}>
               <View style={styles.switchRow}>
                 <Text style={styles.inputLabel}>Use Random Manifestation</Text>
                 <Switch
                   value={newSchedule.useRandomManifestation}
-                  onValueChange={(value) => setNewSchedule({...newSchedule, useRandomManifestation: value})}
-                  trackColor={{ false: '#e2e8f0', true: '#dbeafe' }}
-                  thumbColor={newSchedule.useRandomManifestation ? '#2563eb' : '#94a3b8'}
-                />
-              </View>
-            </View>
-            
-            {!newSchedule.useRandomManifestation && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Custom Message</Text>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  value={newSchedule.message}
-                  onChangeText={(text) => setNewSchedule({...newSchedule, message: text})}
+              <View style={styles.accountCard}>
+                <Text style={styles.accountEmail}>{user.email}</Text>
+                <AnimatedButton onPress={signOut} style={styles.signOutButton}>
+                  <View style={styles.signOutContent}>
+                    <LogOut size={18} color="#ef4444" strokeWidth={1.5} />
+                    <Text style={styles.signOutText}>Sign Out</Text>
+                  </View>
+                </AnimatedButton>
                   placeholder="Enter your custom notification message"
                   placeholderTextColor="#94a3b8"
-                  multiline
-                  textAlignVertical="top"
-                />
-              </View>
+              <AnimatedButton
+                <View style={styles.signInContent}>
+                  <Mail size={18} color="#ffffff" strokeWidth={1.5} />
+                  <Text style={styles.signInButtonText}>Sign In</Text>
+                </View>
+              </AnimatedButton>
             )}
             
             <TouchableOpacity
               style={styles.createButton}
-              onPress={addNotificationSchedule}
-            >
-              <Text style={styles.createButtonText}>Create Schedule</Text>
-            </TouchableOpacity>
+            <AnimatedButton style={styles.testButton} onPress={testNotification}>
+              <View style={styles.testButtonContent}>
+                <TestTube size={18} color="#2563eb" strokeWidth={1.5} />
+                <Text style={styles.testButtonText}>Test Notifications</Text>
+              </View>
+            </AnimatedButton>
           </ScrollView>
         </View>
       </Modal>
@@ -487,7 +583,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#dc2626',
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+                <AnimatedButton
     textAlign: 'center',
   },
   successContainer: {
@@ -551,9 +647,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+                  <View style={styles.deleteScheduleContent}>
+                    <Trash2 size={14} color="#ef4444" strokeWidth={1.5} />
+                    <Text style={styles.deleteScheduleText}>Delete</Text>
+                  </View>
+                </AnimatedButton>
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
@@ -561,7 +659,7 @@ const styles = StyleSheet.create({
   userDetails: {
     flex: 1,
   },
-  userEmail: {
+                  Ready to set up reminders? Tap + to create your first notification schedule.
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#0f172a',
@@ -570,11 +668,16 @@ const styles = StyleSheet.create({
   userStatus: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#059669',
-  },
-  signOutButton: {
-    flexDirection: 'row',
+            <AnimatedButton style={styles.dangerButton} onPress={clearAllData}>
+              <View style={styles.dangerButtonContent}>
+                <Trash2 size={18} color="#ffffff" strokeWidth={1.5} />
+                <Text style={styles.dangerButtonText}>Clear All Data</Text>
+              </View>
+            </AnimatedButton>
     alignItems: 'center',
+          
+          {/* Bottom padding for FAB */}
+          <View style={styles.bottomPadding} />
     gap: 8,
     paddingVertical: 8,
   },
@@ -585,12 +688,12 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     flexDirection: 'row',
-    alignItems: 'center',
+              <AnimatedButton
     justifyContent: 'center',
     backgroundColor: '#2563eb',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
+              </AnimatedButton>
     gap: 8,
   },
   signInButtonText: {
@@ -607,64 +710,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 16,
-    gap: 8,
+  accountCard: {
   },
   testButtonText: {
     color: '#2563eb',
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+              <AnimatedButton
   },
   scheduleCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  accountEmail: {
   },
-  scheduleHeader: {
+    fontFamily: 'Inter-Regular',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  scheduleTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
-  },
-  scheduleDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  scheduleTime: {
-    flexDirection: 'row',
+    marginBottom: 16,
     alignItems: 'center',
     gap: 6,
-  },
-  scheduleTimeText: {
-    fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#64748b',
+  signOutContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   },
   scheduleDays: {
     flexDirection: 'row',
     gap: 4,
   },
   dayBadge: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
     borderRadius: 6,
     fontSize: 11,
     fontFamily: 'Inter-Medium',
     color: '#475569',
   },
+  signInContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   scheduleMessage: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
@@ -672,15 +757,17 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 12,
     lineHeight: 20,
-  },
-  deleteScheduleButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 4,
   },
   deleteScheduleText: {
-    fontSize: 14,
+  },
+  testButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     fontFamily: 'Inter-Medium',
     color: '#ef4444',
   },
@@ -697,30 +784,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   dangerButton: {
-    flexDirection: 'row',
+              <AnimatedButton
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ef4444',
     paddingVertical: 16,
-    paddingHorizontal: 24,
+              </AnimatedButton>
     borderRadius: 12,
     gap: 8,
   },
-  dangerButtonText: {
+      </View>
+    </GradientBackground>
     color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 20,
     gap: 16,
   },
   closeButton: {
@@ -747,11 +834,13 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
-  },
   modalContent: {
     flex: 1,
+  deleteScheduleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
     paddingHorizontal: 20,
   },
   inputGroup: {
@@ -770,14 +859,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#0f172a',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  textArea: {
+  },
+  dangerButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -789,6 +880,79 @@ const styles = StyleSheet.create({
   createButton: {
     backgroundColor: '#2563eb',
     paddingVertical: 16,
+    marginBottom: 24,
+  },
+  statsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  avatarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
+    marginBottom: 2,
+    textTransform: 'capitalize',
+  },
+  userStatus: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#059669',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+  },
+  statLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
+    marginTop: 2,
+  },
+  quoteCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563eb',
+  },
+  quoteText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#475569',
+    fontStyle: 'italic',
+    lineHeight: 20,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
@@ -805,6 +969,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 20,
+    paddingBottom: 120,
+  },
+  bottomPadding: {
+    height: 40,
   },
 });

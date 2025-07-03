@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View, Text, StyleSheet } from 'react-native';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import GradientBackground from '@/components/GradientBackground';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,7 +26,14 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return null;
+    return (
+      <GradientBackground colors={['#fefbff', '#f8fafc']}>
+        <View style={styles.splashContainer}>
+          <Text style={styles.splashTitle}>The Rewrite</Text>
+          <Text style={styles.splashSubtitle}>Transform your thoughts</Text>
+        </View>
+      </GradientBackground>
+    );
   }
 
   return (
@@ -37,3 +46,25 @@ export default function RootLayout() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  splashTitle: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#1e293b',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  splashSubtitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+});

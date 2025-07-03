@@ -1,7 +1,12 @@
 import { Tabs } from 'expo-router';
+import { useRef, useEffect } from 'react';
+import { Animated } from 'react-native';
 import { Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
 
 export default function TabLayout() {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+
   return (
     <Tabs
       screenOptions={{
@@ -15,10 +20,14 @@ export default function TabLayout() {
           paddingTop: 12,
           height: 90,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
           elevation: 8,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
         },
         tabBarLabelStyle: {
           fontSize: 11,

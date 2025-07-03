@@ -12,6 +12,10 @@ import {
 import { Heart, Search, Star, Copy, Trash2, Filter } from 'lucide-react-native';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
+import GradientBackground from '../../components/GradientBackground';
+import EmptyState from '../../components/EmptyState';
+import AnimatedButton from '../../components/AnimatedButton';
+import FloatingActionButton from '../../components/FloatingActionButton';
 
 type Manifestation = Database['public']['Tables']['manifestations']['Row'];
 
@@ -23,7 +27,28 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showFAB, setShowFAB] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        const isScrollingDown = currentScrollY > lastScrollY.current;
+        
+        if (isScrollingDown && currentScrollY > 100) {
+          setShowFAB(false);
+        } else if (!isScrollingDown) {
+          setShowFAB(true);
+        }
+        
+        lastScrollY.current = currentScrollY;
+      },
+    }
+  );
 
   useEffect(() => {
     loadManifestations();
@@ -106,16 +131,21 @@ export default function Library() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading your library...</Text>
-      </View>
+      <GradientBackground>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your library...</Text>
+        </View>
+      </GradientBackground>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <GradientBackground>
+      <View style={styles.container}>
+        <FloatingActionButton visible={showFAB} />
+        
       {/* Header */}
-      <View style={styles.header}>
+          <Text style={styles.greeting}>Your sacred collection</Text>
         <Text style={styles.greeting}>Your collection</Text>
         <Text style={styles.title}>Manifestation Library</Text>
         
@@ -216,15 +246,10 @@ interface ManifestationCardProps {
 }
 
 function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <TouchableOpacity
+          onScroll={handleScroll}
           onPress={() => onToggleFavorite(manifestation.id)}
           style={styles.favoriteButton}
         >
-          <Heart 
-            size={20} 
             color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
             fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
             strokeWidth={1.5}
@@ -232,51 +257,56 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
         </TouchableOpacity>
         
         <Text style={styles.cardDate}>
-          {new Date(manifestation.created_at).toLocaleDateString('en-US', {
+        </AnimatedButton>
             month: 'short',
             day: 'numeric',
             year: 'numeric'
-          })}
-        </Text>
-      </View>
-      
-      <Text style={styles.manifestationText}>
-        {manifestation.transformed_text}
-      </Text>
-      
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => onCopy(manifestation.transformed_text)}
-        >
-          <Copy size={16} color="#2563eb" strokeWidth={1.5} />
+            <EmptyState
+              icon={Heart}
+              title={manifestations.length === 0 
+                ? 'Ready to start manifesting?' 
+                : 'No manifestations match your search'
+              }
+              subtitle={manifestations.length === 0 
+                ? 'Your first manifestation will live here. Visit Journal to begin your transformation journey.'
+                : 'Try adjusting your search or filters to find what you\'re looking for.'
+              }
+              iconColor="#f472b6"
+            />
+        <AnimatedButton
           <Text style={styles.actionText}>Copy</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => onDelete(manifestation.id)}
+          <View style={styles.actionButtonContent}>
+            <Copy size={16} color="#2563eb" strokeWidth={1.5} />
+            <Text style={styles.actionText}>Copy</Text>
+          </View>
+        </AnimatedButton>
         >
-          <Trash2 size={16} color="#ef4444" strokeWidth={1.5} />
+        <AnimatedButton
           <Text style={styles.deleteText}>Delete</Text>
         </TouchableOpacity>
+          
+          <View style={styles.actionButtonContent}>
+            <Trash2 size={16} color="#ef4444" strokeWidth={1.5} />
+            <Text style={styles.deleteText}>Delete</Text>
+          </View>
+        </AnimatedButton>
       </View>
-    </View>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
-  loadingText: {
+        <AnimatedButton
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     color: '#64748b',
@@ -395,25 +425,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1e293b',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
-    textAlign: 'center',
+    paddingBottom: 120,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -454,12 +466,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
+  },
+  actionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   actionText: {
     fontSize: 14,
@@ -473,5 +487,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: '#ef4444',
+  },
+  bottomPadding: {
+    height: 40,
   },
 });
