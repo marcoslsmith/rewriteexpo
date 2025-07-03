@@ -162,6 +162,7 @@ export default function Journal() {
               onPress={handleTransform}
               disabled={isTransforming}
             >
+              <View style={styles.buttonContent}>
               {isTransforming ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
@@ -170,6 +171,7 @@ export default function Journal() {
               <Text style={styles.buttonText}>
                 {isTransforming ? 'Transforming...' : 'Transform with AI'}
               </Text>
+              </View>
             </TouchableOpacity>
           </View>
 

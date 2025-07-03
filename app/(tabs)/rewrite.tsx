@@ -1,5 +1,3 @@
-Here's the fixed version with all missing closing brackets and proper structure:
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -279,6 +277,7 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
         </AnimatedButton>
       </View>
     </View>
+  </GradientBackground>
   );
 }
 
