@@ -261,6 +261,10 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
         })}
       </Text>
       
+      <Text style={styles.manifestationText}>
+        {manifestation.transformed_text}
+      </Text>
+      
       <View style={styles.cardActions}>
         <AnimatedButton onPress={() => onCopy(manifestation.transformed_text)}>
           <View style={styles.actionButtonContent}>
@@ -277,7 +281,6 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
         </AnimatedButton>
       </View>
     </View>
-  </GradientBackground>
   );
 }
 
