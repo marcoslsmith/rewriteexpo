@@ -110,82 +110,81 @@ export default function Journal() {
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Good morning</Text>
-          <Text style={styles.title}>How are you feeling today?</Text>
-        </View>
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.greeting}>Good morning</Text>
+            <Text style={styles.title}>How are you feeling today?</Text>
+          </View>
 
-        {/* Status Messages */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-        
-        {success && (
-          <View style={styles.successContainer}>
-            <Text style={styles.successText}>{success}</Text>
-          </View>
-        )}
+          {/* Status Messages */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+          
+          {success && (
+            <View style={styles.successContainer}>
+              <Text style={styles.successText}>{success}</Text>
+            </View>
+          )}
 
-        {/* Journal Entry Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Plus size={20} color="#64748b" strokeWidth={1.5} />
-            <Text style={styles.cardTitle}>New Entry</Text>
-          </View>
-          
-          <TextInput
-            style={styles.textInput}
-          onScroll={handleScroll}
-            multiline
-            textAlignVertical="top"
-          />
-          
+          {/* Journal Entry Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Plus size={20} color="#64748b" strokeWidth={1.5} />
+              <Text style={styles.cardTitle}>New Entry</Text>
+            </View>
+            
+            <TextInput
+              style={styles.textInput}
+              onScroll={handleScroll}
+              multiline
+              textAlignVertical="top"
+            />
+            
             <View style={styles.brandHeader}>
               <Text style={styles.brandTitle}>The Rewrite</Text>
             </View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.title}>{getMotivationalGreeting()}</Text>
-            onPress={handleTransform}
-            disabled={isTransforming}
-          >
-            {isTransforming ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
-            )}
-            <Text style={styles.buttonText}>
-              {isTransforming ? 'Transforming...' : 'Transform with AI'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Manifestation Result */}
-        {transformedText ? (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Sparkles size={20} color="#2563eb" strokeWidth={1.5} />
-              <Text style={styles.cardTitle}>Your Manifestation</Text>
-            </View>
-            
-            <View style={styles.manifestationCard}>
-              <Text style={styles.manifestationText}>{transformedText}</Text>
-            </View>
-            
-            <AnimatedButton
+            <TouchableOpacity
               onPress={handleTransform}
+              disabled={isTransforming}
+            >
+              {isTransforming ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
+              )}
+              <Text style={styles.buttonText}>
+                {isTransforming ? 'Transforming...' : 'Transform with AI'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Manifestation Result */}
+          {transformedText ? (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Sparkles size={20} color="#2563eb" strokeWidth={1.5} />
+                <Text style={styles.cardTitle}>Your Manifestation</Text>
+              </View>
+              
+              <View style={styles.manifestationCard}>
+                <Text style={styles.manifestationText}>{transformedText}</Text>
+              </View>
+              
               <AnimatedButton
                 onPress={handleSave}
                 disabled={isSaving}
@@ -202,23 +201,23 @@ export default function Journal() {
                   </Text>
                 </View>
               </AnimatedButton>
-          </View>
-        ) : null}
+            </View>
+          ) : null}
 
-        {/* Tips Section */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>Writing Tips</Text>
-          <View style={styles.tipsList}>
+          {/* Tips Section */}
+          <View style={styles.tipsCard}>
+            <Text style={styles.tipsTitle}>Writing Tips</Text>
+            <View style={styles.tipsList}>
               <Text style={styles.tipText}>✨ Be honest about your current thoughts and feelings</Text>
               <Text style={styles.tipText}>💭 Share your challenges, fears, or limiting beliefs</Text>
               <Text style={styles.tipText}>🌟 Describe what you want to create or change</Text>
               <Text style={styles.tipText}>🚀 Let AI transform your words into empowering affirmations</Text>
+            </View>
           </View>
-        </View>
           
           {/* Bottom padding for FAB */}
           <View style={styles.bottomPadding} />
-      </Animated.ScrollView>
+        </Animated.ScrollView>
       </View>
     </GradientBackground>
   );
