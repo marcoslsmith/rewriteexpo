@@ -8,15 +8,18 @@ import {
   TextInput,
   Modal,
   Image,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Play, Calendar, Award, Target, Check } from 'lucide-react-native';
+import { Trophy, Play, Calendar, Award, Target, Check, Flame, Star } from 'lucide-react-native';
 import { challengeService, challengePrompts } from '../../lib/challenges';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
 
 type Challenge = Database['public']['Tables']['challenges']['Row'];
 type ChallengeProgress = Database['public']['Tables']['challenge_progress']['Row'];
+
+const { width } = Dimensions.get('window');
 
 export default function Challenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -52,7 +55,7 @@ export default function Challenges() {
     try {
       const existingProgress = activeProgress.find(p => p.challenge_id === challenge.id);
       if (existingProgress) {
-        setError('You are already participating in this challenge!');
+        setError('You are already on this journey! 🚀');
         setTimeout(() => setError(null), 3000);
         return;
       }
@@ -69,7 +72,6 @@ export default function Challenges() {
       
       await loadData();
       
-      // Start the first day
       const newProgress = (await storageService.getChallengeProgress())
         .find(p => p.challenge_id === challenge.id && !p.completed_at);
       
@@ -80,7 +82,7 @@ export default function Challenges() {
         setShowDayModal(true);
       }
     } catch (error) {
-      setError('Failed to start challenge. Please try again.');
+      setError('Failed to start challenge. Try again! 💪');
     }
   };
 
@@ -88,21 +90,19 @@ export default function Challenges() {
     setSelectedChallenge(challenge);
     setCurrentProgress(progress);
     
-    // Determine the next day to work on
     const nextDay = progress.completed_days.length + 1;
     if (nextDay <= challenge.duration) {
       setCurrentDay(nextDay);
       setShowDayModal(true);
     } else {
-      // Challenge is complete
-      setSuccess(`Congratulations! You've completed the ${challenge.title}. Total points earned: ${progress.points}`);
+      setSuccess(`🎉 Challenge complete! You earned ${progress.points} points!`);
       setTimeout(() => setSuccess(null), 5000);
     }
   };
 
   const submitDayResponse = async () => {
     if (!currentProgress || !selectedChallenge || !dayResponse.trim()) {
-      setError('Please write your response before submitting.');
+      setError('Share your thoughts before continuing! ✍️');
       setTimeout(() => setError(null), 3000);
       return;
     }
@@ -115,10 +115,9 @@ export default function Challenges() {
         streak: currentProgress.streak + 1,
       };
 
-      // Check if challenge is complete
       if (updatedProgress.completed_days!.length === selectedChallenge.duration) {
         updatedProgress.completed_at = new Date().toISOString();
-        updatedProgress.points = updatedProgress.points! + 50; // Bonus for completion
+        updatedProgress.points = updatedProgress.points! + 50;
       }
 
       await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
@@ -127,16 +126,16 @@ export default function Challenges() {
       setDayResponse('');
       
       if (updatedProgress.completed_at) {
-        setSuccess(`Congratulations! You've completed the ${selectedChallenge.title}. Total points earned: ${updatedProgress.points}`);
+        setSuccess(`🏆 Challenge completed! Total: ${updatedProgress.points} points!`);
         setTimeout(() => setSuccess(null), 5000);
       } else {
-        setSuccess('Day completed! Great work!');
+        setSuccess('Day completed! Keep going! 🔥');
         setTimeout(() => setSuccess(null), 3000);
       }
       
       await loadData();
     } catch (error) {
-      setError('Failed to submit response. Please try again.');
+      setError('Failed to submit. Try again! 🔄');
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -148,36 +147,42 @@ export default function Challenges() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#fef3c7', '#fcd34d', '#f59e0b']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Trophy size={32} color="#78350f" />
-          <Text style={styles.title}>Challenges</Text>
-          <Text style={styles.subtitle}>
-            Transform your life through guided journeys
-          </Text>
-        </View>
-        
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
-        
-        <View style={styles.statsContainer}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{activeProgress.length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>
-              {activeProgress.reduce((sum, p) => sum + p.points, 0)}
-            </Text>
-            <Text style={styles.statLabel}>Points</Text>
-          </View>
-        </View>
-      </LinearGradient>
+        colors={['#0f172a', '#1e293b', '#334155']}
+        style={styles.background}
+      />
 
+      {/* Header */}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={['#f59e0b', '#d97706']}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerContent}>
+            <Trophy size={32} color="#ffffff" strokeWidth={2.5} />
+            <Text style={styles.title}>Growth Challenges</Text>
+            <Text style={styles.subtitle}>
+              Transform your life through guided journeys
+            </Text>
+            
+            <View style={styles.statsContainer}>
+              <View style={styles.stat}>
+                <Flame size={20} color="#ffffff" strokeWidth={2} />
+                <Text style={styles.statNumber}>{activeProgress.length}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.stat}>
+                <Star size={20} color="#ffffff" strokeWidth={2} />
+                <Text style={styles.statNumber}>
+                  {activeProgress.reduce((sum, p) => sum + p.points, 0)}
+                </Text>
+                <Text style={styles.statLabel}>Points</Text>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+
+      {/* Status Messages */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -203,14 +208,21 @@ export default function Challenges() {
             />
           );
         })}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
+      {/* Day Modal */}
       <Modal
         visible={showDayModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
         <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={['#0f172a', '#1e293b']}
+            style={styles.modalBackground}
+          />
+          
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
               {selectedChallenge?.title} - Day {currentDay}
@@ -230,7 +242,8 @@ export default function Challenges() {
             
             <TextInput
               style={styles.responseInput}
-              placeholder="Write your response here..."
+              placeholder="Share your thoughts, feelings, and insights..."
+              placeholderTextColor="#64748b"
               value={dayResponse}
               onChangeText={setDayResponse}
               multiline
@@ -242,8 +255,13 @@ export default function Challenges() {
               style={styles.submitButton}
               onPress={submitDayResponse}
             >
-              <Check size={20} color="#ffffff" />
-              <Text style={styles.submitButtonText}>Submit Response</Text>
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                style={styles.submitButtonGradient}
+              >
+                <Check size={20} color="#ffffff" strokeWidth={2.5} />
+                <Text style={styles.submitButtonText}>Complete Day</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -267,55 +285,69 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.challengeInfo}>
-          <Text style={styles.cardTitle}>{challenge.title}</Text>
-          <Text style={styles.cardDuration}>{challenge.duration} days</Text>
+      <LinearGradient
+        colors={['#1e293b', '#334155']}
+        style={styles.cardGradient}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.challengeInfo}>
+            <Text style={styles.cardTitle}>{challenge.title}</Text>
+            <View style={styles.durationContainer}>
+              <Calendar size={16} color="#64748b" strokeWidth={2} />
+              <Text style={styles.cardDuration}>{challenge.duration} days</Text>
+            </View>
+          </View>
+          
+          {isStarted && (
+            <View style={styles.progressBadge}>
+              <Text style={styles.progressText}>{completionPercentage}%</Text>
+            </View>
+          )}
         </View>
         
-        {isStarted && (
-          <View style={styles.progressBadge}>
-            <Text style={styles.progressText}>{completionPercentage}%</Text>
+        <Text style={styles.cardDescription}>{challenge.description}</Text>
+        
+        {isStarted && progress && (
+          <View style={styles.progressInfo}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[styles.progressFill, { width: `${completionPercentage}%` }]} 
+              />
+            </View>
+            <View style={styles.progressStats}>
+              <Text style={styles.progressStat}>
+                Day {progress.completed_days.length + 1} of {challenge.duration}
+              </Text>
+              <View style={styles.pointsContainer}>
+                <Star size={14} color="#f59e0b" fill="#f59e0b" strokeWidth={2} />
+                <Text style={styles.progressStat}>{progress.points} points</Text>
+              </View>
+            </View>
           </View>
         )}
-      </View>
-      
-      <Text style={styles.cardDescription}>{challenge.description}</Text>
-      
-      {isStarted && progress && (
-        <View style={styles.progressInfo}>
-          <View style={styles.progressBar}>
-            <View 
-              style={[styles.progressFill, { width: `${completionPercentage}%` }]} 
-            />
-          </View>
-          <View style={styles.progressStats}>
-            <Text style={styles.progressStat}>
-              Day {progress.completed_days.length + 1} of {challenge.duration}
-            </Text>
-            <Text style={styles.progressStat}>
-              {progress.points} points
-            </Text>
-          </View>
-        </View>
-      )}
-      
-      <TouchableOpacity
-        style={[styles.actionButton, isStarted ? styles.continueButton : styles.startButton]}
-        onPress={isStarted ? onContinue : onStart}
-      >
-        {isStarted ? (
-          <>
-            <Play size={20} color="#ffffff" />
-            <Text style={styles.actionButtonText}>Continue Journey</Text>
-          </>
-        ) : (
-          <>
-            <Target size={20} color="#ffffff" />
-            <Text style={styles.actionButtonText}>Start Challenge</Text>
-          </>
-        )}
-      </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, isStarted ? styles.continueButton : styles.startButton]}
+          onPress={isStarted ? onContinue : onStart}
+        >
+          <LinearGradient
+            colors={isStarted ? ['#10b981', '#059669'] : ['#f59e0b', '#d97706']}
+            style={styles.actionButtonGradient}
+          >
+            {isStarted ? (
+              <>
+                <Play size={20} color="#ffffff" strokeWidth={2.5} />
+                <Text style={styles.actionButtonText}>Continue Journey</Text>
+              </>
+            ) : (
+              <>
+                <Target size={20} color="#ffffff" strokeWidth={2.5} />
+                <Text style={styles.actionButtonText}>Start Challenge</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </LinearGradient>
     </View>
   );
 }
@@ -323,119 +355,126 @@ function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
+  },
+  background: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   header: {
-    paddingTop: 70,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    position: 'relative',
+    marginTop: 60,
+    marginHorizontal: 20,
+    marginBottom: 32,
+    height: 260,
+  },
+  headerGradient: {
+    flex: 1,
+    borderRadius: 32,
     overflow: 'hidden',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
   },
   headerContent: {
+    flex: 1,
     alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: -25,
-    right: -25,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    opacity: 0.15,
-    transform: [{ rotate: '-15deg' }],
+    justifyContent: 'center',
+    padding: 32,
   },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontFamily: 'Poppins-Bold',
-    color: '#78350f',
-    marginBottom: 12,
+    color: '#ffffff',
+    marginBottom: 8,
     marginTop: 12,
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#b45309',
-    opacity: 0.85,
+    color: '#ffffff',
+    opacity: 0.9,
     marginBottom: 24,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 32,
   },
   stat: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 16,
-    backdropFilter: 'blur(10px)',
+    gap: 4,
   },
   statNumber: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: 'Poppins-Bold',
-    color: '#78350f',
+    color: '#ffffff',
     letterSpacing: -0.5,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Inter-SemiBold',
-    color: '#b45309',
-    opacity: 0.9,
-    marginTop: 2,
+    color: '#ffffff',
+    opacity: 0.8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#fef2f2',
     padding: 16,
     marginHorizontal: 20,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: 16,
+    marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
+    borderLeftColor: '#ef4444',
   },
   errorText: {
     color: '#dc2626',
     fontSize: 15,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Inter-SemiBold',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f0fdf4',
     padding: 16,
     marginHorizontal: 20,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: 16,
+    marginBottom: 20,
     borderLeftWidth: 4,
     borderLeftColor: '#10b981',
   },
   successText: {
-    color: '#065f46',
+    color: '#059669',
     fontSize: 15,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Inter-SemiBold',
     textAlign: 'center',
   },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
-    borderWidth: 1.5,
-    borderColor: '#f1f5f9',
+  },
+  cardGradient: {
+    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -449,23 +488,28 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontFamily: 'Poppins-SemiBold',
-    color: '#1f2937',
-    marginBottom: 6,
+    color: '#ffffff',
+    marginBottom: 8,
     letterSpacing: -0.3,
   },
+  durationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   cardDuration: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#6b7280',
+    color: '#64748b',
   },
   progressBadge: {
-    backgroundColor: '#059669',
+    backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    shadowColor: '#059669',
+    shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -476,55 +520,64 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   cardDescription: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#4b5563',
-    lineHeight: 26,
+    color: '#cbd5e1',
+    lineHeight: 24,
     marginBottom: 20,
   },
   progressInfo: {
     marginBottom: 20,
   },
   progressBar: {
-    height: 10,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 6,
+    height: 8,
+    backgroundColor: '#334155',
+    borderRadius: 4,
     marginBottom: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#059669',
-    borderRadius: 6,
+    backgroundColor: '#10b981',
+    borderRadius: 4,
   },
   progressStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   progressStat: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#6b7280',
+    color: '#94a3b8',
+  },
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   actionButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  actionButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 16,
     gap: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
   },
   startButton: {
-    backgroundColor: '#ea580c',
+    shadowColor: '#f59e0b',
   },
   continueButton: {
-    backgroundColor: '#059669',
+    shadowColor: '#10b981',
   },
   actionButtonText: {
     color: '#ffffff',
@@ -534,7 +587,14 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
+  },
+  modalBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -543,25 +603,24 @@ const styles = StyleSheet.create({
     paddingTop: 70,
     paddingBottom: 24,
     paddingHorizontal: 20,
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#fafbfc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Poppins-SemiBold',
-    color: '#1f2937',
+    color: '#ffffff',
     flex: 1,
     letterSpacing: -0.3,
   },
   closeButton: {
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#334155',
   },
   closeButtonText: {
-    color: '#6b7280',
-    fontSize: 17,
+    color: '#cbd5e1',
+    fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },
   modalContent: {
@@ -571,49 +630,49 @@ const styles = StyleSheet.create({
   promptText: {
     fontSize: 20,
     fontFamily: 'Poppins-Medium',
-    color: '#1f2937',
+    color: '#ffffff',
     lineHeight: 30,
     marginBottom: 28,
     letterSpacing: -0.2,
   },
   responseInput: {
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
     borderRadius: 16,
     padding: 20,
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Regular',
-    minHeight: 220,
-    backgroundColor: '#fafbfc',
-    color: '#1f2937',
+    minHeight: 200,
+    color: '#ffffff',
     textAlignVertical: 'top',
     marginBottom: 28,
-    lineHeight: 26,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    lineHeight: 24,
   },
   submitButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  submitButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
     paddingVertical: 18,
     paddingHorizontal: 24,
-    borderRadius: 16,
     gap: 10,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
   },
   submitButtonText: {
     color: '#ffffff',
     fontSize: 17,
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.2,
+  },
+  bottomSpacer: {
+    height: 120,
   },
 });

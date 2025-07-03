@@ -9,10 +9,13 @@ import {
   TextInput,
   Image,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Wind, Play, Pause, RotateCcw, Heart } from 'lucide-react-native';
+import { Wind, Play, Pause, RotateCcw, Heart, Circle } from 'lucide-react-native';
 import { breathingPatterns, BreathingPattern } from '../../lib/breathingPatterns';
+
+const { width } = Dimensions.get('window');
 
 export default function Breathwork() {
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern | null>(null);
@@ -31,7 +34,6 @@ export default function Breathwork() {
       intervalRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            // Move to next phase
             const nextPhaseIndex = (currentPhase + 1) % selectedPattern.phases.length;
             if (nextPhaseIndex === 0) {
               setCycleCount(count => count + 1);
@@ -69,10 +71,10 @@ export default function Breathwork() {
     const isInhale = phase.name.toLowerCase().includes('inhale');
     const isHold = phase.name.toLowerCase().includes('hold');
 
-    let toValue = 0.5; // Default
+    let toValue = 0.5;
     if (isInhale) toValue = 1;
-    else if (isHold) toValue = animatedValue._value; // Keep current value
-    else toValue = 0.3; // Exhale
+    else if (isHold) toValue = animatedValue._value;
+    else toValue = 0.3;
 
     if (!isHold) {
       Animated.timing(animatedValue, {
@@ -122,7 +124,12 @@ export default function Breathwork() {
     return (
       <View style={styles.sessionContainer}>
         <LinearGradient
-          colors={['#ede9fe', '#ddd6fe', '#c4b5fd']}
+          colors={['#0f172a', '#1e293b', '#334155']}
+          style={styles.sessionBackground}
+        />
+        
+        <LinearGradient
+          colors={['#3b82f6', '#2563eb']}
           style={styles.sessionHeader}
         >
           <TouchableOpacity onPress={stopSession} style={styles.backButton}>
@@ -141,12 +148,12 @@ export default function Breathwork() {
                 transform: [{
                   scale: animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.5, 1.2],
+                    outputRange: [0.6, 1.4],
                   })
                 }],
                 opacity: animatedValue.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0.3, 0.9],
+                  outputRange: [0.4, 1],
                 })
               }
             ]}
@@ -171,7 +178,7 @@ export default function Breathwork() {
 
         <View style={styles.sessionControls}>
           <TouchableOpacity style={styles.controlButton} onPress={resetSession}>
-            <RotateCcw size={24} color="#ffffff" />
+            <RotateCcw size={24} color="#ffffff" strokeWidth={2.5} />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -179,9 +186,9 @@ export default function Breathwork() {
             onPress={toggleSession}
           >
             {isActive ? (
-              <Pause size={32} color="#ffffff" />
+              <Pause size={36} color="#ffffff" strokeWidth={2.5} />
             ) : (
-              <Play size={32} color="#ffffff" />
+              <Play size={36} color="#ffffff" strokeWidth={2.5} />
             )}
           </TouchableOpacity>
           
@@ -194,45 +201,52 @@ export default function Breathwork() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <LinearGradient
-        colors={['#ede9fe', '#ddd6fe', '#c4b5fd']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Wind size={32} color="#581c87" />
-          <Text style={styles.title}>Breathwork</Text>
-          <Text style={styles.subtitle}>
-            Guided breathing exercises for wellness and focus
-          </Text>
+        colors={['#0f172a', '#1e293b', '#334155']}
+        style={styles.background}
+      />
+      
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <LinearGradient
+            colors={['#3b82f6', '#2563eb']}
+            style={styles.headerGradient}
+          >
+            <View style={styles.headerContent}>
+              <Wind size={32} color="#ffffff" strokeWidth={2.5} />
+              <Text style={styles.title}>Breathwork</Text>
+              <Text style={styles.subtitle}>
+                Guided breathing for wellness and focus
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+
+        <View style={styles.content}>
+          {breathingPatterns.map((pattern) => (
+            <PatternCard
+              key={pattern.id}
+              pattern={pattern}
+              onStart={() => {
+                if (pattern.supportsIntention) {
+                  if (Platform.OS === 'web') {
+                    const intentionText = prompt('Set Your Intention (optional):');
+                    setIntention(intentionText || '');
+                  }
+                  startSession(pattern);
+                } else {
+                  startSession(pattern);
+                }
+              }}
+            />
+          ))}
         </View>
         
-        <Image
-          source={{ uri: 'https://images.pexels.com/photos/3822622/pexels-photo-3822622.jpeg?auto=compress&cs=tinysrgb&w=800' }}
-          style={styles.headerImage}
-        />
-      </LinearGradient>
-
-      <View style={styles.content}>
-        {breathingPatterns.map((pattern) => (
-          <PatternCard
-            key={pattern.id}
-            pattern={pattern}
-            onStart={() => {
-              if (pattern.supportsIntention) {
-                if (Platform.OS === 'web') {
-                  const intentionText = prompt('Set Your Intention (optional):');
-                  setIntention(intentionText || '');
-                }
-                startSession(pattern);
-              } else {
-                startSession(pattern);
-              }
-            }}
-          />
-        ))}
-      </View>
-    </ScrollView>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -244,32 +258,53 @@ interface PatternCardProps {
 function PatternCard({ pattern, onStart }: PatternCardProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{pattern.name}</Text>
-        <Text style={styles.cardDuration}>{pattern.totalDuration}s cycle</Text>
-      </View>
-      
-      <Text style={styles.cardDescription}>{pattern.description}</Text>
-      
-      <View style={styles.phasesList}>
-        {pattern.phases.map((phase, index) => (
-          <Text key={index} style={styles.phaseItem}>
-            {phase.name} ({phase.duration}s)
-          </Text>
-        ))}
-      </View>
-      
-      <View style={styles.benefits}>
-        <Text style={styles.benefitsTitle}>Benefits:</Text>
-        {pattern.benefits.map((benefit, index) => (
-          <Text key={index} style={styles.benefitItem}>• {benefit}</Text>
-        ))}
-      </View>
-      
-      <TouchableOpacity style={styles.startButton} onPress={onStart}>
-        <Play size={20} color="#ffffff" />
-        <Text style={styles.startButtonText}>Start Session</Text>
-      </TouchableOpacity>
+      <LinearGradient
+        colors={['#1e293b', '#334155']}
+        style={styles.cardGradient}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{pattern.name}</Text>
+          <View style={styles.durationBadge}>
+            <Circle size={8} color="#3b82f6" fill="#3b82f6" />
+            <Text style={styles.cardDuration}>{pattern.totalDuration}s</Text>
+          </View>
+        </View>
+        
+        <Text style={styles.cardDescription}>{pattern.description}</Text>
+        
+        <View style={styles.phasesList}>
+          {pattern.phases.map((phase, index) => (
+            <View key={index} style={styles.phaseItem}>
+              <View style={styles.phaseDot} />
+              <Text style={styles.phaseItemText}>
+                {phase.name} ({phase.duration}s)
+              </Text>
+            </View>
+          ))}
+        </View>
+        
+        <View style={styles.benefits}>
+          <Text style={styles.benefitsTitle}>Benefits</Text>
+          <View style={styles.benefitsList}>
+            {pattern.benefits.map((benefit, index) => (
+              <View key={index} style={styles.benefitItem}>
+                <View style={styles.benefitDot} />
+                <Text style={styles.benefitText}>{benefit}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        
+        <TouchableOpacity style={styles.startButton} onPress={onStart}>
+          <LinearGradient
+            colors={['#3b82f6', '#2563eb']}
+            style={styles.startButtonGradient}
+          >
+            <Play size={20} color="#ffffff" strokeWidth={2.5} />
+            <Text style={styles.startButtonText}>Start Session</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </LinearGradient>
     </View>
   );
 }
@@ -277,61 +312,70 @@ function PatternCard({ pattern, onStart }: PatternCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
+  },
+  background: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
-    paddingTop: 70,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    position: 'relative',
+    marginTop: 60,
+    marginHorizontal: 20,
+    marginBottom: 32,
+    height: 200,
+  },
+  headerGradient: {
+    flex: 1,
+    borderRadius: 32,
     overflow: 'hidden',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
   },
   headerContent: {
+    flex: 1,
     alignItems: 'center',
-    zIndex: 2,
-  },
-  headerImage: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    opacity: 0.12,
-    transform: [{ rotate: '20deg' }],
+    justifyContent: 'center',
+    padding: 32,
   },
   title: {
     fontSize: 36,
     fontFamily: 'Poppins-Bold',
-    color: '#581c87',
-    marginBottom: 12,
+    color: '#ffffff',
+    marginBottom: 8,
     marginTop: 12,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#7c3aed',
-    opacity: 0.85,
+    color: '#ffffff',
+    opacity: 0.9,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
   },
   content: {
-    padding: 24,
+    padding: 20,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
-    borderWidth: 1.5,
-    borderColor: '#f1f5f9',
+  },
+  cardGradient: {
+    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -342,34 +386,50 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontFamily: 'Poppins-SemiBold',
-    color: '#1f2937',
+    color: '#ffffff',
     letterSpacing: -0.3,
+    flex: 1,
+  },
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
   },
   cardDuration: {
     fontSize: 13,
     fontFamily: 'Inter-SemiBold',
-    color: '#6b7280',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    color: '#3b82f6',
   },
   cardDescription: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#4b5563',
+    color: '#cbd5e1',
     marginBottom: 20,
-    lineHeight: 26,
+    lineHeight: 24,
   },
   phasesList: {
     marginBottom: 20,
   },
   phaseItem: {
-    fontSize: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  phaseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#64748b',
+  },
+  phaseItemText: {
+    fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
-    marginBottom: 6,
-    paddingLeft: 8,
+    color: '#94a3b8',
   },
   benefits: {
     marginBottom: 24,
@@ -377,30 +437,44 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: 17,
     fontFamily: 'Inter-SemiBold',
-    color: '#1f2937',
+    color: '#ffffff',
     marginBottom: 12,
   },
+  benefitsList: {
+    gap: 8,
+  },
   benefitItem: {
-    fontSize: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  benefitDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  benefitText: {
+    fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#4b5563',
-    marginBottom: 6,
-    paddingLeft: 8,
+    color: '#cbd5e1',
   },
   startButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  startButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8b5cf6',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 16,
     gap: 10,
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
   },
   startButtonText: {
     color: '#ffffff',
@@ -410,39 +484,48 @@ const styles = StyleSheet.create({
   },
   sessionContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
+  },
+  sessionBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   sessionHeader: {
     paddingTop: 70,
     paddingBottom: 40,
     paddingHorizontal: 20,
     alignItems: 'center',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   backButton: {
     position: 'absolute',
     left: 20,
     top: 70,
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   backButtonText: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#581c87',
+    color: '#ffffff',
   },
   sessionTitle: {
     fontSize: 28,
     fontFamily: 'Poppins-Bold',
-    color: '#581c87',
+    color: '#ffffff',
     marginBottom: 8,
     letterSpacing: -0.4,
   },
   sessionSubtitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#7c3aed',
-    opacity: 0.85,
+    color: '#ffffff',
+    opacity: 0.9,
   },
   visualizerContainer: {
     flex: 1,
@@ -451,43 +534,43 @@ const styles = StyleSheet.create({
     padding: 48,
   },
   breathingCircle: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: '#8b5cf6',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#3b82f6',
     position: 'absolute',
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 32,
+    elevation: 16,
   },
   phaseInfo: {
     alignItems: 'center',
     zIndex: 10,
   },
   phaseText: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: 'Poppins-Bold',
     color: '#ffffff',
     marginBottom: 12,
     textAlign: 'center',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
   instructionText: {
     fontSize: 18,
     fontFamily: 'Inter-Medium',
     color: '#ffffff',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     opacity: 0.95,
     lineHeight: 24,
   },
   timerText: {
-    fontSize: 56,
+    fontSize: 64,
     fontFamily: 'Poppins-Bold',
     color: '#ffffff',
-    letterSpacing: -1,
+    letterSpacing: -2,
   },
   intentionDisplay: {
     paddingHorizontal: 48,
@@ -498,9 +581,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Poppins-Medium',
     fontStyle: 'italic',
-    color: '#581c87',
+    color: '#ffffff',
     textAlign: 'center',
     lineHeight: 28,
+    opacity: 0.8,
   },
   sessionControls: {
     flexDirection: 'row',
@@ -513,26 +597,31 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#64748b',
+    backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
   },
   playButton: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#8b5cf6',
-    shadowColor: '#7c3aed',
-    shadowOpacity: 0.3,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#3b82f6',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.5,
   },
   stopButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bottomSpacer: {
+    height: 120,
   },
 });
