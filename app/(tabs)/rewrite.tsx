@@ -1,3 +1,5 @@
+Here's the fixed version with all missing closing brackets and proper structure:
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -144,8 +146,8 @@ export default function Library() {
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-      {/* Header */}
-          <Text style={styles.greeting}>Your sacred collection</Text>
+        {/* Header */}
+        <Text style={styles.greeting}>Your sacred collection</Text>
         <Text style={styles.greeting}>Your collection</Text>
         <Text style={styles.title}>Manifestation Library</Text>
         
@@ -159,108 +161,50 @@ export default function Library() {
             <Text style={styles.statLabel}>Favorites</Text>
           </View>
         </View>
-      </View>
 
-      {/* Status Messages */}
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-      
-      {success && (
-        <View style={styles.successContainer}>
-          <Text style={styles.successText}>{success}</Text>
-        </View>
-      )}
-
-      {/* Search and Filter */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#64748b" strokeWidth={1.5} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search manifestations..."
-            placeholderTextColor="#94a3b8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        
-        <TouchableOpacity
-          style={[styles.filterButton, showFavoritesOnly && styles.filterButtonActive]}
-          onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
-        >
-          <Filter size={18} color={showFavoritesOnly ? '#ffffff' : '#64748b'} strokeWidth={1.5} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {filteredManifestations.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Heart size={48} color="#cbd5e1" strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>
-              {manifestations.length === 0 
-                ? 'No manifestations yet' 
-                : 'No manifestations match your search'
-              }
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {manifestations.length === 0 
-                ? 'Visit Journal to create your first manifestation'
-                : 'Try adjusting your search or filters'
-              }
-            </Text>
+        {/* Status Messages */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : (
-          filteredManifestations.map((manifestation) => (
-            <ManifestationCard
-              key={manifestation.id}
-              manifestation={manifestation}
-              onToggleFavorite={toggleFavorite}
-              onCopy={copyToClipboard}
-              onDelete={deleteManifestation}
-            />
-          ))
         )}
-      </Animated.ScrollView>
-    </View>
-  );
-}
-
-interface ManifestationCardProps {
-  manifestation: Manifestation;
-  onToggleFavorite: (id: string) => void;
-  onCopy: (text: string) => void;
-  onDelete: (id: string) => void;
-}
-
-function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
-          onScroll={handleScroll}
-          onPress={() => onToggleFavorite(manifestation.id)}
-          style={styles.favoriteButton}
-        >
-            color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
-            fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
-            strokeWidth={1.5}
-          />
-        </TouchableOpacity>
         
-        <Text style={styles.cardDate}>
-        </AnimatedButton>
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
+        {success && (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{success}</Text>
+          </View>
+        )}
+
+        {/* Search and Filter */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Search size={18} color="#64748b" strokeWidth={1.5} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search manifestations..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          
+          <TouchableOpacity
+            style={[styles.filterButton, showFavoritesOnly && styles.filterButtonActive]}
+            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          >
+            <Filter size={18} color={showFavoritesOnly ? '#ffffff' : '#64748b'} strokeWidth={1.5} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Content */}
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {filteredManifestations.length === 0 ? (
             <EmptyState
               icon={Heart}
               title={manifestations.length === 0 
@@ -273,27 +217,68 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
               }
               iconColor="#f472b6"
             />
-        <AnimatedButton
-          <Text style={styles.actionText}>Copy</Text>
-        </TouchableOpacity>
-        
+          ) : (
+            filteredManifestations.map((manifestation) => (
+              <ManifestationCard
+                key={manifestation.id}
+                manifestation={manifestation}
+                onToggleFavorite={toggleFavorite}
+                onCopy={copyToClipboard}
+                onDelete={deleteManifestation}
+              />
+            ))
+          )}
+        </Animated.ScrollView>
+      </View>
+    </GradientBackground>
+  );
+}
+
+interface ManifestationCardProps {
+  manifestation: Manifestation;
+  onToggleFavorite: (id: string) => void;
+  onCopy: (text: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity
+        onPress={() => onToggleFavorite(manifestation.id)}
+        style={styles.favoriteButton}
+      >
+        <Heart
+          color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
+          fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
+          strokeWidth={1.5}
+        />
+      </TouchableOpacity>
+      
+      <Text style={styles.cardDate}>
+        {new Date(manifestation.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })}
+      </Text>
+      
+      <View style={styles.cardActions}>
+        <AnimatedButton onPress={() => onCopy(manifestation.transformed_text)}>
           <View style={styles.actionButtonContent}>
             <Copy size={16} color="#2563eb" strokeWidth={1.5} />
             <Text style={styles.actionText}>Copy</Text>
           </View>
         </AnimatedButton>
-        >
-        <AnimatedButton
-          <Text style={styles.deleteText}>Delete</Text>
-        </TouchableOpacity>
-          
+        
+        <AnimatedButton onPress={() => onDelete(manifestation.id)}>
           <View style={styles.actionButtonContent}>
             <Trash2 size={16} color="#ef4444" strokeWidth={1.5} />
             <Text style={styles.deleteText}>Delete</Text>
           </View>
         </AnimatedButton>
       </View>
-    </GradientBackground>
+    </View>
   );
 }
 
@@ -306,7 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-        <AnimatedButton
+  loadingText: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     color: '#64748b',
