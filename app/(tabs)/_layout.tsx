@@ -6,79 +6,63 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#ff6b6b',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: '#a855f7',
+        tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: {
-          backgroundColor: '#0f172a',
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowColor: '#ff6b6b',
-          shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.3,
-          shadowRadius: 24,
-          paddingBottom: 16,
-          paddingTop: 16,
-          height: 100,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 88,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontFamily: 'Inter-Bold',
-          marginTop: 8,
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
-        },
-        tabBarIconStyle: {
-          marginTop: 4,
+          fontWeight: '500',
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Create',
+          title: 'Dream Lab',
           tabBarIcon: ({ size, color }) => (
-            <BookOpen size={size} color={color} strokeWidth={2.5} />
+            <BookOpen size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="rewrite"
         options={{
-          title: 'Library',
+          title: 'My Rewrite',
           tabBarIcon: ({ size, color }) => (
-            <Heart size={size} color={color} strokeWidth={2.5} />
+            <Heart size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="breathwork"
         options={{
-          title: 'Breathe',
+          title: 'Breathwork',
           tabBarIcon: ({ size, color }) => (
-            <Wind size={size} color={color} strokeWidth={2.5} />
+            <Wind size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
-          title: 'Grow',
+          title: 'Challenges',
           tabBarIcon: ({ size, color }) => (
-            <Trophy size={size} color={color} strokeWidth={2.5} />
+            <Trophy size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Profile',
+          title: 'Settings',
           tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} strokeWidth={2.5} />
+            <Settings size={size} color={color} />
           ),
         }}
       />

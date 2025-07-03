@@ -8,14 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Save, Zap, ArrowRight, Plus } from 'lucide-react-native';
+import { Sparkles, Save, BookOpen } from 'lucide-react-native';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
-
-const { width } = Dimensions.get('window');
 
 export default function DreamLab() {
   const [journalEntry, setJournalEntry] = useState('');
@@ -27,7 +24,7 @@ export default function DreamLab() {
 
   const handleTransform = async () => {
     if (!journalEntry.trim()) {
-      setError('Write something magical first ✨');
+      setError('Please write something in your journal first.');
       setTimeout(() => setError(null), 3000);
       return;
     }
@@ -38,9 +35,9 @@ export default function DreamLab() {
     try {
       const transformed = await transformJournalEntry(journalEntry);
       setTransformedText(transformed);
-      setError(null);
+      setError(null); // Clear any previous errors on success
     } catch (error) {
-      setError('Something went wrong. Try again! 🔄');
+      setError('Failed to transform your entry. Please check your connection and try again.');
       console.error('Transformation error:', error);
       setTimeout(() => setError(null), 5000);
     } finally {
@@ -50,7 +47,7 @@ export default function DreamLab() {
 
   const handleSave = async () => {
     if (!transformedText.trim()) {
-      setError('Transform your thoughts first! ⚡');
+      setError('Please transform your journal entry first.');
       return;
     }
 
@@ -65,12 +62,16 @@ export default function DreamLab() {
         tags: [],
       });
       
-      setSuccess('Manifestation saved! 🎉');
+      setSuccess('Your manifestation has been saved to My Rewrite!');
+      
+      // Clear the form
       setJournalEntry('');
       setTransformedText('');
+      
+      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      setError('Failed to save. Try again! 💫');
+      setError('Failed to save your manifestation. Please try again.');
       console.error('Save error:', error);
     } finally {
       setIsSaving(false);
@@ -78,30 +79,26 @@ export default function DreamLab() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <LinearGradient
-        colors={['#0f172a', '#1e293b', '#334155']}
-        style={styles.background}
-      />
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View style={styles.hero}>
-          <LinearGradient
-            colors={['#ff6b6b', '#ff8e8e', '#ffb3b3']}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroTitle}>Transform</Text>
-              <Text style={styles.heroSubtitle}>Your Thoughts Into Power</Text>
-              <View style={styles.heroIcon}>
-                <Zap size={32} color="#ffffff" strokeWidth={3} />
-              </View>
-            </View>
-          </LinearGradient>
+        colors={['#faf5ff', '#f3e8ff', '#e0e7ff']}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <BookOpen size={32} color="#581c87" />
+          <Text style={styles.title}>Dream Lab</Text>
+          <Text style={styles.subtitle}>
+            Transform your thoughts into powerful manifestations
+          </Text>
         </View>
+        
+        <Image
+          source={{ uri: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+          style={styles.headerImage}
+        />
+      </LinearGradient>
 
-        {/* Status Messages */}
+      <View style={styles.content}>
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -114,360 +111,214 @@ export default function DreamLab() {
           </View>
         )}
 
-        {/* Input Section */}
-        <View style={styles.inputSection}>
-          <View style={styles.inputHeader}>
-            <Plus size={24} color="#ff6b6b" strokeWidth={2.5} />
-            <Text style={styles.inputTitle}>What's on your mind?</Text>
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Pour your heart out... fears, dreams, struggles, hopes..."
-              placeholderTextColor="#64748b"
-              value={journalEntry}
-              onChangeText={setJournalEntry}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-            />
-          </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Journal Entry</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Write about your thoughts, feelings, dreams, or challenges... Our AI will transform them into powerful manifestations."
+            value={journalEntry}
+            onChangeText={setJournalEntry}
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+          />
           
           <TouchableOpacity
-            style={[styles.transformButton, isTransforming && styles.buttonDisabled]}
+            style={[styles.button, styles.transformButton]}
             onPress={handleTransform}
             disabled={isTransforming}
           >
-            <LinearGradient
-              colors={isTransforming ? ['#64748b', '#475569'] : ['#ff6b6b', '#ff4757']}
-              style={styles.buttonGradient}
-            >
-              {isTransforming ? (
-                <>
-                  <ActivityIndicator color="#ffffff" size="small" />
-                  <Text style={styles.buttonText}>Transforming...</Text>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={24} color="#ffffff" strokeWidth={2.5} />
-                  <Text style={styles.buttonText}>Transform</Text>
-                  <ArrowRight size={20} color="#ffffff" strokeWidth={2.5} />
-                </>
-              )}
-            </LinearGradient>
+            {isTransforming ? (
+              <>
+                <ActivityIndicator color="#ffffff" size="small" />
+                <Text style={styles.buttonText}>Transforming...</Text>
+              </>
+            ) : (
+              <>
+                <Sparkles size={20} color="#ffffff" />
+                <Text style={styles.buttonText}>Transform with AI</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Result Section */}
-        {transformedText && (
-          <View style={styles.resultSection}>
-            <Text style={styles.resultTitle}>Your Manifestation</Text>
+        {transformedText ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Manifestation</Text>
             <View style={styles.manifestationCard}>
-              <LinearGradient
-                colors={['#1e293b', '#334155']}
-                style={styles.manifestationGradient}
-              >
-                <Text style={styles.manifestationText}>{transformedText}</Text>
-                <View style={styles.manifestationGlow} />
-              </LinearGradient>
+              <Text style={styles.manifestationText}>{transformedText}</Text>
             </View>
             
             <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.buttonDisabled]}
+              style={[styles.button, styles.saveButton]}
               onPress={handleSave}
               disabled={isSaving}
             >
-              <LinearGradient
-                colors={isSaving ? ['#64748b', '#475569'] : ['#10b981', '#059669']}
-                style={styles.buttonGradient}
-              >
-                {isSaving ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <>
-                    <Save size={24} color="#ffffff" strokeWidth={2.5} />
-                    <Text style={styles.buttonText}>Save to Library</Text>
-                  </>
-                )}
-              </LinearGradient>
+              {isSaving ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Save size={20} color="#ffffff" />
+                  <Text style={styles.buttonText}>Save to My Rewrite</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
-        )}
+        ) : null}
 
-        {/* Tips Section */}
         <View style={styles.tipsSection}>
-          <Text style={styles.tipsTitle}>💡 Pro Tips</Text>
-          <View style={styles.tipsList}>
-            <View style={styles.tip}>
-              <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Be honest about your feelings</Text>
-            </View>
-            <View style={styles.tip}>
-              <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Share your biggest challenges</Text>
-            </View>
-            <View style={styles.tip}>
-              <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Dream without limits</Text>
-            </View>
-            <View style={styles.tip}>
-              <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Trust the transformation process</Text>
-            </View>
+          <Text style={styles.tipsTitle}>Tips for Better Manifestations</Text>
+          <View style={styles.tip}>
+            <Text style={styles.tipText}>• Write honestly about your current thoughts and feelings</Text>
+          </View>
+          <View style={styles.tip}>
+            <Text style={styles.tipText}>• Share your challenges, fears, or limiting beliefs</Text>
+          </View>
+          <View style={styles.tip}>
+            <Text style={styles.tipText}>• Describe what you want to create or change in your life</Text>
+          </View>
+          <View style={styles.tip}>
+            <Text style={styles.tipText}>• Our AI will transform your words into empowering affirmations</Text>
           </View>
         </View>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
   },
-  background: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  header: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    position: 'relative',
   },
-  scrollView: {
-    flex: 1,
-  },
-  hero: {
-    height: 280,
-    marginTop: 60,
-    marginHorizontal: 20,
-    marginBottom: 32,
-  },
-  heroGradient: {
-    flex: 1,
-    borderRadius: 32,
-    overflow: 'hidden',
-    shadowColor: '#ff6b6b',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'center',
+  headerContent: {
     alignItems: 'center',
-    padding: 32,
+    zIndex: 2,
   },
-  heroTitle: {
-    fontSize: 48,
-    fontFamily: 'Poppins-Bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    letterSpacing: -1,
+  headerImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    opacity: 0.3,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#581c87',
     marginBottom: 8,
+    marginTop: 12,
   },
-  heroSubtitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+  subtitle: {
+    fontSize: 16,
+    color: '#7c3aed',
+    opacity: 0.8,
     textAlign: 'center',
-    opacity: 0.9,
-    letterSpacing: 0.5,
-    marginBottom: 24,
   },
-  heroIcon: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 24,
-    padding: 16,
+  content: {
+    padding: 20,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderLeftWidth: 6,
-    borderLeftColor: '#ef4444',
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   errorText: {
     color: '#dc2626',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#f0fdf4',
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderLeftWidth: 6,
-    borderLeftColor: '#10b981',
+    backgroundColor: '#d1fae5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   successText: {
-    color: '#059669',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    color: '#065f46',
+    fontSize: 14,
     textAlign: 'center',
   },
-  inputSection: {
-    marginHorizontal: 20,
-    marginBottom: 32,
+  section: {
+    marginBottom: 30,
   },
-  inputHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
-  },
-  inputTitle: {
-    fontSize: 24,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#ffffff',
-    letterSpacing: -0.5,
-  },
-  inputContainer: {
-    backgroundColor: '#1e293b',
-    borderRadius: 24,
-    padding: 4,
-    marginBottom: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 15,
   },
   textInput: {
-    backgroundColor: '#334155',
-    borderRadius: 20,
-    padding: 24,
-    fontSize: 18,
-    fontFamily: 'Inter-Regular',
-    color: '#ffffff',
-    minHeight: 160,
-    lineHeight: 28,
-    textAlignVertical: 'top',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 120,
+    backgroundColor: '#f9fafb',
+    color: '#1f2937',
   },
-  transformButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#ff6b6b',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  buttonGradient: {
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 15,
+    gap: 8,
+  },
+  transformButton: {
+    backgroundColor: '#a855f7',
+  },
+  saveButton: {
+    backgroundColor: '#3b82f6',
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  resultSection: {
-    marginHorizontal: 20,
-    marginBottom: 32,
-  },
-  resultTitle: {
-    fontSize: 24,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#ffffff',
-    marginBottom: 20,
-    textAlign: 'center',
-    letterSpacing: -0.5,
+    fontSize: 16,
+    fontWeight: '700',
   },
   manifestationCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginBottom: 24,
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  manifestationGradient: {
-    padding: 32,
-    position: 'relative',
+    backgroundColor: '#faf5ff',
+    borderWidth: 2,
+    borderColor: '#e9d5ff',
+    borderRadius: 12,
+    padding: 20,
   },
   manifestationText: {
-    fontSize: 22,
-    fontFamily: 'Poppins-Medium',
-    color: '#ffffff',
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#581c87',
+    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 36,
-    letterSpacing: 0.3,
     fontStyle: 'italic',
   },
-  manifestationGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#10b981',
-    opacity: 0.1,
-    borderRadius: 24,
-  },
-  saveButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
   tipsSection: {
-    marginHorizontal: 20,
-    backgroundColor: '#1e293b',
-    borderRadius: 24,
-    padding: 28,
-    marginBottom: 32,
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 20,
   },
   tipsTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#ffffff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  tipsList: {
-    gap: 16,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e3a8a',
+    marginBottom: 15,
   },
   tip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  tipDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff6b6b',
+    marginBottom: 8,
   },
   tipText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#cbd5e1',
-    lineHeight: 24,
-    flex: 1,
-  },
-  bottomSpacer: {
-    height: 120,
+    fontSize: 14,
+    color: '#1e40af',
+    lineHeight: 20,
   },
 });
