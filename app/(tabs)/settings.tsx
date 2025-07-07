@@ -14,23 +14,38 @@ import {
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import FloatingActionButton from '@/components/FloatingActionButton';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, Edit } from 'lucide-react-native';
 
 const { height } = Dimensions.get('window');
 
+type Profile = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  username: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function Settings() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [schedules, setSchedules] = useState<any[]>([]);
+  const [editUsername, setEditUsername] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
   const [newSchedule, setNewSchedule] = useState({
     title: '',
     message: '',
@@ -50,6 +65,7 @@ export default function Settings() {
   useEffect(() => {
     if (user) {
       fetchSchedules();
+      fetchProfile();
     }
   }, [user]);
 
@@ -61,6 +77,34 @@ export default function Settings() {
       console.error('Error checking user:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 means no rows found
+
+      if (data) {
+        setProfile(data);
+        setEditUsername(data.username || '');
+        setEditDisplayName(data.display_name || '');
+        
+        // Auto-prompt for profile completion if fields are empty
+        if (!data.username && !data.display_name) {
+          setIsEditingProfile(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setError('Failed to load profile data.');
     }
   };
 
@@ -78,6 +122,37 @@ export default function Settings() {
       setSchedules(data || []);
     } catch (error) {
       console.error('Error fetching schedules:', error);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const updates = {
+        username: editUsername.trim() || null,
+        display_name: editDisplayName.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setSuccess('Profile updated successfully!');
+      setIsEditingProfile(false);
+      fetchProfile();
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -118,6 +193,7 @@ export default function Settings() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
+      setProfile(null);
       setSchedules([]);
       setSuccess('Signed out successfully!');
     } catch (error: any) {
@@ -236,12 +312,62 @@ export default function Settings() {
                 <View style={styles.sectionHeader}>
                   <UserIcon size={20} color="#6366f1" />
                   <Text style={styles.sectionTitle}>Profile</Text>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => setIsEditingProfile(!isEditingProfile)}
+                  >
+                    <Edit size={16} color="#6366f1" />
+                    <Text style={styles.editButtonText}>
+                      {isEditingProfile ? 'Cancel' : 'Edit'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.profileCard}>
+                  {isEditingProfile && (!profile?.username || !profile?.display_name) && (
+                    <View style={styles.profilePrompt}>
+                      <Text style={styles.profilePromptText}>
+                        Complete your profile to get started!
+                      </Text>
+                    </View>
+                  )}
+                  
                   <Text style={styles.profileEmail}>{user.email}</Text>
+                  {profile?.display_name && (
+                    <Text style={styles.profileDisplayName}>{profile.display_name}</Text>
+                  )}
+                  {profile?.username && (
+                    <Text style={styles.profileUsername}>@{profile.username}</Text>
+                  )}
                   <Text style={styles.profileJoined}>
                     Joined {new Date(user.created_at).toLocaleDateString()}
                   </Text>
+
+                  {isEditingProfile && (
+                    <View style={styles.editProfileSection}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Display Name"
+                        value={editDisplayName}
+                        onChangeText={setEditDisplayName}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Username"
+                        value={editUsername}
+                        onChangeText={setEditUsername}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={handleProfileUpdate}
+                        disabled={loading}
+                      >
+                        <Text style={styles.primaryButtonText}>
+                          {loading ? 'Saving...' : 'Save Changes'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -565,11 +691,34 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 4,
   },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+  },
+  editButtonText: {
+    fontSize: 14,
+    color: '#6366f1',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
   profileCard: {
     padding: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     backdropFilter: 'blur(10px)',
+  },
+  profilePrompt: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  profilePromptText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   profileEmail: {
     fontSize: 16,
@@ -577,9 +726,26 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 4,
   },
+  profileDisplayName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+  },
+  profileUsername: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 8,
+  },
   profileJoined: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  editProfileSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
   scheduleCard: {
     padding: 16,
