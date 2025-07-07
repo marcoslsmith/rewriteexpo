@@ -9,14 +9,18 @@ import {
   TextInput, 
   Animated,
   Dimensions,
-  Platform
+  Platform,
+  Switch,
+  Alert
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import FloatingActionButton from '@/components/FloatingActionButton';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, CreditCard as Edit3, Check, X, Crown, Calendar, Mail, AtSign } from 'lucide-react-native';
+import { storageService } from '@/lib/storage';
+import { notificationService, defaultReminderMessages } from '@/lib/notifications';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, CreditCard as Edit3, Check, X, Crown, Calendar, Mail, AtSign, Heart, Clock, Trash2, MessageSquare, Sparkles } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
@@ -38,10 +42,35 @@ type UserStats = {
   totalPoints: number;
   daysSinceJoined: number;
 };
+
+type NotificationSchedule = {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  use_random_manifestation: boolean;
+  time: string;
+  days: number[];
+  is_active: boolean;
+  created_at: string;
+};
+
+type Manifestation = {
+  id: string;
+  user_id: string | null;
+  original_entry: string;
+  transformed_text: string;
+  is_favorite: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 export default function Settings() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [manifestations, setManifestations] = useState<Manifestation[]>([]);
   const [userStats, setUserStats] = useState<UserStats>({
     manifestationCount: 0,
     favoriteCount: 0,
@@ -60,14 +89,18 @@ export default function Settings() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
+  const [scheduleType, setScheduleType] = useState<'reminder' | 'manifestation'>('reminder');
+  const [selectedCategory, setSelectedCategory] = useState<'morning' | 'evening' | 'motivation' | 'journaling'>('morning');
+  const [selectedManifestation, setSelectedManifestation] = useState<string>('');
   const [newSchedule, setNewSchedule] = useState({
     title: '',
     message: '',
     time: '',
-    days: [] as number[]
+    days: [] as number[],
+    use_random_manifestation: false,
   });
   
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -88,6 +121,7 @@ export default function Settings() {
       fetchSchedules();
       fetchProfile();
       fetchUserStats();
+      fetchManifestations();
     }
   }, [user]);
 
@@ -127,6 +161,15 @@ export default function Settings() {
       console.error('Error fetching profile:', error);
       setError('Failed to load profile data.');
       setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const fetchManifestations = async () => {
+    try {
+      const data = await storageService.getManifestations();
+      setManifestations(data);
+    } catch (error) {
+      console.error('Error fetching manifestations:', error);
     }
   };
 
@@ -179,18 +222,20 @@ export default function Settings() {
       console.error('Error fetching user stats:', error);
     }
   };
+
   const fetchSchedules = async () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('notification_schedules')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setSchedules(data || []);
+      const data = await storageService.getNotificationSchedules();
+      setSchedules(data);
+      
+      // Create default schedules if none exist
+      if (data.length === 0) {
+        await notificationService.createDefaultSchedules(user.id);
+        const updatedData = await storageService.getNotificationSchedules();
+        setSchedules(updatedData);
+      }
     } catch (error) {
       console.error('Error fetching schedules:', error);
     }
@@ -270,6 +315,7 @@ export default function Settings() {
       setUser(null);
       setProfile(null);
       setSchedules([]);
+      setManifestations([]);
       setUserStats({
         manifestationCount: 0,
         favoriteCount: 0,
@@ -289,31 +335,73 @@ export default function Settings() {
 
   const handleAddSchedule = async () => {
     if (!user || !newSchedule.title || !newSchedule.time || newSchedule.days.length === 0) {
-      setError('Please fill in all fields');
+      setError('Please fill in all required fields');
       setTimeout(() => setError(null), 3000);
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('notification_schedules')
-        .insert({
-          user_id: user.id,
-          title: newSchedule.title,
-          message: newSchedule.message,
-          time: newSchedule.time,
-          days: newSchedule.days,
-        });
+      let message = newSchedule.message;
+      let useRandomManifestation = false;
 
-      if (error) throw error;
+      if (scheduleType === 'manifestation') {
+        if (selectedManifestation === 'random') {
+          useRandomManifestation = true;
+          message = 'Your personalized manifestation will appear here';
+        } else if (selectedManifestation) {
+          const manifestation = manifestations.find(m => m.id === selectedManifestation);
+          message = manifestation?.transformed_text || message;
+        }
+      }
+
+      await storageService.addNotificationSchedule({
+        user_id: user.id,
+        title: newSchedule.title,
+        message: message,
+        use_random_manifestation: useRandomManifestation,
+        time: newSchedule.time,
+        days: newSchedule.days,
+        is_active: true,
+      });
 
       setSuccess('Schedule added successfully!');
       setShowScheduleModal(false);
-      setNewSchedule({ title: '', message: '', time: '', days: [] });
+      resetScheduleForm();
       fetchSchedules();
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const resetScheduleForm = () => {
+    setNewSchedule({ title: '', message: '', time: '', days: [], use_random_manifestation: false });
+    setScheduleType('reminder');
+    setSelectedCategory('morning');
+    setSelectedManifestation('');
+  };
+
+  const deleteSchedule = async (scheduleId: string) => {
+    try {
+      await storageService.deleteNotificationSchedule(scheduleId);
+      setSuccess('Schedule deleted successfully!');
+      fetchSchedules();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error: any) {
+      setError('Failed to delete schedule');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const toggleScheduleActive = async (schedule: NotificationSchedule) => {
+    try {
+      await storageService.updateNotificationSchedule(schedule.id, {
+        is_active: !schedule.is_active
+      });
+      fetchSchedules();
+    } catch (error: any) {
+      setError('Failed to update schedule');
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -359,6 +447,9 @@ export default function Settings() {
       year: 'numeric' 
     });
   };
+
+  const favoriteManifestations = manifestations.filter(m => m.is_favorite);
+
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -555,12 +646,44 @@ export default function Settings() {
                   schedules.map((schedule) => (
                     <View key={schedule.id} style={styles.scheduleCard}>
                       <View style={styles.scheduleHeader}>
-                        <Text style={styles.scheduleTitle}>{schedule.title}</Text>
-                        <Text style={styles.scheduleTime}>{schedule.time}</Text>
+                        <View style={styles.scheduleMainInfo}>
+                          <Text style={styles.scheduleTitle}>{schedule.title}</Text>
+                          <Text style={styles.scheduleTime}>{schedule.time}</Text>
+                        </View>
+                        <View style={styles.scheduleActions}>
+                          <Switch
+                            value={schedule.is_active}
+                            onValueChange={() => toggleScheduleActive(schedule)}
+                            trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: '#667eea' }}
+                            thumbColor={schedule.is_active ? '#ffffff' : 'rgba(255, 255, 255, 0.8)'}
+                          />
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => {
+                              Alert.alert(
+                                'Delete Schedule',
+                                'Are you sure you want to delete this notification schedule?',
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  { text: 'Delete', style: 'destructive', onPress: () => deleteSchedule(schedule.id) }
+                                ]
+                              );
+                            }}
+                          >
+                            <Trash2 size={16} color="#ff6b6b" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                      {schedule.message && (
+                      
+                      {schedule.use_random_manifestation ? (
+                        <View style={styles.manifestationIndicator}>
+                          <Sparkles size={14} color="#667eea" />
+                          <Text style={styles.manifestationText}>Random favorite manifestation</Text>
+                        </View>
+                      ) : schedule.message ? (
                         <Text style={styles.scheduleMessage}>{schedule.message}</Text>
-                      )}
+                      ) : null}
+                      
                       <View style={styles.scheduleDays}>
                         {schedule.days.map((day: number) => (
                           <View key={day} style={styles.dayBadge}>
@@ -686,33 +809,157 @@ export default function Settings() {
           <GradientBackground colors={['#667eea', '#764ba2']}>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Reminder</Text>
+                <Text style={styles.modalTitle}>Create Notification</Text>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
-                  onPress={() => setShowScheduleModal(false)}
+                  onPress={() => {
+                    setShowScheduleModal(false);
+                    resetScheduleForm();
+                  }}
                 >
                   <X size={24} color="#ffffff" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.modalContent}>
+              <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+                {/* Schedule Type Selection */}
+                <View style={styles.typeSelection}>
+                  <TouchableOpacity
+                    style={[styles.typeButton, scheduleType === 'reminder' && styles.typeButtonActive]}
+                    onPress={() => setScheduleType('reminder')}
+                  >
+                    <MessageSquare size={20} color={scheduleType === 'reminder' ? '#ffffff' : 'rgba(255, 255, 255, 0.7)'} />
+                    <Text style={[styles.typeButtonText, scheduleType === 'reminder' && styles.typeButtonTextActive]}>
+                      Reminder
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.typeButton, scheduleType === 'manifestation' && styles.typeButtonActive]}
+                    onPress={() => setScheduleType('manifestation')}
+                  >
+                    <Sparkles size={20} color={scheduleType === 'manifestation' ? '#ffffff' : 'rgba(255, 255, 255, 0.7)'} />
+                    <Text style={[styles.typeButtonText, scheduleType === 'manifestation' && styles.typeButtonTextActive]}>
+                      Manifestation
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="Title"
+                  placeholder="Notification Title"
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newSchedule.title}
                   onChangeText={(text) => setNewSchedule(prev => ({ ...prev, title: text }))}
                 />
-                
-                <TextInput
-                  style={[styles.modalInput, styles.textArea]}
-                  placeholder="Message (optional)"
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newSchedule.message}
-                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
-                  multiline
-                  numberOfLines={3}
-                />
+
+                {scheduleType === 'reminder' ? (
+                  <>
+                    {/* Category Selection */}
+                    <Text style={styles.inputLabel}>Choose a category:</Text>
+                    <View style={styles.categoryGrid}>
+                      {Object.keys(defaultReminderMessages).map((category) => (
+                        <TouchableOpacity
+                          key={category}
+                          style={[
+                            styles.categoryButton,
+                            selectedCategory === category && styles.categoryButtonActive
+                          ]}
+                          onPress={() => {
+                            setSelectedCategory(category as any);
+                            const messages = defaultReminderMessages[category as keyof typeof defaultReminderMessages];
+                            setNewSchedule(prev => ({ 
+                              ...prev, 
+                              message: messages[Math.floor(Math.random() * messages.length)]
+                            }));
+                          }}
+                        >
+                          <Text style={[
+                            styles.categoryButtonText,
+                            selectedCategory === category && styles.categoryButtonTextActive
+                          ]}>
+                            {category.charAt(0).toUpperCase() + category.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <TextInput
+                      style={[styles.modalInput, styles.textArea]}
+                      placeholder="Custom message (optional)"
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                      value={newSchedule.message}
+                      onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Manifestation Selection */}
+                    <Text style={styles.inputLabel}>Choose manifestation source:</Text>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.manifestationOption,
+                        selectedManifestation === 'random' && styles.manifestationOptionActive
+                      ]}
+                      onPress={() => setSelectedManifestation('random')}
+                    >
+                      <Sparkles size={20} color={selectedManifestation === 'random' ? '#667eea' : 'rgba(255, 255, 255, 0.7)'} />
+                      <View style={styles.manifestationOptionText}>
+                        <Text style={[
+                          styles.manifestationOptionTitle,
+                          selectedManifestation === 'random' && styles.manifestationOptionTitleActive
+                        ]}>
+                          Random Favorite
+                        </Text>
+                        <Text style={styles.manifestationOptionSubtitle}>
+                          Show a random manifestation from your favorites
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {favoriteManifestations.length > 0 && (
+                      <>
+                        <Text style={[styles.inputLabel, { marginTop: 16 }]}>Or choose a specific favorite:</Text>
+                        <ScrollView style={styles.manifestationList} nestedScrollEnabled>
+                          {favoriteManifestations.map((manifestation) => (
+                            <TouchableOpacity
+                              key={manifestation.id}
+                              style={[
+                                styles.manifestationItem,
+                                selectedManifestation === manifestation.id && styles.manifestationItemActive
+                              ]}
+                              onPress={() => setSelectedManifestation(manifestation.id)}
+                            >
+                              <Heart 
+                                size={16} 
+                                color={selectedManifestation === manifestation.id ? '#667eea' : 'rgba(255, 255, 255, 0.7)'} 
+                                fill={selectedManifestation === manifestation.id ? '#667eea' : 'transparent'}
+                              />
+                              <Text style={[
+                                styles.manifestationItemText,
+                                selectedManifestation === manifestation.id && styles.manifestationItemTextActive
+                              ]} numberOfLines={2}>
+                                {manifestation.transformed_text}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </>
+                    )}
+
+                    {favoriteManifestations.length === 0 && (
+                      <View style={styles.noFavoritesMessage}>
+                        <Heart size={24} color="rgba(255, 255, 255, 0.5)" />
+                        <Text style={styles.noFavoritesText}>
+                          No favorite manifestations yet. Mark some manifestations as favorites in your library to use them here.
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
 
                 <TextInput
                   style={styles.modalInput}
@@ -744,10 +991,16 @@ export default function Settings() {
                 </View>
 
                 <TouchableOpacity
-                  style={styles.modalPrimaryButton}
+                  style={[
+                    styles.modalPrimaryButton,
+                    (!newSchedule.title || !newSchedule.time || newSchedule.days.length === 0 || 
+                     (scheduleType === 'manifestation' && !selectedManifestation)) && styles.modalPrimaryButtonDisabled
+                  ]}
                   onPress={handleAddSchedule}
+                  disabled={!newSchedule.title || !newSchedule.time || newSchedule.days.length === 0 || 
+                           (scheduleType === 'manifestation' && !selectedManifestation)}
                 >
-                  <Text style={styles.modalPrimaryButtonText}>Add Reminder</Text>
+                  <Text style={styles.modalPrimaryButtonText}>Create Notification</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1077,14 +1330,17 @@ const styles = StyleSheet.create({
   scheduleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  scheduleMainInfo: {
+    flex: 1,
   },
   scheduleTitle: {
     fontSize: 16,
     fontWeight: '500',
     color: 'white',
-    flex: 1,
+    marginBottom: 4,
     fontFamily: 'Inter-Medium',
   },
   scheduleTime: {
@@ -1093,11 +1349,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: 'Inter-Medium',
   },
+  scheduleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deleteButton: {
+    padding: 4,
+  },
   scheduleMessage: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 12,
     fontFamily: 'Inter-Regular',
+    lineHeight: 20,
+  },
+  manifestationIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 6,
+  },
+  manifestationText: {
+    fontSize: 14,
+    color: '#667eea',
+    fontFamily: 'Inter-Medium',
   },
   scheduleDays: {
     flexDirection: 'row',
@@ -1246,6 +1522,137 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
+  typeSelection: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 12,
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: 8,
+  },
+  typeButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  typeButtonText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+  },
+  typeButtonTextActive: {
+    color: 'white',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  categoryButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  categoryButtonText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+  },
+  categoryButtonTextActive: {
+    color: 'white',
+  },
+  manifestationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginBottom: 12,
+    gap: 12,
+  },
+  manifestationOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(102, 126, 234, 0.5)',
+  },
+  manifestationOptionText: {
+    flex: 1,
+  },
+  manifestationOptionTitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 4,
+  },
+  manifestationOptionTitleActive: {
+    color: 'white',
+  },
+  manifestationOptionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  manifestationList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  manifestationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 8,
+    gap: 12,
+  },
+  manifestationItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(102, 126, 234, 0.5)',
+  },
+  manifestationItemText: {
+    flex: 1,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    lineHeight: 18,
+  },
+  manifestationItemTextActive: {
+    color: 'white',
+  },
+  noFavoritesMessage: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  noFavoritesText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
   daysContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1280,6 +1687,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  modalPrimaryButtonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   modalPrimaryButtonText: {
     color: 'white',
