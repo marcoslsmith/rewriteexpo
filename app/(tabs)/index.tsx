@@ -25,7 +25,6 @@ export default function Journal() {
   const [journalEntry, setJournalEntry] = useState('');
   const [transformedText, setTransformedText] = useState('');
   const [isTransforming, setIsTransforming] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showFAB, setShowFAB] = useState(true);
@@ -64,7 +63,25 @@ export default function Journal() {
     try {
       const transformed = await transformJournalEntry(journalEntry);
       setTransformedText(transformed);
+      
+      // Automatically save to library
+      await storageService.addManifestation({
+        original_entry: journalEntry,
+        transformed_text: transformed,
+        is_favorite: false,
+        tags: [],
+      });
+      
+      setSuccess('Your manifestation has been created and saved to your library!');
       setError(null);
+      
+      // Clear the form after successful transformation and save
+      setJournalEntry('');
+      
+      setTimeout(() => {
+        setSuccess(null);
+        setTransformedText('');
+      }, 4000);
     } catch (error) {
       setError('Failed to transform your entry. Please check your connection and try again.');
       console.error('Transformation error:', error);
@@ -74,36 +91,6 @@ export default function Journal() {
     }
   };
 
-  const handleSave = async () => {
-    if (!transformedText.trim()) {
-      setError('Please transform your journal entry first.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-    
-    try {
-      await storageService.addManifestation({
-        original_entry: journalEntry,
-        transformed_text: transformedText,
-        is_favorite: false,
-        tags: [],
-      });
-      
-      setSuccess('Your manifestation has been saved!');
-      
-      setJournalEntry('');
-      setTransformedText('');
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error) {
-      setError('Failed to save your manifestation. Please try again.');
-      console.error('Save error:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   return (
     <GradientBackground colors={['#fefbff', '#f8fafc', '#f1f5f9']}>
@@ -170,7 +157,7 @@ export default function Journal() {
                   <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
                 )}
                 <Text style={styles.buttonText}>
-                  {isTransforming ? 'Transforming...' : 'Transform with AI'}
+                  {isTransforming ? 'Transforming...' : 'Transform'}
                 </Text>
               </View>
             </AnimatedButton>
@@ -187,23 +174,6 @@ export default function Journal() {
               <View style={styles.manifestationCard}>
                 <Text style={styles.manifestationText}>{transformedText}</Text>
               </View>
-              
-              <AnimatedButton
-                onPress={handleSave}
-                disabled={isSaving}
-                style={[styles.button, styles.saveButton]}
-              >
-                <View style={styles.buttonContent}>
-                  {isSaving ? (
-                    <LoadingShimmer width={18} height={18} borderRadius={9} />
-                  ) : (
-                    <Save size={18} color="#ffffff" strokeWidth={1.5} />
-                  )}
-                  <Text style={styles.buttonText}>
-                    {isSaving ? 'Saving...' : 'Save to Library'}
-                  </Text>
-                </View>
-              </AnimatedButton>
             </View>
           ) : null}
 
@@ -214,7 +184,8 @@ export default function Journal() {
               <Text style={styles.tipText}>✨ Be honest about your current thoughts and feelings</Text>
               <Text style={styles.tipText}>💭 Share your challenges, fears, or limiting beliefs</Text>
               <Text style={styles.tipText}>🌟 Describe what you want to create or change</Text>
-              <Text style={styles.tipText}>🚀 Let AI transform your words into empowering affirmations</Text>
+              <Text style={styles.tipText}>🚀 Transform your words into empowering affirmations</Text>
+              <Text style={styles.tipText}>💾 Your manifestations are automatically saved to your library</Text>
             </View>
           </View>
           
