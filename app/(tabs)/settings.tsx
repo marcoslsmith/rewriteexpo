@@ -16,20 +16,7 @@ import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import FloatingActionButton from '@/components/FloatingActionButton';
-import { 
-  Bell, 
-  User as UserIcon, 
-  Settings as SettingsIcon, 
-  LogOut, 
-  Plus, 
-  Edit3,
-  Check,
-  X,
-  Crown,
-  Calendar,
-  Mail,
-  AtSign
-} from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, CreditCard as Edit3, Check, X, Crown, Calendar, Mail, AtSign } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
