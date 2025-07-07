@@ -7,7 +7,6 @@ import {
   StyleSheet, 
   Modal, 
   TextInput, 
-  Alert,
   Animated,
   Dimensions,
   Platform
@@ -17,9 +16,22 @@ import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import FloatingActionButton from '@/components/FloatingActionButton';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, CreditCard as Edit } from 'lucide-react-native';
+import { 
+  Bell, 
+  User as UserIcon, 
+  Settings as SettingsIcon, 
+  LogOut, 
+  Plus, 
+  Edit3,
+  Check,
+  X,
+  Crown,
+  Calendar,
+  Mail,
+  AtSign
+} from 'lucide-react-native';
 
-const { height } = Dimensions.get('window');
+const { height, width } = Dimensions.get('window');
 
 type Profile = {
   id: string;
@@ -55,11 +67,15 @@ export default function Settings() {
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showFAB, setShowFAB] = useState(true);
-
-  const inspirationalQuote = "The universe is conspiring to help you achieve your dreams.";
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     checkUser();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   useEffect(() => {
@@ -90,14 +106,13 @@ export default function Settings() {
         .eq('id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 means no rows found
+      if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
         setProfile(data);
         setEditUsername(data.username || '');
         setEditDisplayName(data.display_name || '');
         
-        // Auto-prompt for profile completion if fields are empty
         if (!data.username && !data.display_name) {
           setIsEditingProfile(true);
         }
@@ -105,6 +120,7 @@ export default function Settings() {
     } catch (error) {
       console.error('Error fetching profile:', error);
       setError('Failed to load profile data.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -149,8 +165,10 @@ export default function Settings() {
       setSuccess('Profile updated successfully!');
       setIsEditingProfile(false);
       fetchProfile();
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -181,8 +199,10 @@ export default function Settings() {
       setEmail('');
       setPassword('');
       checkUser();
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -196,14 +216,17 @@ export default function Settings() {
       setProfile(null);
       setSchedules([]);
       setSuccess('Signed out successfully!');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
     }
   };
 
   const handleAddSchedule = async () => {
     if (!user || !newSchedule.title || !newSchedule.time || newSchedule.days.length === 0) {
       setError('Please fill in all fields');
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -224,8 +247,10 @@ export default function Settings() {
       setShowScheduleModal(false);
       setNewSchedule({ title: '', message: '', time: '', days: [] });
       fetchSchedules();
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -251,52 +276,40 @@ export default function Settings() {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getDisplayName = () => {
+    if (profile?.display_name) return profile.display_name;
+    if (profile?.username) return profile.username;
+    return user?.email?.split('@')[0] || 'User';
+  };
+
   return (
-    <GradientBackground>
-      <View style={styles.container}>
+    <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <FloatingActionButton visible={showFAB} />
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Your account</Text>
-          <Text style={styles.title}>Profile & Settings</Text>
+          <Text style={styles.greeting}>Welcome back</Text>
+          <Text style={styles.title}>Your Profile</Text>
         </View>
 
         {/* Status Messages */}
         {error && (
-          <View style={styles.errorContainer}>
+          <Animated.View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-          </View>
+          </Animated.View>
         )}
         
         {success && (
-          <View style={styles.successContainer}>
+          <Animated.View style={styles.successContainer}>
             <Text style={styles.successText}>{success}</Text>
-          </View>
+          </Animated.View>
         )}
-
-        {/* User Stats */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>7</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{schedules.length}</Text>
-            <Text style={styles.statLabel}>Reminders</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>42</Text>
-            <Text style={styles.statLabel}>Manifestations</Text>
-          </View>
-        </View>
-        
-        {/* Inspirational Quote */}
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteText}>"{inspirationalQuote}"</Text>
-        </View>
 
         <Animated.ScrollView
           style={styles.scrollView}
@@ -307,80 +320,136 @@ export default function Settings() {
         >
           {user ? (
             <>
-              {/* User Profile Section */}
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <UserIcon size={20} color="#6366f1" />
-                  <Text style={styles.sectionTitle}>Profile</Text>
+              {/* Profile Card */}
+              <View style={styles.profileMainCard}>
+                <View style={styles.profileHeader}>
+                  <View style={styles.avatarContainer}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{getInitials(getDisplayName())}</Text>
+                    </View>
+                    <View style={styles.premiumBadge}>
+                      <Crown size={12} color="#FFD700" />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.profileInfo}>
+                    <Text style={styles.profileName}>{getDisplayName()}</Text>
+                    {profile?.username && (
+                      <View style={styles.usernameContainer}>
+                        <AtSign size={14} color="rgba(255, 255, 255, 0.7)" />
+                        <Text style={styles.profileUsername}>{profile.username}</Text>
+                      </View>
+                    )}
+                    <View style={styles.emailContainer}>
+                      <Mail size={14} color="rgba(255, 255, 255, 0.7)" />
+                      <Text style={styles.profileEmail}>{user.email}</Text>
+                    </View>
+                  </View>
+
                   <TouchableOpacity
-                    style={styles.editButton}
+                    style={styles.editProfileButton}
                     onPress={() => setIsEditingProfile(!isEditingProfile)}
                   >
-                    <Edit size={16} color="#6366f1" />
-                    <Text style={styles.editButtonText}>
-                      {isEditingProfile ? 'Cancel' : 'Edit'}
-                    </Text>
+                    {isEditingProfile ? (
+                      <X size={20} color="#ffffff" />
+                    ) : (
+                      <Edit3 size={20} color="#ffffff" />
+                    )}
                   </TouchableOpacity>
                 </View>
-                <View style={styles.profileCard}>
-                  {isEditingProfile && (!profile?.username || !profile?.display_name) && (
-                    <View style={styles.profilePrompt}>
-                      <Text style={styles.profilePromptText}>
-                        Complete your profile to get started!
-                      </Text>
-                    </View>
-                  )}
-                  
-                  <Text style={styles.profileEmail}>{user.email}</Text>
-                  {profile?.display_name && (
-                    <Text style={styles.profileDisplayName}>{profile.display_name}</Text>
-                  )}
-                  {profile?.username && (
-                    <Text style={styles.profileUsername}>@{profile.username}</Text>
-                  )}
-                  <Text style={styles.profileJoined}>
-                    Joined {new Date(user.created_at).toLocaleDateString()}
-                  </Text>
 
-                  {isEditingProfile && (
-                    <View style={styles.editProfileSection}>
+                {/* Profile Completion Prompt */}
+                {(!profile?.username || !profile?.display_name) && !isEditingProfile && (
+                  <TouchableOpacity 
+                    style={styles.completionPrompt}
+                    onPress={() => setIsEditingProfile(true)}
+                  >
+                    <Text style={styles.completionPromptText}>
+                      Complete your profile to unlock all features
+                    </Text>
+                    <Edit3 size={16} color="#667eea" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Edit Profile Form */}
+                {isEditingProfile && (
+                  <View style={styles.editForm}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Display Name</Text>
                       <TextInput
-                        style={styles.input}
-                        placeholder="Display Name"
+                        style={styles.modernInput}
+                        placeholder="Enter your display name"
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={editDisplayName}
                         onChangeText={setEditDisplayName}
                       />
+                    </View>
+                    
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Username</Text>
                       <TextInput
-                        style={styles.input}
-                        placeholder="Username"
+                        style={styles.modernInput}
+                        placeholder="Choose a username"
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={editUsername}
                         onChangeText={setEditUsername}
                         autoCapitalize="none"
                       />
+                    </View>
+
+                    <View style={styles.editActions}>
                       <TouchableOpacity
-                        style={styles.primaryButton}
+                        style={styles.cancelButton}
+                        onPress={() => setIsEditingProfile(false)}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.saveButton}
                         onPress={handleProfileUpdate}
                         disabled={loading}
                       >
-                        <Text style={styles.primaryButtonText}>
-                          {loading ? 'Saving...' : 'Save Changes'}
+                        <Check size={16} color="#ffffff" />
+                        <Text style={styles.saveButtonText}>
+                          {loading ? 'Saving...' : 'Save'}
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  )}
+                  </View>
+                )}
+
+                {/* Stats */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>7</Text>
+                    <Text style={styles.statLabel}>Day Streak</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>{schedules.length}</Text>
+                    <Text style={styles.statLabel}>Reminders</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>42</Text>
+                    <Text style={styles.statLabel}>Manifestations</Text>
+                  </View>
                 </View>
               </View>
 
               {/* Notification Schedules */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Bell size={20} color="#6366f1" />
-                  <Text style={styles.sectionTitle}>Notification Schedules</Text>
+                  <View style={styles.sectionTitleContainer}>
+                    <Bell size={20} color="#667eea" />
+                    <Text style={styles.sectionTitle}>Notification Schedules</Text>
+                  </View>
                   <TouchableOpacity
                     style={styles.addButton}
                     onPress={() => setShowScheduleModal(true)}
                   >
-                    <Plus size={16} color="#6366f1" />
+                    <Plus size={16} color="#667eea" />
                   </TouchableOpacity>
                 </View>
                 
@@ -396,16 +465,16 @@ export default function Settings() {
                       )}
                       <View style={styles.scheduleDays}>
                         {schedule.days.map((day: number) => (
-                          <Text key={day} style={styles.dayBadge}>
-                            {dayNames[day]}
-                          </Text>
+                          <View key={day} style={styles.dayBadge}>
+                            <Text style={styles.dayBadgeText}>{dayNames[day]}</Text>
+                          </View>
                         ))}
                       </View>
                     </View>
                   ))
                 ) : (
                   <View style={styles.emptyState}>
-                    <Bell size={32} color="#9ca3af" />
+                    <Bell size={32} color="rgba(255, 255, 255, 0.3)" />
                     <Text style={styles.emptyText}>No notification schedules yet</Text>
                     <Text style={styles.emptySubtext}>
                       Add your first reminder to stay on track
@@ -417,28 +486,32 @@ export default function Settings() {
               {/* Settings Section */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <SettingsIcon size={20} color="#6366f1" />
-                  <Text style={styles.sectionTitle}>Settings</Text>
+                  <View style={styles.sectionTitleContainer}>
+                    <SettingsIcon size={20} color="#667eea" />
+                    <Text style={styles.sectionTitle}>Settings</Text>
+                  </View>
                 </View>
                 
                 <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
-                  <LogOut size={20} color="#ef4444" />
-                  <Text style={[styles.settingText, { color: '#ef4444' }]}>Sign Out</Text>
+                  <LogOut size={20} color="#ff6b6b" />
+                  <Text style={styles.signOutText}>Sign Out</Text>
                 </TouchableOpacity>
               </View>
             </>
           ) : (
             <View style={styles.signInPrompt}>
-              <UserIcon size={48} color="#6366f1" />
-              <Text style={styles.signInTitle}>Sign in to your account</Text>
+              <View style={styles.signInIcon}>
+                <UserIcon size={48} color="#ffffff" />
+              </View>
+              <Text style={styles.signInTitle}>Welcome to The Rewrite</Text>
               <Text style={styles.signInSubtitle}>
-                Access your personalized manifestation journey and sync across devices
+                Sign in to access your personalized manifestation journey and sync across all your devices
               </Text>
               <TouchableOpacity
                 style={styles.signInButton}
                 onPress={() => setShowSignInModal(true)}
               >
-                <Text style={styles.signInButtonText}>Sign In</Text>
+                <Text style={styles.signInButtonText}>Get Started</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -450,56 +523,60 @@ export default function Settings() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isSignUp ? 'Create Account' : 'Sign In'}
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowSignInModal(false)}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalContent}>
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleSignIn}
-                disabled={loading}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
+          <GradientBackground colors={['#667eea', '#764ba2']}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {isSignUp ? 'Create Account' : 'Welcome Back'}
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowSignInModal(false)}
+                >
+                  <X size={24} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => setIsSignUp(!isSignUp)}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.modalContent}>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Email"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Password"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+
+                <TouchableOpacity
+                  style={styles.modalPrimaryButton}
+                  onPress={handleSignIn}
+                  disabled={loading}
+                >
+                  <Text style={styles.modalPrimaryButtonText}>
+                    {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalSecondaryButton}
+                  onPress={() => setIsSignUp(!isSignUp)}
+                >
+                  <Text style={styles.modalSecondaryButtonText}>
+                    {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </GradientBackground>
         </Modal>
 
         {/* Add Schedule Modal */}
@@ -508,72 +585,77 @@ export default function Settings() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Reminder</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowScheduleModal(false)}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent}>
-              <TextInput
-                style={styles.input}
-                placeholder="Title"
-                value={newSchedule.title}
-                onChangeText={(text) => setNewSchedule(prev => ({ ...prev, title: text }))}
-              />
-              
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Message (optional)"
-                value={newSchedule.message}
-                onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
-                multiline
-                numberOfLines={3}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Time (e.g., 09:00)"
-                value={newSchedule.time}
-                onChangeText={(text) => setNewSchedule(prev => ({ ...prev, time: text }))}
-              />
-
-              <Text style={styles.inputLabel}>Days of the week:</Text>
-              <View style={styles.daysContainer}>
-                {dayNames.map((day, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.dayButton,
-                      newSchedule.days.includes(index) && styles.dayButtonActive
-                    ]}
-                    onPress={() => toggleDay(index)}
-                  >
-                    <Text style={[
-                      styles.dayButtonText,
-                      newSchedule.days.includes(index) && styles.dayButtonTextActive
-                    ]}>
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          <GradientBackground colors={['#667eea', '#764ba2']}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Reminder</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowScheduleModal(false)}
+                >
+                  <X size={24} color="#ffffff" />
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleAddSchedule}
-              >
-                <Text style={styles.primaryButtonText}>Add Reminder</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+              <ScrollView style={styles.modalContent}>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Title"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newSchedule.title}
+                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, title: text }))}
+                />
+                
+                <TextInput
+                  style={[styles.modalInput, styles.textArea]}
+                  placeholder="Message (optional)"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newSchedule.message}
+                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
+                  multiline
+                  numberOfLines={3}
+                />
+
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Time (e.g., 09:00)"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newSchedule.time}
+                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, time: text }))}
+                />
+
+                <Text style={styles.inputLabel}>Days of the week:</Text>
+                <View style={styles.daysContainer}>
+                  {dayNames.map((day, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.dayButton,
+                        newSchedule.days.includes(index) && styles.dayButtonActive
+                      ]}
+                      onPress={() => toggleDay(index)}
+                    >
+                      <Text style={[
+                        styles.dayButtonText,
+                        newSchedule.days.includes(index) && styles.dayButtonTextActive
+                      ]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.modalPrimaryButton}
+                  onPress={handleAddSchedule}
+                >
+                  <Text style={styles.modalPrimaryButtonText}>Add Reminder</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </GradientBackground>
         </Modal>
-      </View>
+      </Animated.View>
     </GradientBackground>
   );
 }
@@ -581,9 +663,9 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 24,
     paddingBottom: 20,
   },
@@ -591,46 +673,215 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 4,
+    fontFamily: 'Inter-Regular',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: 'white',
+    fontFamily: 'Inter-Bold',
   },
   errorContainer: {
     marginHorizontal: 24,
     marginBottom: 16,
-    padding: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 8,
+    padding: 16,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(255, 107, 107, 0.3)',
   },
   errorText: {
-    color: '#ef4444',
+    color: '#ff6b6b',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
   successContainer: {
     marginHorizontal: 24,
     marginBottom: 16,
-    padding: 12,
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    borderRadius: 8,
+    padding: 16,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   successText: {
     color: '#22c55e',
     fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
-  statsCard: {
-    flexDirection: 'row',
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  profileMainCard: {
     marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 24,
+    backdropFilter: 'blur(20px)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
-    padding: 20,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  avatarText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    fontFamily: 'Inter-Bold',
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+    fontFamily: 'Inter-Bold',
+  },
+  usernameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  profileUsername: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginLeft: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  emailContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginLeft: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  editProfileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
-    backdropFilter: 'blur(10px)',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 126, 234, 0.3)',
+  },
+  completionPromptText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    flex: 1,
+  },
+  editForm: {
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+    fontFamily: 'Inter-Medium',
+  },
+  modernInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    color: 'white',
+    fontFamily: 'Inter-Regular',
+  },
+  editActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+  },
+  saveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 8,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
   statItem: {
     flex: 1,
@@ -640,37 +891,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 4,
+    fontFamily: 'Inter-Bold',
   },
   statLabel: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
+    fontFamily: 'Inter-Medium',
   },
   statDivider: {
     width: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginHorizontal: 16,
-  },
-  quoteCard: {
-    marginHorizontal: 24,
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    backdropFilter: 'blur(10px)',
-  },
-  quoteText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: 'white',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
   },
   section: {
     marginHorizontal: 24,
@@ -679,80 +911,35 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
     marginLeft: 8,
-    flex: 1,
+    fontFamily: 'Inter-SemiBold',
   },
   addButton: {
-    padding: 4,
-  },
-  editButton: {
-    flexDirection: 'row',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
-    padding: 4,
-  },
-  editButtonText: {
-    fontSize: 14,
-    color: '#6366f1',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  profileCard: {
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    backdropFilter: 'blur(10px)',
-  },
-  profilePrompt: {
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  profilePromptText: {
-    color: '#6366f1',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  profileEmail: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'white',
-    marginBottom: 4,
-  },
-  profileDisplayName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 2,
-  },
-  profileUsername: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 8,
-  },
-  profileJoined: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  editProfileSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
   },
   scheduleCard: {
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    backdropFilter: 'blur(10px)',
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -765,34 +952,45 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'white',
     flex: 1,
+    fontFamily: 'Inter-Medium',
   },
   scheduleTime: {
     fontSize: 14,
-    color: '#6366f1',
+    color: '#667eea',
     fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   scheduleMessage: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
+    marginBottom: 12,
+    fontFamily: 'Inter-Regular',
   },
   scheduleDays: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 6,
   },
   dayBadge: {
-    fontSize: 12,
-    color: '#6366f1',
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    backgroundColor: 'rgba(102, 126, 234, 0.3)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 126, 234, 0.5)',
+  },
+  dayBadgeText: {
+    fontSize: 12,
+    color: '#667eea',
+    fontFamily: 'Inter-Medium',
   },
   emptyState: {
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   emptyText: {
     fontSize: 16,
@@ -800,148 +998,169 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 12,
     marginBottom: 4,
+    fontFamily: 'Inter-Medium',
   },
   emptySubtext: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
+    fontFamily: 'Inter-Regular',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    backdropFilter: 'blur(10px)',
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  settingText: {
+  signOutText: {
     fontSize: 16,
     fontWeight: '500',
     marginLeft: 12,
+    color: '#ff6b6b',
+    fontFamily: 'Inter-Medium',
   },
   signInPrompt: {
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
     margin: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    backdropFilter: 'blur(10px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  signInIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   signInTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
+    fontFamily: 'Inter-Bold',
   },
   signInSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 32,
+    fontFamily: 'Inter-Regular',
   },
   signInButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 32,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   signInButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'white',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: 'white',
+    fontFamily: 'Inter-Bold',
   },
   modalCloseButton: {
-    padding: 4,
-  },
-  modalCloseText: {
-    color: '#6366f1',
-    fontSize: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalContent: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
   },
-  input: {
+  modalInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 16,
+    padding: 16,
     fontSize: 16,
     marginBottom: 16,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    color: 'white',
+    fontFamily: 'Inter-Regular',
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
   daysContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 24,
+    gap: 8,
   },
   dayButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-    marginBottom: 8,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   dayButtonActive: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   dayButtonText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Inter-Medium',
   },
   dayButtonTextActive: {
     color: 'white',
   },
-  primaryButton: {
-    backgroundColor: '#6366f1',
+  modalPrimaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  primaryButtonText: {
+  modalPrimaryButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
-  secondaryButton: {
+  modalSecondaryButton: {
     padding: 16,
     alignItems: 'center',
   },
-  secondaryButtonText: {
-    color: '#6366f1',
+  modalSecondaryButtonText: {
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
+    fontFamily: 'Inter-Regular',
   },
 });
