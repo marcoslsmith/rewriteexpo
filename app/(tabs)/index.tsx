@@ -65,23 +65,30 @@ export default function Journal() {
       setTransformedText(transformed);
       
       // Automatically save to library
-      await storageService.addManifestation({
-        original_entry: journalEntry,
-        transformed_text: transformed,
-        is_favorite: false,
-        tags: [],
-      });
+      try {
+        await storageService.addManifestation({
+          original_entry: journalEntry,
+          transformed_text: transformed,
+          is_favorite: false,
+          tags: [],
+        });
+        
+        setSuccess('Your manifestation has been created and saved to your library!');
+        
+        // Clear the form after successful transformation and save
+        setJournalEntry('');
+        
+        setTimeout(() => {
+          setSuccess(null);
+          setTransformedText('');
+        }, 4000);
+      } catch (saveError) {
+        console.error('Save error:', saveError);
+        setError('Manifestation created but failed to save. Please try again.');
+        setTimeout(() => setError(null), 5000);
+      }
       
-      setSuccess('Your manifestation has been created and saved to your library!');
       setError(null);
-      
-      // Clear the form after successful transformation and save
-      setJournalEntry('');
-      
-      setTimeout(() => {
-        setSuccess(null);
-        setTransformedText('');
-      }, 4000);
     } catch (error) {
       setError('Failed to transform your entry. Please check your connection and try again.');
       console.error('Transformation error:', error);

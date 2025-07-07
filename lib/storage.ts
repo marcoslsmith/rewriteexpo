@@ -68,6 +68,10 @@ export const storageService = {
       
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        
         const { error } = await supabase
           .from('manifestations')
           .insert({
@@ -75,7 +79,10 @@ export const storageService = {
             user_id: user?.id,
           });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase insert error:', error);
+          throw error;
+        }
       } else {
         // Fallback to local storage
         const manifestations = await this.getManifestations();
@@ -94,6 +101,20 @@ export const storageService = {
       }
     } catch (error) {
       console.error('Error adding manifestation:', error);
+      // Always try local storage as fallback
+      const manifestations = await this.getManifestations();
+      const newManifestation: Manifestation = {
+        id: Date.now().toString(),
+        user_id: null,
+        original_entry: manifestation.original_entry,
+        transformed_text: manifestation.transformed_text,
+        is_favorite: manifestation.is_favorite || false,
+        tags: manifestation.tags || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      manifestations.push(newManifestation);
+      await this.saveManifestations(manifestations);
       throw error;
     }
   },

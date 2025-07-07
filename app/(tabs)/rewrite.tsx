@@ -8,8 +8,10 @@ import {
   TextInput,
   Platform,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { Heart, Search, Star, Copy, Trash2, Filter } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
@@ -20,11 +22,13 @@ import FloatingActionButton from '../../components/FloatingActionButton';
 type Manifestation = Database['public']['Tables']['manifestations']['Row'];
 
 export default function Library() {
+  const router = useRouter();
   const [manifestations, setManifestations] = useState<Manifestation[]>([]);
   const [filteredManifestations, setFilteredManifestations] = useState<Manifestation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showFAB, setShowFAB] = useState(true);
@@ -55,21 +59,37 @@ export default function Library() {
   }, []);
 
   useEffect(() => {
+    // Set up a listener for when the tab becomes focused
+    const unsubscribe = router.addListener ? router.addListener('focus', () => {
+      loadManifestations();
+    }) : undefined;
+
+    return unsubscribe;
+  }, []);
+  useEffect(() => {
     filterManifestations();
   }, [manifestations, searchQuery, showFavoritesOnly]);
 
   const loadManifestations = async () => {
+    setLoading(true);
     try {
       const data = await storageService.getManifestations();
+      console.log('Loaded manifestations:', data.length);
       setManifestations(data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     } catch (error) {
       console.error('Error loading manifestations:', error);
       setError('Failed to load manifestations');
+      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadManifestations();
+    setRefreshing(false);
+  };
   const filterManifestations = () => {
     let filtered = manifestations;
 
@@ -202,6 +222,14 @@ export default function Library() {
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#ffffff"
+              colors={['#f472b6']}
+            />
+          }
         >
           {filteredManifestations.length === 0 ? (
             <EmptyState
