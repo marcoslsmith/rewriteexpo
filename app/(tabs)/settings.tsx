@@ -29,10 +29,28 @@ type Profile = {
   updated_at: string;
 };
 
+type UserStats = {
+  manifestationCount: number;
+  favoriteCount: number;
+  challengeCount: number;
+  completedChallenges: number;
+  currentStreak: number;
+  totalPoints: number;
+  daysSinceJoined: number;
+};
 export default function Settings() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userStats, setUserStats] = useState<UserStats>({
+    manifestationCount: 0,
+    favoriteCount: 0,
+    challengeCount: 0,
+    completedChallenges: 0,
+    currentStreak: 0,
+    totalPoints: 0,
+    daysSinceJoined: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,6 +87,7 @@ export default function Settings() {
     if (user) {
       fetchSchedules();
       fetchProfile();
+      fetchUserStats();
     }
   }, [user]);
 
@@ -111,6 +130,55 @@ export default function Settings() {
     }
   };
 
+  const fetchUserStats = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch manifestations data
+      const { data: manifestations, error: manifestationsError } = await supabase
+        .from('manifestations')
+        .select('id, is_favorite, created_at')
+        .eq('user_id', user.id);
+
+      if (manifestationsError) throw manifestationsError;
+
+      // Fetch challenge progress data
+      const { data: challengeProgress, error: challengeError } = await supabase
+        .from('challenge_progress')
+        .select('id, completed_at, points, streak, start_date, completed_days')
+        .eq('user_id', user.id);
+
+      if (challengeError) throw challengeError;
+
+      // Calculate stats
+      const manifestationCount = manifestations?.length || 0;
+      const favoriteCount = manifestations?.filter(m => m.is_favorite).length || 0;
+      const challengeCount = challengeProgress?.length || 0;
+      const completedChallenges = challengeProgress?.filter(c => c.completed_at).length || 0;
+      const totalPoints = challengeProgress?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
+      
+      // Calculate current streak (most recent active challenge)
+      const activeChallenge = challengeProgress?.find(c => !c.completed_at);
+      const currentStreak = activeChallenge?.streak || 0;
+      
+      // Calculate days since joined
+      const joinDate = new Date(user.created_at);
+      const today = new Date();
+      const daysSinceJoined = Math.floor((today.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      setUserStats({
+        manifestationCount,
+        favoriteCount,
+        challengeCount,
+        completedChallenges,
+        currentStreak,
+        totalPoints,
+        daysSinceJoined,
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
   const fetchSchedules = async () => {
     if (!user) return;
     
@@ -202,6 +270,15 @@ export default function Settings() {
       setUser(null);
       setProfile(null);
       setSchedules([]);
+      setUserStats({
+        manifestationCount: 0,
+        favoriteCount: 0,
+        challengeCount: 0,
+        completedChallenges: 0,
+        currentStreak: 0,
+        totalPoints: 0,
+        daysSinceJoined: 0,
+      });
       setSuccess('Signed out successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
@@ -274,6 +351,14 @@ export default function Settings() {
     return user?.email?.split('@')[0] || 'User';
   };
 
+  const formatJoinDate = () => {
+    if (!user?.created_at) return 'Recently';
+    const joinDate = new Date(user.created_at);
+    return joinDate.toLocaleDateString('en-US', { 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -314,9 +399,11 @@ export default function Settings() {
                     <View style={styles.avatar}>
                       <Text style={styles.avatarText}>{getInitials(getDisplayName())}</Text>
                     </View>
-                    <View style={styles.premiumBadge}>
-                      <Crown size={12} color="#FFD700" />
-                    </View>
+                    {userStats.totalPoints > 100 && (
+                      <View style={styles.premiumBadge}>
+                        <Crown size={12} color="#FFD700" />
+                      </View>
+                    )}
                   </View>
                   
                   <View style={styles.profileInfo}>
@@ -330,6 +417,10 @@ export default function Settings() {
                     <View style={styles.emailContainer}>
                       <Mail size={14} color="rgba(255, 255, 255, 0.7)" />
                       <Text style={styles.profileEmail}>{user.email}</Text>
+                    </View>
+                    <View style={styles.joinDateContainer}>
+                      <Calendar size={14} color="rgba(255, 255, 255, 0.7)" />
+                      <Text style={styles.joinDateText}>Joined {formatJoinDate()}</Text>
                     </View>
                   </View>
 
@@ -409,18 +500,38 @@ export default function Settings() {
                 {/* Stats */}
                 <View style={styles.statsRow}>
                   <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>7</Text>
-                    <Text style={styles.statLabel}>Day Streak</Text>
+                    <Text style={styles.statNumber}>{userStats.currentStreak}</Text>
+                    <Text style={styles.statLabel}>Current Streak</Text>
                   </View>
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{schedules.length}</Text>
-                    <Text style={styles.statLabel}>Reminders</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>42</Text>
+                    <Text style={styles.statNumber}>{userStats.manifestationCount}</Text>
                     <Text style={styles.statLabel}>Manifestations</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>{userStats.totalPoints}</Text>
+                    <Text style={styles.statLabel}>Total Points</Text>
+                  </View>
+                </View>
+
+                {/* Additional Stats Row */}
+                <View style={styles.additionalStatsRow}>
+                  <View style={styles.additionalStatItem}>
+                    <Text style={styles.additionalStatNumber}>{userStats.favoriteCount}</Text>
+                    <Text style={styles.additionalStatLabel}>Favorites</Text>
+                  </View>
+                  <View style={styles.additionalStatItem}>
+                    <Text style={styles.additionalStatNumber}>{userStats.challengeCount}</Text>
+                    <Text style={styles.additionalStatLabel}>Challenges Started</Text>
+                  </View>
+                  <View style={styles.additionalStatItem}>
+                    <Text style={styles.additionalStatNumber}>{userStats.completedChallenges}</Text>
+                    <Text style={styles.additionalStatLabel}>Completed</Text>
+                  </View>
+                  <View style={styles.additionalStatItem}>
+                    <Text style={styles.additionalStatNumber}>{userStats.daysSinceJoined}</Text>
+                    <Text style={styles.additionalStatLabel}>Days Active</Text>
                   </View>
                 </View>
               </View>
@@ -890,6 +1001,41 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginHorizontal: 16,
+  },
+  joinDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  joinDateText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginLeft: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  additionalStatsRow: {
+    flexDirection: 'row',
+    paddingTop: 16,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  additionalStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  additionalStatNumber: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: 'Inter-SemiBold',
+  },
+  additionalStatLabel: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 2,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
   section: {
     marginHorizontal: 24,
