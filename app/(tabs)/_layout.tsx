@@ -145,8 +145,9 @@ export default function TabLayout() {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
-                  marginBottom: 12,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
+                  opacity: focused ? 0 : 1, // Hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -177,8 +178,9 @@ export default function TabLayout() {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
-                  marginBottom: 12,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
+                  opacity: focused ? 0 : 1, // Hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -209,8 +211,9 @@ export default function TabLayout() {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
-                  marginBottom: 12,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
+                  opacity: focused ? 0 : 1, // Hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -241,8 +244,9 @@ export default function TabLayout() {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
-                  marginBottom: 12,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
+                  opacity: focused ? 0 : 1, // Hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -273,8 +277,9 @@ export default function TabLayout() {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
-                  marginBottom: 12,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
+                  opacity: focused ? 0 : 1, // Hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -384,7 +389,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: 'rgba(30, 41, 59, 0.95)', // Dark solid color instead of gradient
+    backgroundColor: '#8b5cf6', // Solid purple color
   },
   glassOverlay: {
     position: 'absolute',
@@ -392,13 +397,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Reduced overlay for cleaner purple
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.1)', // Reduced border opacity
     borderBottomWidth: 0,
   },
   activeIconContainer: {
