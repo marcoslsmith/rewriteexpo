@@ -226,27 +226,27 @@ const styles = StyleSheet.create({
   },
   selectionBubble: {
     position: 'absolute',
-    top: 40, // Move up to avoid text overlap
+    top: 30, // Move further up to avoid text overlap
     left: '50%',
     width: 80,
-    height: 40, // Reduced height for better cut-off effect
+    height: 30, // Further reduced height for better cut-off effect
     marginLeft: -40,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     borderBottomWidth: 0, // Remove bottom border to create cut-off effect
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderTopWidth: 2,
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+    borderTopWidth: 1.5,
     pointerEvents: 'none',
     shadowColor: 'rgba(255, 255, 255, 0.3)',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
     elevation: 4,
     overflow: 'hidden',
   },
