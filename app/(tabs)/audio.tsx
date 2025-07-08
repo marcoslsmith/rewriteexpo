@@ -19,6 +19,7 @@ import { testTTSFunction, testEdgeFunctionDeployment } from '../../lib/testTTS';
 import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
+import AudioPlayer from '../../components/AudioPlayer';
 
 const { width, height } = Dimensions.get('window');
 
@@ -593,103 +594,15 @@ export default function PersonalizedAudio() {
                 </TouchableOpacity>
               </View>
 
-              {/* Audio Visualization */}
-              <View style={styles.visualizationContainer}>
-                <Animated.View 
-                  style={[
-                    styles.waveform,
-                    {
-                      opacity: waveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.3, 1],
-                      }),
-                      transform: [{
-                        scaleY: waveAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.5, 1.5],
-                        })
-                      }]
-                    }
-                  ]}
-                >
-                  <Waveform size={120} color="#ffffff" strokeWidth={1} />
-                </Animated.View>
-              </View>
-
-              {/* Progress Bar */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${getProgressPercentage()}%` }
-                    ]} 
-                  />
-                  {/* Loop indicator on progress bar */}
-                  {isLooping && (
-                    <View style={styles.loopIndicator}>
-                      <Text style={styles.loopText}>∞</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.timeContainer}>
-                  <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                  <Text style={styles.timeText}>
-                    {isLooping ? `${formatTime(totalDuration)} (Loop)` : formatTime(totalDuration)}
-                  </Text>
-                </View>
-                
-                {/* Audio Configuration Info */}
-                {audioConfig && (
-                  <View style={styles.audioInfo}>
-                    <Text style={styles.audioInfoText}>
-                      {audioConfig.voiceSequence ? `${audioConfig.audioUrls?.length || selectedManifestations.size} manifestations` : 'Audio'} • 
-                      {audioConfig.backgroundMusic ? ` ${selectedMusicStyle} background` : ' No background'} • 
-                      {audioConfig.seamlessLoop ? ' Seamless loop' : ' Single play'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Player Controls */}
-              <View style={styles.playerControls}>
-                <TouchableOpacity
-                  style={styles.controlButton}
-                  onPress={stopPlayback}
-                >
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
-                    style={styles.controlGradient}
-                  >
-                    <Square size={20} color="#ffffff" strokeWidth={1.5} />
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.controlButton, styles.playButton]}
-                  onPress={togglePlayback}
-                >
-                  <LinearGradient
-                    colors={['#10b981', '#059669']}
-                    style={styles.playGradient}
-                  >
-                    {isPlaying ? (
-                      <Pause size={32} color="#ffffff" strokeWidth={1.5} />
-                    ) : (
-                      <Play size={32} color="#ffffff" strokeWidth={1.5} />
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.controlButton}>
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
-                    style={styles.controlGradient}
-                  >
-                    <Volume2 size={20} color="#ffffff" strokeWidth={1.5} />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
+              {/* Real Audio Player */}
+              {generatedAudioUrl && (
+                <AudioPlayer
+                  audioUrl={generatedAudioUrl}
+                  title="Your Personalized Audio"
+                  isLooping={isLooping}
+                  style={styles.audioPlayerContainer}
+                />
+              )}
             </View>
           </GradientBackground>
         </Modal>
@@ -1230,6 +1143,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
     gap: 24,
+  },
+  audioPlayerContainer: {
+    flex: 1,
+    margin: 0,
+    backgroundColor: 'transparent',
   },
   controlButton: {
     width: 64,

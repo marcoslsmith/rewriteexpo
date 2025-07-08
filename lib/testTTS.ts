@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { Audio } from 'expo-av';
+import { Platform } from 'react-native';
 
 /**
  * Test function to verify the OpenAI TTS Edge Function is working
@@ -52,9 +54,63 @@ export async function testTTSFunction() {
         const audio = new Audio(data.audioUrl);
         audio.volume = 0.5;
         
+      // Test audio playback using expo-av
+      if (Platform.OS !== 'web') {
+        try {
+          console.log('🔊 Testing audio playback with expo-av...');
+          
+          // Configure audio mode
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            staysActiveInBackground: false,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+          });
+          
+          // Create and test the sound
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: audioUrl },
+            { shouldPlay: false, volume: 0.5 }
+          );
+          
+          console.log('✅ Audio loaded successfully with expo-av');
+          
+          return {
+            success: true,
+            audioUrl: audioUrl,
+            audioSize: data.size,
+            playAudio: async () => {
+              console.log('▶️ Playing test audio...');
+              try {
+                await sound.playAsync();
+                console.log('✅ Audio playback started');
+                
+                // Auto-stop after 3 seconds for testing
+                setTimeout(async () => {
+                  try {
+                    await sound.stopAsync();
+                    await sound.unloadAsync();
+                    console.log('⏹️ Test audio stopped and unloaded');
+                  } catch (e) {
+                    console.error('Error stopping test audio:', e);
+                  }
+                }, 3000);
+              } catch (playError) {
+                console.error('❌ Audio playback failed:', playError);
+                await sound.unloadAsync();
+              }
+            }
+          };
+        } catch (audioError) {
+          console.error('❌ expo-av audio test failed:', audioError);
+          // Fall back to web audio test
+        }
+      }
+      
         return {
           success: true,
-          audioUrl: data.audioUrl,
+          audioUrl: audioUrl,
           audioSize: data.size,
           playAudio: () => {
             console.log('▶️ Playing test audio...');
@@ -65,7 +121,7 @@ export async function testTTSFunction() {
       
       return {
         success: true,
-        audioUrl: data.audioUrl,
+        audioUrl: audioUrl,
         audioSize: data.size
       };
     } else {

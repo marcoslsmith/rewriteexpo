@@ -230,11 +230,19 @@ export const audioService = {
         
         // If we have audioUrl, use it directly
         if (data.audioUrl) {
-          return data.audioUrl;
+          // Validate that the audio URL is properly formatted
+          if (data.audioUrl.startsWith('data:audio/')) {
+            console.log('Received base64 audio data URL');
+            return data.audioUrl;
+          } else {
+            console.log('Received HTTP audio URL');
+            return data.audioUrl;
+          }
         }
         
         // If we have audioData, it's base64 encoded
         if (data.audioData) {
+          console.log('Converting base64 audio data to data URL');
           return `data:audio/mpeg;base64,${data.audioData}`;
         }
       }
@@ -271,10 +279,53 @@ export const audioService = {
     }
   },
 
+  // Test if an audio URL is valid and playable
+  async testAudioUrl(audioUrl: string): Promise<boolean> {
+    try {
+      console.log('Testing audio URL validity:', audioUrl.substring(0, 100) + '...');
+      
+      if (audioUrl.startsWith('data:audio/')) {
+        // For base64 data URLs, check if they have valid base64 content
+        const base64Part = audioUrl.split(',')[1];
+        if (!base64Part || base64Part.length < 100) {
+          console.error('Invalid base64 audio data - too short');
+          return false;
+        }
+        console.log('Base64 audio data appears valid, length:', base64Part.length);
+        return true;
+      } else if (audioUrl.startsWith('http')) {
+        // For HTTP URLs, try to fetch headers to verify it's accessible
+        try {
+          const response = await fetch(audioUrl, { method: 'HEAD' });
+          const contentType = response.headers.get('content-type');
+          console.log('HTTP audio URL test - Status:', response.status, 'Content-Type:', contentType);
+          return response.ok && (contentType?.includes('audio/') || contentType?.includes('application/octet-stream'));
+        } catch (fetchError) {
+          console.error('HTTP audio URL test failed:', fetchError);
+          return false;
+        }
+      }
+      
+      console.error('Unsupported audio URL format');
+      return false;
+    } catch (error) {
+      console.error('Error testing audio URL:', error);
+      return false;
+    }
+  },
   async createLoopedSequence(audioUrls: string[], targetDurationMinutes: number): Promise<string> {
     try {
       const targetDurationSeconds = targetDurationMinutes * 60;
       console.log(`Creating looped sequence for ${targetDurationSeconds} seconds`);
+      
+      // Test each audio URL before creating the sequence
+      console.log('Testing audio URLs before creating sequence...');
+      for (let i = 0; i < audioUrls.length; i++) {
+        const isValid = await this.testAudioUrl(audioUrls[i]);
+        if (!isValid) {
+          console.warn(`Audio URL ${i} may be invalid:`, audioUrls[i].substring(0, 50) + '...');
+        }
+      }
       
       // Calculate how many times we need to loop the sequence
       // Assume each TTS clip is approximately 10-15 seconds
