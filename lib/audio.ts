@@ -56,29 +56,44 @@ export const audioService = {
   async generateTTSAudio(text: string): Promise<string> {
     try {
       // Call OpenAI TTS API via Supabase Edge Function
+      console.log('Generating TTS for text:', text.substring(0, 100) + '...');
+      
       const { data, error } = await supabase.functions.invoke('openai-tts', {
         body: {
           text: text,
-          voice: 'alloy', // Calm, soothing voice
+          voice: 'nova', // Clear, calm voice
           model: 'tts-1',
           response_format: 'mp3'
         }
       });
 
       if (error) {
-        console.error('TTS generation error:', error);
-        throw new Error('Failed to generate speech audio');
+        console.error('TTS generation error details:', {
+          message: error.message,
+          details: error.details,
+          context: error.context
+        });
+        throw new Error(`Failed to generate speech audio: ${error.message}`);
       }
 
       if (data?.audioUrl) {
+        console.log('TTS generation successful, audio URL received');
         return data.audioUrl;
       }
 
-      throw new Error('No audio URL returned from TTS service');
+      console.error('No audio URL in response:', data);
+      throw new Error(`No audio URL returned from TTS service. Response: ${JSON.stringify(data)}`);
     } catch (error) {
       console.error('TTS generation failed:', error);
-      // Return a placeholder URL for development
-      return 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+      
+      // For development, return a placeholder, but in production we should handle this better
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using placeholder audio due to TTS failure');
+        return 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+      }
+      
+      // Re-throw the error in production so the UI can handle it appropriately
+      throw error;
     }
   },
 

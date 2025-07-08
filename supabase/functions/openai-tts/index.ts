@@ -17,7 +17,11 @@
      - Returns: { "audioUrl": "...", "audioData": "..." }
 */
 
-import { corsHeaders } from '../_shared/cors.ts';
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
@@ -40,6 +44,7 @@ Deno.serve(async (req: Request) => {
   try {
     // Verify OpenAI API key is configured
     if (!OPENAI_API_KEY) {
+      console.error('OpenAI API key not found in environment variables');
       return new Response(
         JSON.stringify({ 
           error: 'OpenAI API key not configured',
@@ -67,7 +72,22 @@ Deno.serve(async (req: Request) => {
     }
 
     // Parse request body
-    const body: TTSRequest = await req.json();
+    let body: TTSRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          code: 'INVALID_JSON'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
     
     if (!body.text || typeof body.text !== 'string') {
       return new Response(
@@ -108,28 +128,71 @@ Deno.serve(async (req: Request) => {
       model: openaiRequest.model,
       voice: openaiRequest.voice,
       response_format: openaiRequest.response_format,
-      text_length: body.text.length
+      text_length: body.text.length,
+      text_preview: body.text.substring(0, 50) + '...'
     });
 
-    // Call OpenAI TTS API
-    const openaiResponse = await fetch('https://api.openai.com/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(openaiRequest),
-    });
+    // Call OpenAI TTS API with proper error handling
+    let openaiResponse: Response;
+    try {
+      openaiResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(openaiRequest),
+      });
+    } catch (fetchError) {
+      console.error('Network error calling OpenAI API:', fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Network error connecting to OpenAI',
+          code: 'NETWORK_ERROR',
+          details: fetchError instanceof Error ? fetchError.message : 'Unknown network error'
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.text();
-      console.error('OpenAI TTS API error:', errorData);
+      let errorDetails = 'Unknown error';
+      try {
+        const errorData = await openaiResponse.text();
+        errorDetails = errorData;
+        console.error('OpenAI TTS API error:', {
+          status: openaiResponse.status,
+          statusText: openaiResponse.statusText,
+          error: errorData
+        });
+      } catch (e) {
+        console.error('Failed to read error response from OpenAI:', e);
+      }
+      
+      // Handle specific OpenAI error codes
+      let errorMessage = 'Failed to generate speech from OpenAI';
+      let errorCode = 'OPENAI_TTS_ERROR';
+      
+      if (openaiResponse.status === 401) {
+        errorMessage = 'Invalid OpenAI API key';
+        errorCode = 'INVALID_API_KEY';
+      } else if (openaiResponse.status === 429) {
+        errorMessage = 'OpenAI rate limit exceeded';
+        errorCode = 'RATE_LIMIT_EXCEEDED';
+      } else if (openaiResponse.status === 400) {
+        errorMessage = 'Invalid request to OpenAI API';
+        errorCode = 'INVALID_REQUEST';
+      }
       
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to generate speech from OpenAI',
-          code: 'OPENAI_TTS_ERROR',
-          details: openaiResponse.status === 429 ? 'Rate limit exceeded' : 'TTS generation failed'
+          error: errorMessage,
+          code: errorCode,
+          details: errorDetails,
+          status: openaiResponse.status
         }),
         {
           status: openaiResponse.status === 429 ? 429 : 500,
@@ -139,9 +202,25 @@ Deno.serve(async (req: Request) => {
     }
 
     // Get the audio data as array buffer
-    const audioBuffer = await openaiResponse.arrayBuffer();
+    let audioBuffer: ArrayBuffer;
+    try {
+      audioBuffer = await openaiResponse.arrayBuffer();
+    } catch (bufferError) {
+      console.error('Failed to read audio buffer from OpenAI response:', bufferError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to process audio data from OpenAI',
+          code: 'BUFFER_ERROR'
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
     
     if (!audioBuffer || audioBuffer.byteLength === 0) {
+      console.error('Empty audio buffer received from OpenAI');
       return new Response(
         JSON.stringify({ 
           error: 'No audio data generated',
@@ -155,10 +234,24 @@ Deno.serve(async (req: Request) => {
     }
 
     // Convert to base64 for transmission
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    let audioBase64: string;
+    try {
+      audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    } catch (base64Error) {
+      console.error('Failed to convert audio to base64:', base64Error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to encode audio data',
+          code: 'ENCODING_ERROR'
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
     
-    // For now, return the base64 data directly
-    // In production, you might want to upload to Supabase Storage and return a URL
+    // Create response with audio data
     const response = {
       audioData: audioBase64,
       audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
@@ -173,7 +266,8 @@ Deno.serve(async (req: Request) => {
       format: response.format,
       voice: response.voice,
       model: response.model,
-      size: response.size
+      size: response.size,
+      text_length: body.text.length
     });
 
     // Return successful response
@@ -192,7 +286,8 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ 
         error: 'Internal server error',
         code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       }),
       {
         status: 500,
