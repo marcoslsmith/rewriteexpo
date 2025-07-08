@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -58,19 +59,13 @@ export default function Library() {
     loadManifestations();
   }, []);
 
-  useEffect(() => {
-    loadManifestations();
-  }, []);
-
   // Reload when tab becomes focused
-  useEffect(() => {
-    const unsubscribe = router.addListener('focus', () => {
+  useFocusEffect(
+    React.useCallback(() => {
       console.log('Library tab focused, reloading manifestations...');
       loadManifestations();
-    });
-
-    return unsubscribe;
-  }, [router]);
+    }, [])
+  );
   
   useEffect(() => {
     filterManifestations();
