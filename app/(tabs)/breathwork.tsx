@@ -152,7 +152,7 @@ export default function Breathwork() {
       Animated.timing(animatedValue, {
         toValue,
         duration: phase.duration * 1000,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     }
   };
