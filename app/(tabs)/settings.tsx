@@ -21,12 +21,13 @@ import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
 type NotificationSchedule = Database['public']['Tables']['notification_schedules']['Row'];
 type Manifestation = Database['public']['Tables']['manifestations']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayNamesLong = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -40,11 +41,13 @@ const reminderCategories = [
 
 export default function Settings() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<NotificationSchedule | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +55,13 @@ export default function Settings() {
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [manifestations, setManifestations] = useState<Manifestation[]>([]);
   const [favoriteManifestations, setFavoriteManifestations] = useState<Manifestation[]>([]);
+  
+  // Profile editing state
+  const [editingProfile, setEditingProfile] = useState({
+    display_name: '',
+    username: ''
+  });
+  const [profileLoading, setProfileLoading] = useState(false);
   
   const [newSchedule, setNewSchedule] = useState({
     message: '',
@@ -76,6 +86,7 @@ export default function Settings() {
     if (user) {
       fetchSchedules();
       fetchManifestations();
+      fetchProfile();
     } else {
       // Clear schedules when no user
       setSchedules([]);
@@ -154,6 +165,85 @@ export default function Settings() {
     } catch (error) {
       console.error('Error fetching manifestations:', error);
     }
+  };
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+      
+      setProfile(data);
+      setEditingProfile({
+        display_name: data.display_name || '',
+        username: data.username || ''
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user || !profile) return;
+    
+    setProfileLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name: editingProfile.display_name.trim() || null,
+          username: editingProfile.username.trim() || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (error) {
+        if (error.code === '23505' && error.message.includes('username')) {
+          setError('Username is already taken. Please choose a different one.');
+        } else {
+          setError('Failed to update profile. Please try again.');
+        }
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
+      
+      // Update local state
+      const updatedProfile = {
+        ...profile,
+        display_name: editingProfile.display_name.trim() || null,
+        username: editingProfile.username.trim() || null,
+        updated_at: new Date().toISOString()
+      };
+      setProfile(updatedProfile);
+      
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+      setShowEditProfileModal(false);
+    } catch (error: any) {
+      setError('Failed to update profile. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const openEditProfile = () => {
+    if (profile) {
+      setEditingProfile({
+        display_name: profile.display_name || '',
+        username: profile.username || ''
+      });
+    }
+    setShowEditProfileModal(true);
   };
 
   const handleSignIn = async () => {
@@ -459,9 +549,25 @@ export default function Settings() {
                 <View style={styles.sectionHeader}>
                   <UserIcon size={20} color="#ffffff" />
                   <Text style={styles.sectionTitle}>Profile</Text>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={openEditProfile}
+                  >
+                    <Edit size={16} color="#ffffff" />
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.profileCard}>
-                  <Text style={styles.profileEmail}>{user.email}</Text>
+                  <View style={styles.profileHeader}>
+                    <View style={styles.profileInfo}>
+                      {profile?.display_name && (
+                        <Text style={styles.profileDisplayName}>{profile.display_name}</Text>
+                      )}
+                      {profile?.username && (
+                        <Text style={styles.profileUsername}>@{profile.username}</Text>
+                      )}
+                      <Text style={styles.profileEmail}>{user.email}</Text>
+                    </View>
+                  </View>
                   <Text style={styles.profileJoined}>
                     Joined {new Date(user.created_at).toLocaleDateString()}
                   </Text>
@@ -684,6 +790,84 @@ export default function Settings() {
                   <Text style={styles.secondaryButtonText}>
                     {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                   </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </GradientBackground>
+        </Modal>
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={showEditProfileModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <GradientBackground colors={['#667eea', '#764ba2']}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Profile</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowEditProfileModal(false)}
+                >
+                  <X size={24} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalContent}>
+                <View style={styles.profileEditSection}>
+                  <Text style={styles.inputLabel}>Display Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your display name"
+                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                    value={editingProfile.display_name}
+                    onChangeText={(text) => setEditingProfile(prev => ({ ...prev, display_name: text }))}
+                    maxLength={50}
+                  />
+                  <Text style={styles.inputHint}>This is how your name will appear to others</Text>
+                </View>
+
+                <View style={styles.profileEditSection}>
+                  <Text style={styles.inputLabel}>Username</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Choose a unique username"
+                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                    value={editingProfile.username}
+                    onChangeText={(text) => setEditingProfile(prev => ({ ...prev, username: text.toLowerCase().replace(/[^a-z0-9_]/g, '') }))}
+                    maxLength={30}
+                    autoCapitalize="none"
+                  />
+                  <Text style={styles.inputHint}>Letters, numbers, and underscores only</Text>
+                </View>
+
+                <View style={styles.profileEditSection}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <View style={styles.disabledInput}>
+                    <Text style={styles.disabledInputText}>{user?.email}</Text>
+                  </View>
+                  <Text style={styles.inputHint}>Email cannot be changed from this screen</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    profileLoading && styles.primaryButtonDisabled
+                  ]}
+                  onPress={handleUpdateProfile}
+                  disabled={profileLoading}
+                >
+                  <View style={styles.buttonContent}>
+                    {profileLoading ? (
+                      <Text style={styles.primaryButtonText}>Updating...</Text>
+                    ) : (
+                      <>
+                        <Save size={18} color="#ffffff" strokeWidth={1.5} />
+                        <Text style={styles.primaryButtonText}>Save Changes</Text>
+                      </>
+                    )}
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1090,17 +1274,36 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backdropFilter: 'blur(10px)',
   },
-  profileEmail: {
-    fontSize: 16,
-    fontWeight: '500',
+  profileHeader: {
+    marginBottom: 16,
+  },
+  profileInfo: {
+    marginBottom: 8,
+  },
+  profileDisplayName: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
+    fontFamily: 'Inter-Bold',
+  },
+  profileUsername: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+    fontFamily: 'Inter-Medium',
+  },
+  profileEmail: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
     fontFamily: 'Inter-Medium',
   },
   profileJoined: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 16,
+    marginBottom: 12,
     fontFamily: 'Inter-Regular',
   },
   compactStatsRow: {
@@ -1178,6 +1381,33 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 4,
+  },
+  profileEditSection: {
+    marginBottom: 24,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  disabledInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  disabledInputText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Inter-Regular',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   deleteButton: {
     padding: 4,
