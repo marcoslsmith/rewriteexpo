@@ -76,17 +76,11 @@ export default function Settings() {
     if (user) {
       fetchSchedules();
       fetchManifestations();
-    }
-  }, [user]);
-
-  // Add effect to fetch schedules when component mounts or user changes
-  useEffect(() => {
-    if (user) {
-      console.log('User found, fetching schedules for user:', user.id);
-      fetchSchedules();
     } else {
-      console.log('No user found, clearing schedules');
+      // Clear schedules when no user
       setSchedules([]);
+      setManifestations([]);
+      setFavoriteManifestations([]);
     }
   }, [user]);
 
@@ -111,8 +105,8 @@ export default function Settings() {
       console.log('Schedules data:', data);
       setSchedules(data);
       
-      // If user has no schedules, create default ones
-      if (data.length === 0) {
+      // If user has no schedules and is authenticated, create default ones
+      if (data.length === 0 && user) {
         console.log('No schedules found, creating default schedules...');
         await createDefaultSchedules();
       }
@@ -153,10 +147,11 @@ export default function Settings() {
       
       console.log('Default schedules created successfully');
       
-      // Refresh the schedules list
-      setTimeout(() => {
+      // Refresh the schedules list after a short delay
+      setTimeout(async () => {
+        console.log('Refreshing schedules after creating defaults...');
         fetchSchedules();
-      }, 500);
+      }, 1000);
       
     } catch (error) {
       console.error('Error creating default schedules:', error);
@@ -204,11 +199,10 @@ export default function Settings() {
       setPassword('');
       await checkUser();
       // Force refresh of data after sign in
-      setTimeout(() => {
-        if (user) {
-          fetchSchedules();
-          fetchManifestations();
-        }
+      setTimeout(async () => {
+        console.log('Refreshing data after sign in...');
+        await fetchSchedules();
+        await fetchManifestations();
       }, 1000);
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -341,9 +335,10 @@ export default function Settings() {
       setShowScheduleModal(false);
       resetScheduleForm();
       // Wait a moment then refresh schedules
-      setTimeout(() => {
+      setTimeout(async () => {
+        console.log('Refreshing schedules after save...');
         fetchSchedules();
-      }, 500);
+      }, 800);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       console.error('Error saving schedule:', error);
@@ -358,9 +353,10 @@ export default function Settings() {
       await storageService.updateNotificationSchedule(schedule.id, {
         is_active: !schedule.is_active
       });
-      setTimeout(() => {
+      setTimeout(async () => {
+        console.log('Refreshing schedules after toggle...');
         fetchSchedules();
-      }, 300);
+      }, 500);
     } catch (error: any) {
       console.error('Error toggling schedule:', error);
       setError('Failed to update schedule');
@@ -373,9 +369,10 @@ export default function Settings() {
       console.log('Deleting schedule:', scheduleId);
       await storageService.deleteNotificationSchedule(scheduleId);
       setSuccess('Schedule deleted');
-      setTimeout(() => {
+      setTimeout(async () => {
+        console.log('Refreshing schedules after delete...');
         fetchSchedules();
-      }, 300);
+      }, 500);
       setTimeout(() => setSuccess(null), 2000);
     } catch (error: any) {
       console.error('Error deleting schedule:', error);
@@ -521,7 +518,7 @@ export default function Settings() {
                 
                 {/* Debug info - remove this in production */}
                 <Text style={styles.debugText}>
-                  Schedules loaded: {schedules.length} | User: {user?.email || 'none'}
+                  Schedules: {schedules.length} | User: {user?.email || 'none'} | Auth: {user ? 'yes' : 'no'}
                 </Text>
                 
                 {schedules.length > 0 ? (
@@ -544,12 +541,24 @@ export default function Settings() {
                     <TouchableOpacity
                       style={styles.refreshButton}
                       onPress={() => {
-                        console.log('Manual refresh triggered');
+                        console.log('Manual refresh triggered by user');
                         fetchSchedules();
                       }}
                     >
                       <Text style={styles.refreshButtonText}>Refresh</Text>
                     </TouchableOpacity>
+                    
+                    {user && (
+                      <TouchableOpacity
+                        style={[styles.refreshButton, { backgroundColor: 'rgba(34, 197, 94, 0.3)' }]}
+                        onPress={() => {
+                          console.log('Force create defaults triggered by user');
+                          createDefaultSchedules();
+                        }}
+                      >
+                        <Text style={styles.refreshButtonText}>Create Defaults</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
