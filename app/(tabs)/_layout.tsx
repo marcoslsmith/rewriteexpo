@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useRef, useEffect, useState } from 'react';
 import { Animated, View, StyleSheet, Platform } from 'react-native';
-import { CreditCard as Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
+import { CreditCard as Edit3, Heart, Wind, Target, User, Headphones } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabLayout() {
@@ -234,6 +234,39 @@ export default function TabLayout() {
                 color={color} 
                 focused={focused}
                 gradientColors={['#43e97b', '#38f9d7']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
+                  color: color,
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="audio"
+        options={{
+          title: 'Audio',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Headphones} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#a855f7', '#7c3aed']}
               />
             </Animated.View>
           ),
