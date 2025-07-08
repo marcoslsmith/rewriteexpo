@@ -37,7 +37,7 @@ export default function TabLayout() {
       setIsVisible(false);
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: 120, // Move down by tab bar height + margin
+          toValue: 90, // Move down by tab bar height only
           duration: 300,
           useNativeDriver: true,
         }),
@@ -83,14 +83,15 @@ export default function TabLayout() {
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
         tabBarStyle: {
           position: 'absolute',
-          bottom: 30,
-          left: 20,
-          right: 20,
+          bottom: Platform.OS === 'ios' ? 0 : 0, // Flush to bottom
+          left: 0,
+          right: 0,
           height: 90,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Account for safe area
         },
         tabBarBackground: () => (
           <Animated.View 
@@ -118,7 +119,7 @@ export default function TabLayout() {
           fontSize: 12,
           fontFamily: 'Inter-SemiBold',
           marginTop: 6,
-          marginBottom: 12,
+          marginBottom: Platform.OS === 'ios' ? 8 : 4,
         },
         tabBarIconStyle: {
           marginTop: 12,
@@ -368,7 +369,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 25,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
@@ -381,7 +385,10 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    borderRadius: 25,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   glassOverlay: {
     position: 'absolute',
@@ -390,9 +397,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 25,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderBottomWidth: 0,
   },
   activeIconContainer: {
     width: 48,
