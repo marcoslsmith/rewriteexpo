@@ -136,6 +136,7 @@ export default function Challenges() {
         setError('You are already participating in this challenge!');
         setTimeout(() => setError(null), 3000);
         return;
+        return;
       }
 
       await storageService.addChallengeProgress({
