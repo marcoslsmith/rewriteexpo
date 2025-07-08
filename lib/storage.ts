@@ -247,7 +247,7 @@ export const storageService = {
           .eq('user_id', user?.id!)
           .eq('challenge_id', progress.challenge_id)
           .eq('status', 'in_progress')
-          .single();
+          .maybeSingle();
         
         if (existingInProgress) {
           console.log('In-progress challenge already exists for user:', user?.id, 'challenge:', progress.challenge_id);
