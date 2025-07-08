@@ -351,16 +351,6 @@ export default function Journal() {
                   <Text style={styles.manifestationText}>{transformedText}</Text>
                 </View>
                 
-                <View style={styles.manifestationActions}>
-                  <TouchableOpacity style={styles.actionChip}>
-                    <Heart size={16} color="#ef4444" strokeWidth={1.5} />
-                    <Text style={styles.actionChipText}>Add to Favorites</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionChip}>
-                    <BookOpen size={16} color="#667eea" strokeWidth={1.5} />
-                    <Text style={styles.actionChipText}>View in Library</Text>
-                  </TouchableOpacity>
-                </View>
               </LinearGradient>
             </Animated.View>
           ) : null}
@@ -702,28 +692,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  manifestationActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  actionChipText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#475569',
   },
   tipsSection: {
     borderRadius: 20,
