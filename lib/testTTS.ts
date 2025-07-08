@@ -94,10 +94,10 @@ export async function testEdgeFunctionDeployment() {
   
   try {
     // Test if the function exists by making an OPTIONS request
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-tts`, {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/openai-tts`, {
       method: 'OPTIONS',
       headers: {
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
       }
     });
     
