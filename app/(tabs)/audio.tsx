@@ -11,22 +11,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { 
-  Headphones, 
-  Play, 
-  Pause, 
-  Square, 
-  Volume2, 
-  Clock, 
-  Music, 
-  Sparkles, 
-  Check, 
-  X,
-  ArrowLeft,
-  Download,
-  Heart,
-  Waveform
-} from 'lucide-react-native';
+import { Headphones, Play, Pause, Square, Volume2, Clock, Music, Sparkles, Check, X, ArrowLeft, Download, Heart, AudioWaveform as Waveform } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { storageService } from '../../lib/storage';
 import { audioService } from '../../lib/audio';
