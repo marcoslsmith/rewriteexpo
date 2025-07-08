@@ -35,19 +35,19 @@ const MUSIC_STYLES = [
     id: 'nature', 
     name: 'Nature Sounds', 
     description: 'Gentle rain and forest ambience',
-    url: 'https://www.soundjay.com/misc/sounds/rain-01.wav' // Placeholder
+    filename: 'nature_sounds.mp3'
   },
   { 
     id: 'meditation', 
     name: 'Meditation Bells', 
     description: 'Soft Tibetan singing bowls',
-    url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' // Placeholder
+    filename: 'meditation_bells.mp3'
   },
   { 
     id: 'ambient', 
     name: 'Ambient Waves', 
     description: 'Peaceful ocean waves',
-    url: 'https://www.soundjay.com/misc/sounds/ocean-wave-1.wav' // Placeholder
+    filename: 'ambient_waves.mp3'
   },
 ];
 
@@ -365,8 +365,10 @@ export default function PersonalizedAudio() {
                         style={styles.musicGradient}
                       >
                         <Music size={24} color="#ffffff" strokeWidth={1.5} />
-                        <Text style={styles.musicName}>{style.name}</Text>
-                        <Text style={styles.musicDescription}>{style.description}</Text>
+                        <View style={styles.musicInfo}>
+                          <Text style={styles.musicName}>{style.name}</Text>
+                          <Text style={styles.musicDescription}>{style.description}</Text>
+                        </View>
                         {selectedMusicStyle === style.id && (
                           <View style={styles.selectedIndicator}>
                             <Check size={16} color="#ffffff" strokeWidth={2} />
@@ -811,19 +813,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  musicInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
   musicName: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
-    marginLeft: 16,
-    flex: 1,
+    marginBottom: 4,
   },
   musicDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: 'rgba(255, 255, 255, 0.8)',
-    marginLeft: 16,
-    flex: 1,
   },
   selectedIndicator: {
     position: 'absolute',

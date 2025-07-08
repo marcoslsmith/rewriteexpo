@@ -22,6 +22,12 @@ export const audioService = {
     const { manifestationTexts, duration, musicStyle } = params;
     
     try {
+      console.log('Starting audio generation with params:', {
+        textCount: manifestationTexts.length,
+        duration,
+        musicStyle
+      });
+
       // Create audio session record
       const sessionId = await this.createAudioSession(params);
       
@@ -50,14 +56,17 @@ export const audioService = {
       }
 
       // Step 2: Combine audio clips to match desired duration
+      console.log(`Combining ${audioUrls.length} audio clips for ${duration} minutes`);
       const combinedAudioUrl = await this.combineAudioClips(audioUrls, duration);
 
       // Step 3: Add background music
+      console.log(`Adding ${musicStyle} background music`);
       const finalAudioUrl = await this.addBackgroundMusic(combinedAudioUrl, musicStyle);
 
       // Update session with final audio URL
       await this.updateAudioSession(sessionId, 'completed', finalAudioUrl);
 
+      console.log('Audio generation completed successfully');
       return finalAudioUrl;
     } catch (error) {
       console.error('Error generating personalized audio:', error);
@@ -72,10 +81,10 @@ export const audioService = {
   async createAudioSession(params: GenerateAudioParams): Promise<string> {
     try {
       const { data, error } = await supabase.rpc('create_audio_session', {
-        session_title: `Audio Session - ${new Date().toLocaleDateString()}`,
-        manifestation_ids: [], // We'll need manifestation IDs for this
-        duration_minutes: params.duration,
-        music_style: params.musicStyle
+        p_title: `Audio Session - ${new Date().toLocaleDateString()}`,
+        p_manifestation_ids: [], // We'll need manifestation IDs for this
+        p_duration_minutes: params.duration,
+        p_music_style: params.musicStyle
       });
 
       if (error) {
@@ -99,9 +108,9 @@ export const audioService = {
       }
 
       const { error } = await supabase.rpc('update_audio_session_status', {
-        session_id: sessionId,
-        new_status: status,
-        audio_url: audioUrl || null
+        p_session_id: sessionId,
+        p_status: status,
+        p_audio_url: audioUrl || null
       });
 
       if (error) {
@@ -115,12 +124,12 @@ export const audioService = {
   async getCachedAudioFile(text: string): Promise<string | null> {
     try {
       // Generate the same hash for lookup
-      const textHash = btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64);
+      const textHash = this.generateTextHash(text);
       
       const { data, error } = await supabase.rpc('get_cached_audio_file', {
-        text_hash: textHash,
-        voice_model: 'nova',
-        tts_model: 'tts-1'
+        p_text_hash: textHash,
+        p_voice_model: 'nova',
+        p_tts_model: 'tts-1'
       });
 
       if (error) {
@@ -142,15 +151,15 @@ export const audioService = {
   async saveAudioFileCache(text: string, audioUrl: string): Promise<void> {
     try {
       // Generate a consistent hash for the text
-      const textHash = btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64);
+      const textHash = this.generateTextHash(text);
       
       const { error } = await supabase.rpc('save_audio_file_cache', {
-        manifestation_id: null, // We'll need to get this from the manifestation
-        text_hash: textHash,
-        audio_url: audioUrl,
-        file_size: null,
-        voice_model: 'nova',
-        tts_model: 'tts-1'
+        p_text_hash: textHash,
+        p_audio_url: audioUrl,
+        p_manifestation_id: null, // We'll need to get this from the manifestation
+        p_file_size: null,
+        p_voice_model: 'nova',
+        p_tts_model: 'tts-1'
       });
 
       if (error) {
@@ -159,6 +168,12 @@ export const audioService = {
     } catch (error) {
       console.error('Failed to save audio to cache:', error);
     }
+  },
+
+  generateTextHash(text: string): string {
+    // Create a consistent hash of the text for caching
+    // Using a simple base64 encoding with cleanup for database compatibility
+    return btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64);
   },
 
   getCacheKey(text: string): string {
@@ -211,7 +226,7 @@ export const audioService = {
       // For development, return a placeholder, but in production we should handle this better
       if (process.env.NODE_ENV === 'development') {
         console.warn('Using placeholder audio due to TTS failure');
-        return 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+        return this.getBackgroundMusicUrl('meditation');
       }
       
       // Re-throw the error in production so the UI can handle it appropriately
@@ -234,8 +249,8 @@ export const audioService = {
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Return placeholder combined audio URL
-      return audioUrls[0] || 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+      // Return the first audio URL or a fallback
+      return audioUrls[0] || this.getBackgroundMusicUrl('meditation');
     } catch (error) {
       console.error('Error combining audio clips:', error);
       throw new Error('Failed to combine audio clips');
@@ -247,22 +262,45 @@ export const audioService = {
       // For now, return the voice audio URL as a placeholder
       // In a real implementation, this would:
       // 1. Download the voice audio
-      // 2. Get the appropriate background music track
+      // 2. Get the appropriate background music track from Supabase Storage
       // 3. Mix them together with proper volume levels
       // 4. Upload the final mixed audio to Supabase Storage
       // 5. Return the public URL
       
       console.log(`Adding ${musicStyle} background music to audio`);
       
+      // Get the background music URL from Supabase Storage
+      const backgroundMusicUrl = this.getBackgroundMusicUrl(musicStyle);
+      console.log(`Background music URL: ${backgroundMusicUrl}`);
+      
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Return placeholder final audio URL
+      // For now, return the voice audio URL
+      // In production, this would be the mixed audio
       return voiceAudioUrl;
     } catch (error) {
       console.error('Error adding background music:', error);
       throw new Error('Failed to add background music');
     }
+  },
+
+  getBackgroundMusicUrl(musicStyle: string): string {
+    // Get the public URL for background music files from Supabase Storage
+    const musicFiles = {
+      'nature': 'nature_sounds.mp3',
+      'meditation': 'meditation_bells.mp3',
+      'ambient': 'ambient_waves.mp3'
+    };
+
+    const filename = musicFiles[musicStyle as keyof typeof musicFiles] || musicFiles.meditation;
+    
+    // Get public URL from Supabase Storage
+    const { data } = supabase.storage
+      .from('audio-files')
+      .getPublicUrl(filename);
+
+    return data.publicUrl;
   },
 
   async uploadToStorage(audioBlob: Blob, filename: string): Promise<string> {
@@ -308,7 +346,7 @@ export const audioService = {
   async getAudioSessions(limit: number = 10): Promise<AudioSession[]> {
     try {
       const { data, error } = await supabase.rpc('get_user_audio_sessions', {
-        limit_count: limit
+        p_limit: limit
       });
 
       if (error) {
