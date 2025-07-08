@@ -8,8 +8,11 @@ import {
   TextInput,
   Modal,
   Animated,
+  Dimensions,
+  Platform,
 } from 'react-native';
-import { Target, Play, Calendar, Award, Check, ArrowLeft, X } from 'lucide-react-native';
+import { Target, Play, Calendar, Award, Check, ArrowLeft, X, Trophy, Star, Zap, Heart, BookOpen, Clock, ChevronRight, Users, TrendingUp } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { challengeService, challengePrompts } from '../../lib/challenges';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
@@ -17,8 +20,28 @@ import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
+const { width } = Dimensions.get('window');
+
 type Challenge = Database['public']['Tables']['challenges']['Row'];
 type ChallengeProgress = Database['public']['Tables']['challenge_progress']['Row'];
+
+const challengeIcons = {
+  'gratitude-7': Heart,
+  'manifestation-21': Star,
+  'abundance-14': Trophy,
+  'mindfulness-10': Zap,
+  'confidence-14': Target,
+  'creativity-7': BookOpen,
+};
+
+const challengeGradients = {
+  'gratitude-7': ['#f093fb', '#f5576c'],
+  'manifestation-21': ['#4facfe', '#00f2fe'],
+  'abundance-14': ['#43e97b', '#38f9d7'],
+  'mindfulness-10': ['#667eea', '#764ba2'],
+  'confidence-14': ['#fa709a', '#fee140'],
+  'creativity-7': ['#a8edea', '#fed6e3'],
+};
 
 export default function Challenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -31,12 +54,32 @@ export default function Challenges() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showFAB, setShowFAB] = useState(true);
+  const [loading, setLoading] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  React.useEffect(() => {
+    // Animate in the content when component mounts
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
-      useNativeDriver: false,
+      useNativeDriver: true,
       listener: (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
         const isScrollingDown = currentScrollY > lastScrollY.current;
@@ -59,14 +102,13 @@ export default function Challenges() {
       },
     }
   );
-  
-  const lastScrollY = useRef(0);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
       const [challengesData, progressData] = await Promise.all([
         challengeService.getChallenges(),
@@ -78,6 +120,9 @@ export default function Challenges() {
     } catch (error) {
       console.error('Error loading data:', error);
       setError('Failed to load challenges');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,6 +158,7 @@ export default function Challenges() {
       }
     } catch (error) {
       setError('Failed to start challenge. Please try again.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -156,10 +202,10 @@ export default function Challenges() {
       setDayResponse('');
       
       if (updatedProgress.completed_at) {
-        setSuccess(`Congratulations! You've completed the ${selectedChallenge.title}. Total points earned: ${updatedProgress.points}`);
+        setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total!`);
         setTimeout(() => setSuccess(null), 5000);
       } else {
-        setSuccess('Day completed! Great work!');
+        setSuccess('✨ Day completed! Great work!');
         setTimeout(() => setSuccess(null), 3000);
       }
       
@@ -174,41 +220,98 @@ export default function Challenges() {
     return activeProgress.find(p => p.challenge_id === challengeId);
   };
 
+  const getTotalPoints = () => activeProgress.reduce((sum, p) => sum + p.points, 0);
+  const getActiveCount = () => activeProgress.length;
+  const getCompletedCount = () => {
+    // This would need to be fetched from completed challenges
+    return 0; // Placeholder
+  };
+
+  if (loading) {
+    return (
+      <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
+        <View style={styles.loadingContainer}>
+          <Target size={48} color="#ffffff" strokeWidth={1.5} />
+          <Text style={styles.loadingText}>Loading your growth journey...</Text>
+        </View>
+      </GradientBackground>
+    );
+  }
+
   return (
-    <GradientBackground colors={['#fef3c7', '#fde68a', '#fcd34d']}>
+    <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Your journey</Text>
-          <Text style={styles.title}>Growth Challenges</Text>
-          
+        {/* Hero Header */}
+        <Animated.View 
+          style={[
+            styles.heroSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#ffffff', '#f8fafc']}
+              style={styles.logoBackground}
+            >
+              <Target size={32} color="#667eea" strokeWidth={2} />
+            </LinearGradient>
+            <Text style={styles.logoText}>Growth Challenges</Text>
+            <Text style={styles.logoSubtext}>Transform through daily practice</Text>
+          </View>
+
+          {/* Stats Cards */}
           <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{activeProgress.length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <Trophy size={24} color="#fbbf24" strokeWidth={1.5} />
+                <Text style={styles.statNumber}>{getTotalPoints()}</Text>
+                <Text style={styles.statLabel}>Points</Text>
+              </LinearGradient>
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>
-                {activeProgress.reduce((sum, p) => sum + p.points, 0)}
-              </Text>
-              <Text style={styles.statLabel}>Points</Text>
+            
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <TrendingUp size={24} color="#10b981" strokeWidth={1.5} />
+                <Text style={styles.statNumber}>{getActiveCount()}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <Award size={24} color="#8b5cf6" strokeWidth={1.5} />
+                <Text style={styles.statNumber}>{getCompletedCount()}</Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </LinearGradient>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Status Messages */}
         {error && (
-          <View style={styles.errorContainer}>
+          <Animated.View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-          </View>
+          </Animated.View>
         )}
         
         {success && (
-          <View style={styles.successContainer}>
+          <Animated.View style={styles.successContainer}>
             <Text style={styles.successText}>{success}</Text>
-          </View>
+          </Animated.View>
         )}
 
         <Animated.ScrollView
@@ -218,18 +321,55 @@ export default function Challenges() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {challenges.map((challenge) => {
-            const progress = getProgressForChallenge(challenge.id);
-            return (
-              <ChallengeCard
-                key={challenge.id}
-                challenge={challenge}
-                progress={progress}
-                onStart={() => startChallenge(challenge)}
-                onContinue={() => progress && continueChallenge(challenge, progress)}
+          {/* Featured Challenge */}
+          {challenges.length > 0 && !getProgressForChallenge(challenges[0].id) && (
+            <View style={styles.featuredSection}>
+              <Text style={styles.sectionTitle}>✨ Featured Challenge</Text>
+              <FeaturedChallengeCard
+                challenge={challenges[0]}
+                onStart={() => startChallenge(challenges[0])}
               />
-            );
-          })}
+            </View>
+          )}
+
+          {/* Active Challenges */}
+          {activeProgress.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🔥 Continue Your Journey</Text>
+              {challenges
+                .filter(challenge => getProgressForChallenge(challenge.id))
+                .map((challenge) => {
+                  const progress = getProgressForChallenge(challenge.id)!;
+                  return (
+                    <ActiveChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      progress={progress}
+                      onContinue={() => continueChallenge(challenge, progress)}
+                    />
+                  );
+                })}
+            </View>
+          )}
+
+          {/* Available Challenges */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🎯 Available Challenges</Text>
+            {challenges
+              .filter(challenge => !getProgressForChallenge(challenge.id))
+              .slice(challenges.length > 0 && !getProgressForChallenge(challenges[0].id) ? 1 : 0)
+              .map((challenge, index) => (
+                <ChallengeCard
+                  key={challenge.id}
+                  challenge={challenge}
+                  index={index}
+                  onStart={() => startChallenge(challenge)}
+                />
+              ))}
+          </View>
+
+          {/* Bottom padding for tab bar */}
+          <View style={styles.bottomPadding} />
         </Animated.ScrollView>
 
         {/* Day Modal */}
@@ -238,121 +378,263 @@ export default function Challenges() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                onPress={() => setShowDayModal(false)}
-                style={styles.closeButton}
-              >
-                <X size={24} color="#64748b" strokeWidth={1.5} />
-              </TouchableOpacity>
-              
-              <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalTitle}>
-                  {selectedChallenge?.title}
-                </Text>
-                <Text style={styles.modalSubtitle}>Day {currentDay}</Text>
-              </View>
-            </View>
-            
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.promptContainer}>
-                <Text style={styles.promptText}>
-                  {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
-                </Text>
-              </View>
-              
-              <TextInput
-                style={styles.responseInput}
-                placeholder="Write your response here..."
-                placeholderTextColor="#94a3b8"
-                value={dayResponse}
-                onChangeText={setDayResponse}
-                multiline
-                textAlignVertical="top"
-              />
-              
-              <AnimatedButton
-                style={styles.submitButton}
-                onPress={submitDayResponse}
-              >
-                <View style={styles.submitButtonContent}>
-                  <Check size={18} color="#ffffff" strokeWidth={1.5} />
-                  <Text style={styles.submitButtonText}>Submit Response</Text>
+          <GradientBackground colors={['#667eea', '#764ba2']}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  onPress={() => setShowDayModal(false)}
+                  style={styles.closeButton}
+                >
+                  <ArrowLeft size={24} color="#ffffff" strokeWidth={1.5} />
+                </TouchableOpacity>
+                
+                <View style={styles.modalTitleContainer}>
+                  <Text style={styles.modalTitle}>
+                    {selectedChallenge?.title}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>Day {currentDay}</Text>
                 </View>
-              </AnimatedButton>
-            </ScrollView>
-          </View>
+
+                <View style={styles.dayBadge}>
+                  <Text style={styles.dayBadgeText}>{currentDay}/{selectedChallenge?.duration}</Text>
+                </View>
+              </View>
+              
+              <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.promptContainer}>
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                    style={styles.promptGradient}
+                  >
+                    <BookOpen size={24} color="#ffffff" strokeWidth={1.5} />
+                    <Text style={styles.promptText}>
+                      {selectedChallenge && challengePrompts[selectedChallenge.id]?.[currentDay]}
+                    </Text>
+                  </LinearGradient>
+                </View>
+                
+                <View style={styles.responseContainer}>
+                  <Text style={styles.responseLabel}>Your Response</Text>
+                  <TextInput
+                    style={styles.responseInput}
+                    placeholder="Share your thoughts, insights, and reflections..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={dayResponse}
+                    onChangeText={setDayResponse}
+                    multiline
+                    textAlignVertical="top"
+                  />
+                </View>
+                
+                <AnimatedButton
+                  style={[
+                    styles.submitButton,
+                    !dayResponse.trim() && styles.submitButtonDisabled
+                  ]}
+                  onPress={submitDayResponse}
+                  disabled={!dayResponse.trim()}
+                >
+                  <LinearGradient
+                    colors={dayResponse.trim() ? ['#10b981', '#059669'] : ['#6b7280', '#4b5563']}
+                    style={styles.submitButtonGradient}
+                  >
+                    <View style={styles.submitButtonContent}>
+                      <Check size={18} color="#ffffff" strokeWidth={1.5} />
+                      <Text style={styles.submitButtonText}>Complete Day {currentDay}</Text>
+                    </View>
+                  </LinearGradient>
+                </AnimatedButton>
+              </ScrollView>
+            </View>
+          </GradientBackground>
         </Modal>
       </View>
     </GradientBackground>
   );
 }
 
-interface ChallengeCardProps {
+interface FeaturedChallengeCardProps {
   challenge: Challenge;
-  progress?: ChallengeProgress;
   onStart: () => void;
+}
+
+function FeaturedChallengeCard({ challenge, onStart }: FeaturedChallengeCardProps) {
+  const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
+  const gradientColors = challengeGradients[challenge.id as keyof typeof challengeGradients] || ['#667eea', '#764ba2'];
+
+  return (
+    <View style={styles.featuredCard}>
+      <LinearGradient
+        colors={gradientColors}
+        style={styles.featuredCardGradient}
+      >
+        <View style={styles.featuredCardHeader}>
+          <View style={styles.featuredIconContainer}>
+            <IconComponent size={32} color="#ffffff" strokeWidth={1.5} />
+          </View>
+          <View style={styles.featuredBadge}>
+            <Star size={16} color="#fbbf24" fill="#fbbf24" strokeWidth={1.5} />
+            <Text style={styles.featuredBadgeText}>Featured</Text>
+          </View>
+        </View>
+        
+        <Text style={styles.featuredTitle}>{challenge.title}</Text>
+        <Text style={styles.featuredDescription}>{challenge.description}</Text>
+        
+        <View style={styles.featuredStats}>
+          <View style={styles.featuredStat}>
+            <Calendar size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+            <Text style={styles.featuredStatText}>{challenge.duration} days</Text>
+          </View>
+          <View style={styles.featuredStat}>
+            <Users size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+            <Text style={styles.featuredStatText}>Join thousands</Text>
+          </View>
+        </View>
+        
+        <AnimatedButton onPress={onStart} style={styles.featuredButton}>
+          <View style={styles.featuredButtonContent}>
+            <Play size={18} color="#ffffff" strokeWidth={1.5} />
+            <Text style={styles.featuredButtonText}>Start Challenge</Text>
+            <ChevronRight size={18} color="#ffffff" strokeWidth={1.5} />
+          </View>
+        </AnimatedButton>
+      </LinearGradient>
+    </View>
+  );
+}
+
+interface ActiveChallengeCardProps {
+  challenge: Challenge;
+  progress: ChallengeProgress;
   onContinue: () => void;
 }
 
-function ChallengeCard({ challenge, progress, onStart, onContinue }: ChallengeCardProps) {
-  const isStarted = !!progress;
-  const completionPercentage = progress 
-    ? Math.round((progress.completed_days.length / challenge.duration) * 100)
-    : 0;
+function ActiveChallengeCard({ challenge, progress, onContinue }: ActiveChallengeCardProps) {
+  const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
+  const gradientColors = challengeGradients[challenge.id as keyof typeof challengeGradients] || ['#667eea', '#764ba2'];
+  const completionPercentage = Math.round((progress.completed_days.length / challenge.duration) * 100);
+  const nextDay = progress.completed_days.length + 1;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.challengeInfo}>
-          <Text style={styles.cardTitle}>{challenge.title}</Text>
-          <Text style={styles.cardDuration}>{challenge.duration} days</Text>
+    <View style={styles.activeCard}>
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        style={styles.activeCardGradient}
+      >
+        <View style={styles.activeCardHeader}>
+          <View style={[styles.activeIconContainer, { backgroundColor: gradientColors[0] }]}>
+            <IconComponent size={20} color="#ffffff" strokeWidth={1.5} />
+          </View>
+          <View style={styles.activeCardInfo}>
+            <Text style={styles.activeCardTitle}>{challenge.title}</Text>
+            <Text style={styles.activeCardProgress}>Day {nextDay} of {challenge.duration}</Text>
+          </View>
+          <View style={styles.progressBadge}>
+            <Text style={styles.progressBadgeText}>{completionPercentage}%</Text>
+          </View>
         </View>
         
-        <View style={styles.iconContainer}>
-          {isStarted ? (
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressText}>{completionPercentage}%</Text>
-            </View>
-          ) : (
-            <Target size={20} color="#f59e0b" strokeWidth={1.5} />
-          )}
-        </View>
-      </View>
-      
-      <Text style={styles.cardDescription}>{challenge.description}</Text>
-      
-      {isStarted && progress && (
-        <View style={styles.progressInfo}>
+        <View style={styles.progressBarContainer}>
           <View style={styles.progressBar}>
             <View 
-              style={[styles.progressFill, { width: `${completionPercentage}%` }]} 
+              style={[
+                styles.progressBarFill, 
+                { 
+                  width: `${completionPercentage}%`,
+                  backgroundColor: gradientColors[0]
+                }
+              ]} 
             />
           </View>
-          <View style={styles.progressStats}>
-            <Text style={styles.progressStat}>
-              Day {progress.completed_days.length + 1} of {challenge.duration}
-            </Text>
-            <Text style={styles.progressStat}>
-              {progress.points} points
-            </Text>
+          <Text style={styles.progressText}>{progress.points} points earned</Text>
+        </View>
+        
+        <AnimatedButton onPress={onContinue} style={styles.continueButton}>
+          <LinearGradient
+            colors={gradientColors}
+            style={styles.continueButtonGradient}
+          >
+            <View style={styles.continueButtonContent}>
+              <Play size={16} color="#ffffff" strokeWidth={1.5} />
+              <Text style={styles.continueButtonText}>Continue Day {nextDay}</Text>
+            </View>
+          </LinearGradient>
+        </AnimatedButton>
+      </LinearGradient>
+    </View>
+  );
+}
+
+interface ChallengeCardProps {
+  challenge: Challenge;
+  index: number;
+  onStart: () => void;
+}
+
+function ChallengeCard({ challenge, index, onStart }: ChallengeCardProps) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
+  const gradientColors = challengeGradients[challenge.id as keyof typeof challengeGradients] || ['#667eea', '#764ba2'];
+
+  useEffect(() => {
+    // Staggered animation for cards
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.challengeCard,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }
+      ]}
+    >
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        style={styles.challengeCardGradient}
+      >
+        <View style={styles.challengeCardHeader}>
+          <View style={[styles.challengeIconContainer, { backgroundColor: gradientColors[0] }]}>
+            <IconComponent size={24} color="#ffffff" strokeWidth={1.5} />
+          </View>
+          <View style={styles.challengeCardInfo}>
+            <Text style={styles.challengeCardTitle}>{challenge.title}</Text>
+            <Text style={styles.challengeCardDuration}>{challenge.duration} days</Text>
           </View>
         </View>
-      )}
-      
-      <AnimatedButton
-        style={[styles.actionButton, isStarted ? styles.continueButton : styles.startButton]}
-        onPress={isStarted ? onContinue : onStart}
-      >
-        <View style={styles.actionButtonContent}>
-          <Play size={16} color="#ffffff" strokeWidth={1.5} />
-          <Text style={styles.actionButtonText}>
-            {isStarted ? 'Continue Journey' : 'Start Challenge'}
-          </Text>
-        </View>
-      </AnimatedButton>
-    </View>
+        
+        <Text style={styles.challengeCardDescription}>{challenge.description}</Text>
+        
+        <AnimatedButton onPress={onStart} style={styles.startButton}>
+          <LinearGradient
+            colors={gradientColors}
+            style={styles.startButtonGradient}
+          >
+            <View style={styles.startButtonContent}>
+              <Play size={16} color="#ffffff" strokeWidth={1.5} />
+              <Text style={styles.startButtonText}>Start Challenge</Text>
+            </View>
+          </LinearGradient>
+        </AnimatedButton>
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
@@ -360,68 +642,117 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
   },
-  greeting: {
+  loadingText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoText: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: '#0f172a',
-    lineHeight: 34,
-    marginBottom: 24,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 32,
+    gap: 16,
+    width: '100%',
   },
-  stat: {
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statGradient: {
+    padding: 20,
     alignItems: 'center',
+    gap: 8,
   },
   statNumber: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#0f172a',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#64748b',
-    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 16,
   },
   errorText: {
-    color: '#dc2626',
+    color: '#ff6b6b',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 16,
   },
   successText: {
-    color: '#16a34a',
+    color: '#4ade80',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
@@ -433,134 +764,287 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  featuredSection: {
+    marginBottom: 32,
   },
-  cardHeader: {
+  section: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  featuredCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  featuredCardGradient: {
+    padding: 32,
+  },
+  featuredCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  challengeInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  cardDuration: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fef3c7',
+  featuredIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  progressBadge: {
-    backgroundColor: '#059669',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    minWidth: 40,
+  featuredBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  progressText: {
-    color: '#ffffff',
+  featuredBadgeText: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
   },
-  cardDescription: {
+  featuredTitle: {
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  featuredDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#475569',
+    color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 24,
+    marginBottom: 24,
+  },
+  featuredStats: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 32,
+  },
+  featuredStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featuredStatText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  featuredButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  featuredButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  featuredButtonText: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  activeCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  activeCardGradient: {
+    padding: 24,
+  },
+  activeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
   },
-  progressInfo: {
+  activeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  activeCardInfo: {
+    flex: 1,
+  },
+  activeCardTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  activeCardProgress: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  progressBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  progressBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  progressBarContainer: {
     marginBottom: 20,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 3,
-    marginBottom: 12,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    marginBottom: 8,
   },
-  progressFill: {
+  progressBarFill: {
     height: '100%',
-    backgroundColor: '#059669',
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  progressStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  progressText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  progressStat: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
-  },
-  actionButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  continueButton: {
     borderRadius: 12,
+    overflow: 'hidden',
   },
-  actionButtonContent: {
+  continueButtonGradient: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  continueButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  startButton: {
-    backgroundColor: '#f59e0b',
-  },
-  continueButton: {
-    backgroundColor: '#059669',
-  },
-  actionButtonText: {
-    color: '#ffffff',
+  continueButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
   },
+  challengeCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  challengeCardGradient: {
+    padding: 24,
+  },
+  challengeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  challengeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  challengeCardInfo: {
+    flex: 1,
+  },
+  challengeCardTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  challengeCardDuration: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  challengeCardDescription: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  startButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  startButtonGradient: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  startButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  startButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  bottomPadding: {
+    height: 40,
+  },
+  
+  // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
     paddingBottom: 24,
     gap: 16,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
   modalTitleContainer: {
     flex: 1,
@@ -568,68 +1052,93 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
-    marginBottom: 2,
+    color: '#ffffff',
+    marginBottom: 4,
   },
   modalSubtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  dayBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  dayBadgeText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
   },
   modalContent: {
     flex: 1,
     paddingHorizontal: 20,
   },
   promptContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  promptGradient: {
+    padding: 24,
+    gap: 16,
   },
   promptText: {
     fontSize: 18,
     fontFamily: 'Inter-Medium',
-    color: '#0f172a',
+    color: '#ffffff',
     lineHeight: 26,
+    textAlign: 'center',
+  },
+  responseContainer: {
+    marginBottom: 32,
+  },
+  responseLabel: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+    marginBottom: 12,
   },
   responseInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 16,
     padding: 20,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     minHeight: 200,
-    color: '#0f172a',
-    marginBottom: 24,
+    color: '#ffffff',
     textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     lineHeight: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   submitButton: {
-    backgroundColor: '#059669',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
     marginBottom: 40,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
   },
   submitButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
   submitButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
   },
 });
