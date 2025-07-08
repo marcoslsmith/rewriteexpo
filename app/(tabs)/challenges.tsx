@@ -174,7 +174,7 @@ export default function Challenges() {
       console.error('Error starting challenge:', error);
       
       // Check if this is a duplicate error (which we can handle gracefully)
-      if (error instanceof Error && error.message.includes('duplicate')) {
+      if (error instanceof Error && error.message.includes('Challenge already started')) {
         console.log('Duplicate challenge detected, checking for existing progress...');
         await loadData();
         const existingProgress = activeProgress.find(p => p.challenge_id === challenge.id);
