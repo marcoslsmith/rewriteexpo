@@ -114,8 +114,11 @@ export const audioService = {
 
   async getCachedAudioFile(text: string): Promise<string | null> {
     try {
+      // Generate the same hash for lookup
+      const textHash = btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64);
+      
       const { data, error } = await supabase.rpc('get_cached_audio_file', {
-        manifestation_text: text,
+        text_hash: textHash,
         voice_model: 'nova',
         tts_model: 'tts-1'
       });
@@ -138,10 +141,14 @@ export const audioService = {
 
   async saveAudioFileCache(text: string, audioUrl: string): Promise<void> {
     try {
+      // Generate a consistent hash for the text
+      const textHash = btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64);
+      
       const { error } = await supabase.rpc('save_audio_file_cache', {
         manifestation_id: null, // We'll need to get this from the manifestation
-        manifestation_text: text,
+        text_hash: textHash,
         audio_url: audioUrl,
+        file_size: null,
         voice_model: 'nova',
         tts_model: 'tts-1'
       });
