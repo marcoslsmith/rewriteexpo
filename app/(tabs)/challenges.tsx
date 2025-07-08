@@ -136,7 +136,6 @@ export default function Challenges() {
         setError('You are already participating in this challenge!');
         setTimeout(() => setError(null), 3000);
         return;
-        return;
       }
 
       await storageService.addChallengeProgress({
@@ -161,8 +160,30 @@ export default function Challenges() {
         setShowDayModal(true);
       }
     } catch (error) {
-      setError('Failed to start challenge. Please try again.');
-      setTimeout(() => setError(null), 3000);
+      console.error('Error starting challenge:', error);
+      
+      // Check if this is a duplicate key constraint violation
+      if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint')) {
+        // Force reload data to sync with database state
+        await loadData();
+        
+        // Try to find the existing progress after reload
+        const updatedProgress = await storageService.getChallengeProgress();
+        const existingProgress = updatedProgress.find(p => p.challenge_id === challenge.id && !p.completed_at);
+        
+        if (existingProgress) {
+          // User already has this challenge, continue it instead
+          setSuccess('Found your existing challenge! Continuing where you left off...');
+          setTimeout(() => setSuccess(null), 3000);
+          continueChallenge(challenge, existingProgress);
+        } else {
+          setError('Challenge sync issue resolved. Please try starting again.');
+          setTimeout(() => setError(null), 3000);
+        }
+      } else {
+        setError('Failed to start challenge. Please try again.');
+        setTimeout(() => setError(null), 3000);
+      }
     }
   };
 
