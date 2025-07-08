@@ -240,18 +240,27 @@ export const storageService = {
         const { data: { user } } = await supabase.auth.getUser();
         console.log('Adding challenge progress for user:', user?.id, 'challenge:', progress.challenge_id);
         
-        // First check if progress already exists for this user and challenge
-        const { data: existingProgress } = await supabase
+        // Check if there's already an in-progress challenge for this user and challenge
+        const { data: existingInProgress } = await supabase
           .from('challenge_progress')
           .select('*')
           .eq('user_id', user?.id!)
           .eq('challenge_id', progress.challenge_id)
+          .eq('status', 'in_progress')
           .single();
         
-        if (existingProgress) {
-          console.log('Challenge progress already exists for user:', user?.id, 'challenge:', progress.challenge_id);
-          throw new Error('Challenge already started'); // Throw error so caller can handle appropriately
+        if (existingInProgress) {
+          console.log('In-progress challenge already exists for user:', user?.id, 'challenge:', progress.challenge_id);
+          throw new Error('Challenge already in progress');
         }
+        
+        // Get the next run number for this user and challenge
+        const { data: runNumberData } = await supabase.rpc('get_next_run_number', {
+          user_uuid: user?.id!,
+          challenge_id_param: progress.challenge_id
+        });
+        
+        const runNumber = runNumberData || 1;
         
         console.log('Inserting new challenge progress...');
         const { error } = await supabase
@@ -259,24 +268,33 @@ export const storageService = {
           .insert({
             ...progress,
             user_id: user?.id!,
+            status: 'in_progress',
+            run_number: runNumber,
           });
         
         if (error) {
           console.error('Supabase insert error:', error);
-          throw error;
+          console.warn('Supabase failed, falling back to local storage');
+          await this.saveManifestationLocally(manifestation);
+          return;
         }
         console.log('Challenge progress inserted successfully');
       } else {
-        // Check local storage for existing progress
+        // Check local storage for existing in-progress challenges
         const allProgress = await this.getChallengeProgress();
-        const existingProgress = allProgress.find(p => 
-          p.challenge_id === progress.challenge_id && !p.completed_at
+        const existingInProgress = allProgress.find(p => 
+          p.challenge_id === progress.challenge_id && p.status === 'in_progress'
         );
         
-        if (existingProgress) {
-          console.log('Challenge progress already exists locally for challenge:', progress.challenge_id);
-          throw new Error('Challenge already started'); // Throw error so caller can handle appropriately
+        if (existingInProgress) {
+          console.log('In-progress challenge already exists locally for challenge:', progress.challenge_id);
+          throw new Error('Challenge already in progress');
         }
+        
+        // Get next run number for local storage
+        const existingRuns = allProgress.filter(p => p.challenge_id === progress.challenge_id);
+        const maxRunNumber = Math.max(0, ...existingRuns.map(p => p.run_number || 1));
+        const runNumber = maxRunNumber + 1;
         
         // Add new progress to local storage
         const newProgress: ChallengeProgress = {
@@ -291,6 +309,9 @@ export const storageService = {
           start_date: progress.start_date || new Date().toISOString(),
           completed_at: progress.completed_at || null,
           created_at: new Date().toISOString(),
+          status: 'in_progress',
+          ai_summary: null,
+          run_number: runNumber,
         };
         allProgress.push(newProgress);
         await this.saveChallengeProgress(allProgress);
@@ -299,6 +320,122 @@ export const storageService = {
     } catch (error) {
       console.error('Error adding challenge progress:', error);
       
+      throw error;
+    }
+  },
+
+  // Generate AI summary for completed challenge
+  async generateAISummary(progressId: string): Promise<string> {
+    try {
+      const isAuth = await this.isAuthenticated();
+      
+      if (!isAuth) {
+        throw new Error('Must be authenticated to generate AI summary');
+      }
+
+      // Get the challenge progress
+      const { data: progress, error: progressError } = await supabase
+        .from('challenge_progress')
+        .select('*, challenges(*)')
+        .eq('id', progressId)
+        .single();
+
+      if (progressError || !progress) {
+        throw new Error('Challenge progress not found');
+      }
+
+      // Build the prompt from user responses
+      let userResponses = '';
+      const challenge = progress.challenges;
+      
+      for (let day = 1; day <= challenge.duration; day++) {
+        const response = progress.responses[day.toString()];
+        if (response) {
+          userResponses += `Day ${day}: ${response}\n\n`;
+        }
+      }
+
+      const summaryPrompt = `Please create a thoughtful, encouraging summary of this user's ${challenge.title} journey. Here are their daily responses:
+
+${userResponses}
+
+Create a 2-3 paragraph summary that highlights their growth, insights, and key themes. Be encouraging and focus on their personal development journey. Keep it personal and meaningful.`;
+
+      // Call the OpenAI edge function
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          prompt: summaryPrompt,
+          model: 'gpt-4',
+          temperature: 0.7,
+          maxTokens: 300
+        }
+      });
+
+      if (error) {
+        console.error('AI summary generation error:', error);
+        throw new Error('Failed to generate AI summary');
+      }
+
+      const aiSummary = data?.response || 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
+
+      // Update the challenge progress with the AI summary
+      const { error: updateError } = await supabase
+        .from('challenge_progress')
+        .update({ ai_summary: aiSummary })
+        .eq('id', progressId);
+
+      if (updateError) {
+        console.error('Error updating AI summary:', updateError);
+        throw new Error('Failed to save AI summary');
+      }
+
+      return aiSummary;
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      throw error;
+    }
+  },
+
+  // Complete a challenge and generate AI summary
+  async completeChallenge(progressId: string): Promise<string> {
+    try {
+      const isAuth = await this.isAuthenticated();
+      
+      if (isAuth) {
+        // Update status to completed
+        const { error: updateError } = await supabase
+          .from('challenge_progress')
+          .update({ 
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', progressId);
+        
+        if (updateError) {
+          throw updateError;
+        }
+        
+        // Generate AI summary
+        const aiSummary = await this.generateAISummary(progressId);
+        return aiSummary;
+      } else {
+        // Local storage fallback
+        const allProgress = await this.getChallengeProgress();
+        const index = allProgress.findIndex(p => p.id === progressId);
+        if (index !== -1) {
+          allProgress[index] = { 
+            ...allProgress[index], 
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            ai_summary: 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.'
+          };
+          await this.saveChallengeProgress(allProgress);
+          return allProgress[index].ai_summary!;
+        }
+        throw new Error('Challenge progress not found');
+      }
+    } catch (error) {
+      console.error('Error completing challenge:', error);
       throw error;
     }
   },

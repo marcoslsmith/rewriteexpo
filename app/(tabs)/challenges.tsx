@@ -131,11 +131,15 @@ export default function Challenges() {
 
   const startChallenge = async (challenge: Challenge) => {
     try {
-      const existingProgress = activeProgress.find(p => p.challenge_id === challenge.id);
-      if (existingProgress) {
-        setSuccess('Found your existing challenge! Continuing where you left off...');
+      // Check for in-progress challenges
+      const inProgressChallenge = activeProgress.find(p => 
+        p.challenge_id === challenge.id && p.status === 'in_progress'
+      );
+      
+      if (inProgressChallenge) {
+        setSuccess('Found your in-progress challenge! Continuing where you left off...');
         setTimeout(() => setSuccess(null), 3000);
-        continueChallenge(challenge, existingProgress);
+        continueChallenge(challenge, inProgressChallenge);
         return;
       }
 
@@ -148,6 +152,7 @@ export default function Challenges() {
         points: 0,
         streak: 0,
         start_date: new Date().toISOString(),
+        status: 'in_progress',
       });
       
       console.log('Challenge progress added, reloading data...');
@@ -155,7 +160,9 @@ export default function Challenges() {
       
       // Get the updated progress list
       const updatedProgressList = await storageService.getChallengeProgress();
-      const newProgress = updatedProgressList.find(p => p.challenge_id === challenge.id && !p.completed_at);
+      const newProgress = updatedProgressList.find(p => 
+        p.challenge_id === challenge.id && p.status === 'in_progress'
+      );
       
       if (newProgress) {
         console.log('New progress found, opening day modal');
@@ -173,15 +180,17 @@ export default function Challenges() {
     } catch (error) {
       console.error('Error starting challenge:', error);
       
-      // Check if this is a duplicate error (which we can handle gracefully)
-      if (error instanceof Error && error.message.includes('Challenge already started')) {
-        console.log('Duplicate challenge detected, checking for existing progress...');
+      // Check if this is an in-progress challenge error
+      if (error instanceof Error && error.message.includes('Challenge already in progress')) {
+        console.log('In-progress challenge detected, checking for existing progress...');
         await loadData();
-        const existingProgress = activeProgress.find(p => p.challenge_id === challenge.id);
-        if (existingProgress) {
-          setSuccess('Found your existing challenge! Continuing where you left off...');
+        const inProgressChallenge = activeProgress.find(p => 
+          p.challenge_id === challenge.id && p.status === 'in_progress'
+        );
+        if (inProgressChallenge) {
+          setSuccess('Found your in-progress challenge! Continuing where you left off...');
           setTimeout(() => setSuccess(null), 3000);
-          continueChallenge(challenge, existingProgress);
+          continueChallenge(challenge, inProgressChallenge);
           return;
         }
       }
@@ -200,7 +209,8 @@ export default function Challenges() {
       setCurrentDay(nextDay);
       setShowDayModal(true);
     } else {
-      setSuccess(`Congratulations! You've completed the ${challenge.title}. Total points earned: ${progress.points}`);
+      // Challenge is complete, show completion message
+      setSuccess(`🎉 Challenge completed! You earned ${progress.points} points total!`);
       setTimeout(() => setSuccess(null), 5000);
     }
   };
@@ -221,8 +231,21 @@ export default function Challenges() {
       };
 
       if (updatedProgress.completed_days!.length === selectedChallenge.duration) {
-        updatedProgress.completed_at = new Date().toISOString();
+        updatedProgress.status = 'completed';
         updatedProgress.points = updatedProgress.points! + 50;
+        
+        // Complete the challenge and generate AI summary
+        try {
+          const aiSummary = await storageService.completeChallenge(currentProgress.id);
+          console.log('AI Summary generated:', aiSummary);
+          setSuccess(`🎉 Challenge completed! Your journey summary has been saved. You earned ${updatedProgress.points} points total!`);
+        } catch (summaryError) {
+          console.error('Error generating AI summary:', summaryError);
+          updatedProgress.completed_at = new Date().toISOString();
+          setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total!`);
+        }
+      } else {
+        setSuccess('✨ Day completed! Great work!');
       }
 
       await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
@@ -230,13 +253,7 @@ export default function Challenges() {
       setShowDayModal(false);
       setDayResponse('');
       
-      if (updatedProgress.completed_at) {
-        setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total!`);
-        setTimeout(() => setSuccess(null), 5000);
-      } else {
-        setSuccess('✨ Day completed! Great work!');
-        setTimeout(() => setSuccess(null), 3000);
-      }
+      setTimeout(() => setSuccess(null), updatedProgress.status === 'completed' ? 5000 : 3000);
       
       await loadData();
     } catch (error) {
@@ -246,14 +263,17 @@ export default function Challenges() {
   };
 
   const getProgressForChallenge = (challengeId: string) => {
-    return activeProgress.find(p => p.challenge_id === challengeId);
+    return activeProgress.find(p => p.challenge_id === challengeId && p.status === 'in_progress');
+  };
+
+  const getCompletedProgressForChallenge = (challengeId: string) => {
+    return activeProgress.filter(p => p.challenge_id === challengeId && p.status === 'completed');
   };
 
   const getTotalPoints = () => activeProgress.reduce((sum, p) => sum + p.points, 0);
-  const getActiveCount = () => activeProgress.length;
+  const getActiveCount = () => activeProgress.filter(p => p.status === 'in_progress').length;
   const getCompletedCount = () => {
-    // This would need to be fetched from completed challenges
-    return 0; // Placeholder
+    return activeProgress.filter(p => p.status === 'completed').length;
   };
 
   if (loading) {
@@ -380,27 +400,25 @@ export default function Challenges() {
           )}
 
           {/* Completed Challenges */}
-          {challenges.some(challenge => {
-            const progress = activeProgress.find(p => p.challenge_id === challenge.id);
-            return progress && progress.completed_at;
-          }) && (
+          {activeProgress.some(p => p.status === 'completed') && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>🏆 Completed Challenges</Text>
-              {challenges
-                .filter(challenge => {
-                  const progress = activeProgress.find(p => p.challenge_id === challenge.id);
-                  return progress && progress.completed_at;
-                })
-                .map((challenge) => {
-                  const progress = activeProgress.find(p => p.challenge_id === challenge.id)!;
+              {activeProgress
+                .filter(p => p.status === 'completed')
+                .sort((a, b) => new Date(b.completed_at || '').getTime() - new Date(a.completed_at || '').getTime())
+                .map((progress) => {
+                  const challenge = challenges.find(c => c.id === progress.challenge_id);
+                  if (!challenge) return null;
+                  
                   return (
                     <CompletedChallengeCard
-                      key={challenge.id}
+                      key={`${challenge.id}-${progress.run_number}`}
                       challenge={challenge}
                       progress={progress}
                     />
                   );
-                })}
+                })
+                .filter(Boolean)}
             </View>
           )}
 
@@ -416,6 +434,7 @@ export default function Challenges() {
                   challenge={challenge}
                   index={index}
                   onStart={() => startChallenge(challenge)}
+                  completedRuns={getCompletedProgressForChallenge(challenge.id)}
                 />
               ))}
           </View>
@@ -626,6 +645,7 @@ interface CompletedChallengeCardProps {
 function CompletedChallengeCard({ challenge, progress }: CompletedChallengeCardProps) {
   const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
   const gradientColors = challengeGradients[challenge.id as keyof typeof challengeGradients] || ['#667eea', '#764ba2'];
+  const [showSummary, setShowSummary] = useState(false);
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -648,7 +668,7 @@ function CompletedChallengeCard({ challenge, progress }: CompletedChallengeCardP
           <View style={styles.completedCardInfo}>
             <Text style={styles.completedCardTitle}>{challenge.title}</Text>
             <Text style={styles.completedCardDate}>
-              Completed {progress.completed_at ? formatDate(progress.completed_at) : 'Recently'}
+              Run #{progress.run_number} • Completed {progress.completed_at ? formatDate(progress.completed_at) : 'Recently'}
             </Text>
           </View>
           <View style={styles.completedBadge}>
@@ -671,12 +691,31 @@ function CompletedChallengeCard({ challenge, progress }: CompletedChallengeCardP
           </View>
         </View>
         
-        <View style={styles.completedRecapNote}>
-          <BookOpen size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
-          <Text style={styles.completedRecapText}>
-            Your journey recap has been saved to your library
-          </Text>
-        </View>
+        {progress.ai_summary && (
+          <>
+            <TouchableOpacity 
+              style={styles.summaryToggle}
+              onPress={() => setShowSummary(!showSummary)}
+            >
+              <BookOpen size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+              <Text style={styles.summaryToggleText}>
+                {showSummary ? 'Hide' : 'View'} Journey Summary
+              </Text>
+              <ChevronDown 
+                size={16} 
+                color="rgba(255, 255, 255, 0.8)" 
+                strokeWidth={1.5}
+                style={{ transform: [{ rotate: showSummary ? '180deg' : '0deg' }] }}
+              />
+            </TouchableOpacity>
+            
+            {showSummary && (
+              <View style={styles.summaryContainer}>
+                <Text style={styles.summaryText}>{progress.ai_summary}</Text>
+              </View>
+            )}
+          </>
+        )}
       </LinearGradient>
     </View>
   );
@@ -686,9 +725,10 @@ interface ChallengeCardProps {
   challenge: Challenge;
   index: number;
   onStart: () => void;
+  completedRuns: ChallengeProgress[];
 }
 
-function ChallengeCard({ challenge, index, onStart }: ChallengeCardProps) {
+function ChallengeCard({ challenge, index, onStart, completedRuns }: ChallengeCardProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
@@ -738,6 +778,15 @@ function ChallengeCard({ challenge, index, onStart }: ChallengeCardProps) {
         
         <Text style={styles.challengeCardDescription}>{challenge.description}</Text>
         
+        {completedRuns.length > 0 && (
+          <View style={styles.completedRunsIndicator}>
+            <Trophy size={14} color="#fbbf24" strokeWidth={1.5} />
+            <Text style={styles.completedRunsText}>
+              Completed {completedRuns.length} time{completedRuns.length > 1 ? 's' : ''}
+            </Text>
+          </View>
+        )}
+        
         <AnimatedButton onPress={onStart} style={styles.startButton}>
           <LinearGradient
             colors={gradientColors}
@@ -745,7 +794,9 @@ function ChallengeCard({ challenge, index, onStart }: ChallengeCardProps) {
           >
             <View style={styles.startButtonContent}>
               <Play size={16} color="#ffffff" strokeWidth={1.5} />
-              <Text style={styles.startButtonText}>Start Challenge</Text>
+              <Text style={styles.startButtonText}>
+                {completedRuns.length > 0 ? 'Start Again' : 'Start Challenge'}
+              </Text>
             </View>
           </LinearGradient>
         </AnimatedButton>
@@ -1159,6 +1210,36 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     flex: 1,
   },
+  summaryToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  summaryToggleText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+    flex: 1,
+  },
+  summaryContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  summaryText: {
+    fontSize: 15,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
   challengeCard: {
     borderRadius: 20,
     marginBottom: 16,
@@ -1205,6 +1286,22 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 24,
     marginBottom: 20,
+  },
+  completedRunsIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  completedRunsText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#fbbf24',
   },
   startButton: {
     borderRadius: 12,
