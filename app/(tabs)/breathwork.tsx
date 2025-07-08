@@ -8,12 +8,16 @@ import {
   Animated,
   TextInput,
   Platform,
+  Dimensions,
 } from 'react-native';
-import { Wind, Play, Pause, RotateCcw, ArrowLeft } from 'lucide-react-native';
+import { Wind, Play, Pause, RotateCcw, ArrowLeft, Heart, Star, Zap } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { breathingPatterns, BreathingPattern } from '../../lib/breathingPatterns';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import FloatingActionButton from '../../components/FloatingActionButton';
+
+const { width, height } = Dimensions.get('window');
 
 export default function Breathwork() {
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern | null>(null);
@@ -26,8 +30,28 @@ export default function Breathwork() {
   const [showFAB, setShowFAB] = useState(true);
 
   const animatedValue = useRef(new Animated.Value(0.5)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+
+  React.useEffect(() => {
+    // Animate in the content when component mounts
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -55,8 +79,6 @@ export default function Breathwork() {
       },
     }
   );
-  
-  const lastScrollY = useRef(0);
 
   useEffect(() => {
     if (isActive && selectedPattern && timeRemaining > 0) {
@@ -92,6 +114,27 @@ export default function Breathwork() {
       animateBreathing();
     }
   }, [currentPhase, isActive, selectedPattern]);
+
+  // Continuous pulse animation for the breathing circle
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseAnimation.start();
+
+    return () => pulseAnimation.stop();
+  }, []);
 
   const animateBreathing = () => {
     if (!selectedPattern) return;
@@ -151,38 +194,116 @@ export default function Breathwork() {
 
   if (selectedPattern) {
     return (
-      <GradientBackground colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}>
+      <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
         <View style={styles.sessionContainer}>
-          <View style={styles.sessionHeader}>
+          {/* Session Header */}
+          <Animated.View 
+            style={[
+              styles.sessionHeader,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
             <TouchableOpacity onPress={stopSession} style={styles.backButton}>
-              <ArrowLeft size={24} color="#0f172a" strokeWidth={1.5} />
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.backButtonGradient}
+              >
+                <ArrowLeft size={24} color="#ffffff" strokeWidth={1.5} />
+              </LinearGradient>
             </TouchableOpacity>
             
             <View style={styles.sessionInfo}>
               <Text style={styles.sessionTitle}>{selectedPattern.name}</Text>
               <Text style={styles.sessionSubtitle}>Cycle {cycleCount + 1}</Text>
             </View>
-          </View>
+          </Animated.View>
 
+          {/* Breathing Visualizer */}
           <View style={styles.visualizerContainer}>
+            {/* Outer Glow Rings */}
             <Animated.View
               style={[
-                styles.breathingCircle,
+                styles.glowRing,
+                styles.outerGlow,
                 {
-                  transform: [{
-                    scale: animatedValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.6, 1.1],
-                    })
-                  }],
+                  transform: [
+                    { 
+                      scale: Animated.multiply(
+                        animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1.3],
+                        }),
+                        pulseAnim
+                      )
+                    }
+                  ],
                   opacity: animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.4, 0.8],
+                    outputRange: [0.1, 0.3],
                   })
                 }
               ]}
             />
             
+            <Animated.View
+              style={[
+                styles.glowRing,
+                styles.middleGlow,
+                {
+                  transform: [
+                    { 
+                      scale: Animated.multiply(
+                        animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.9, 1.2],
+                        }),
+                        pulseAnim
+                      )
+                    }
+                  ],
+                  opacity: animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.2, 0.4],
+                  })
+                }
+              ]}
+            />
+
+            {/* Main Breathing Circle */}
+            <Animated.View
+              style={[
+                styles.breathingCircle,
+                {
+                  transform: [
+                    {
+                      scale: Animated.multiply(
+                        animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.7, 1.1],
+                        }),
+                        pulseAnim
+                      )
+                    }
+                  ],
+                  opacity: animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.6, 0.9],
+                  })
+                }
+              ]}
+            >
+              <LinearGradient
+                colors={['#ffffff', '#f0f9ff', '#e0f2fe']}
+                style={styles.circleGradient}
+              >
+                <Wind size={40} color="#4facfe" strokeWidth={1.5} />
+              </LinearGradient>
+            </Animated.View>
+            
+            {/* Phase Information */}
             <View style={styles.phaseInfo}>
               <Text style={styles.phaseText}>
                 {selectedPattern.phases[currentPhase].name}
@@ -190,34 +311,60 @@ export default function Breathwork() {
               <Text style={styles.instructionText}>
                 {selectedPattern.phases[currentPhase].instruction}
               </Text>
-              <Text style={styles.timerText}>{timeRemaining}</Text>
+              <View style={styles.timerContainer}>
+                <Text style={styles.timerText}>{timeRemaining}</Text>
+                <Text style={styles.timerLabel}>seconds</Text>
+              </View>
             </View>
           </View>
 
+          {/* Intention Display */}
           {showIntention && intention && (
-            <View style={styles.intentionDisplay}>
-              <Text style={styles.intentionText}>"{intention}"</Text>
-            </View>
+            <Animated.View style={styles.intentionDisplay}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']}
+                style={styles.intentionGradient}
+              >
+                <Heart size={20} color="#ffffff" strokeWidth={1.5} />
+                <Text style={styles.intentionText}>"{intention}"</Text>
+              </LinearGradient>
+            </Animated.View>
           )}
 
+          {/* Session Controls - Positioned above tab bar */}
           <View style={styles.sessionControls}>
             <TouchableOpacity style={styles.controlButton} onPress={resetSession}>
-              <RotateCcw size={20} color="#64748b" strokeWidth={1.5} />
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.controlButtonGradient}
+              >
+                <RotateCcw size={20} color="#ffffff" strokeWidth={1.5} />
+              </LinearGradient>
             </TouchableOpacity>
             
             <TouchableOpacity
               style={[styles.controlButton, styles.playButton]}
               onPress={toggleSession}
             >
-              {isActive ? (
-                <Pause size={28} color="#ffffff" strokeWidth={1.5} />
-              ) : (
-                <Play size={28} color="#ffffff" strokeWidth={1.5} />
-              )}
+              <LinearGradient
+                colors={isActive ? ['#ef4444', '#dc2626'] : ['#10b981', '#059669']}
+                style={styles.playButtonGradient}
+              >
+                {isActive ? (
+                  <Pause size={32} color="#ffffff" strokeWidth={1.5} />
+                ) : (
+                  <Play size={32} color="#ffffff" strokeWidth={1.5} />
+                )}
+              </LinearGradient>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.controlButton} onPress={stopSession}>
-              <Text style={styles.stopButtonText}>Stop</Text>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.controlButtonGradient}
+              >
+                <Text style={styles.stopButtonText}>Stop</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -226,15 +373,31 @@ export default function Breathwork() {
   }
 
   return (
-    <GradientBackground colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}>
+    <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Find your center</Text>
-          <Text style={styles.title}>Breathwork</Text>
-        </View>
+        {/* Hero Header */}
+        <Animated.View 
+          style={[
+            styles.heroSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#ffffff', '#f0f9ff']}
+              style={styles.logoBackground}
+            >
+              <Wind size={32} color="#4facfe" strokeWidth={2} />
+            </LinearGradient>
+            <Text style={styles.logoText}>Breathwork</Text>
+            <Text style={styles.logoSubtext}>Find your center through breath</Text>
+          </View>
+        </Animated.View>
 
         <Animated.ScrollView
           style={styles.scrollView}
@@ -243,10 +406,11 @@ export default function Breathwork() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {breathingPatterns.map((pattern) => (
+          {breathingPatterns.map((pattern, index) => (
             <PatternCard
               key={pattern.id}
               pattern={pattern}
+              index={index}
               onStart={() => {
                 if (pattern.supportsIntention) {
                   if (Platform.OS === 'web') {
@@ -260,6 +424,9 @@ export default function Breathwork() {
               }}
             />
           ))}
+          
+          {/* Bottom padding for tab bar */}
+          <View style={styles.bottomPadding} />
         </Animated.ScrollView>
       </View>
     </GradientBackground>
@@ -268,49 +435,124 @@ export default function Breathwork() {
 
 interface PatternCardProps {
   pattern: BreathingPattern;
+  index: number;
   onStart: () => void;
 }
 
-function PatternCard({ pattern, onStart }: PatternCardProps) {
+function PatternCard({ pattern, index, onStart }: PatternCardProps) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Staggered animation for cards
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const getPatternIcon = (patternId: string) => {
+    switch (patternId) {
+      case 'box': return Wind;
+      case 'sleep478': return Star;
+      case 'wimhof': return Zap;
+      case 'coherent': return Heart;
+      case 'physiological': return Wind;
+      default: return Wind;
+    }
+  };
+
+  const getPatternColors = (patternId: string) => {
+    switch (patternId) {
+      case 'box': return ['#4facfe', '#00f2fe'];
+      case 'sleep478': return ['#667eea', '#764ba2'];
+      case 'wimhof': return ['#f093fb', '#f5576c'];
+      case 'coherent': return ['#43e97b', '#38f9d7'];
+      case 'physiological': return ['#fa709a', '#fee140'];
+      default: return ['#4facfe', '#00f2fe'];
+    }
+  };
+
+  const IconComponent = getPatternIcon(pattern.id);
+  const gradientColors = getPatternColors(pattern.id);
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleContainer}>
-          <Text style={styles.cardTitle}>{pattern.name}</Text>
-          <Text style={styles.cardDuration}>{pattern.totalDuration}s cycle</Text>
-        </View>
-        <View style={styles.iconContainer}>
-          <Wind size={20} color="#0ea5e9" strokeWidth={1.5} />
-        </View>
-      </View>
-      
-      <Text style={styles.cardDescription}>{pattern.description}</Text>
-      
-      <View style={styles.phasesList}>
-        {pattern.phases.map((phase, index) => (
-          <View key={index} style={styles.phaseItem}>
-            <View style={styles.phaseDot} />
-            <Text style={styles.phaseItemText}>
-              {phase.name} ({phase.duration}s)
-            </Text>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }
+      ]}
+    >
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        style={styles.cardGradient}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleContainer}>
+            <Text style={styles.cardTitle}>{pattern.name}</Text>
+            <Text style={styles.cardDuration}>{pattern.totalDuration}s cycle</Text>
           </View>
-        ))}
-      </View>
-      
-      <View style={styles.benefits}>
-        <Text style={styles.benefitsTitle}>Benefits</Text>
-        {pattern.benefits.map((benefit, index) => (
-          <Text key={index} style={styles.benefitItem}>• {benefit}</Text>
-        ))}
-      </View>
-      
-      <AnimatedButton onPress={onStart} style={styles.startButton}>
-        <View style={styles.startButtonContent}>
-          <Play size={16} color="#ffffff" strokeWidth={1.5} />
-          <Text style={styles.startButtonText}>Start Session</Text>
+          <View style={styles.iconContainer}>
+            <LinearGradient
+              colors={gradientColors}
+              style={styles.iconGradient}
+            >
+              <IconComponent size={24} color="#ffffff" strokeWidth={1.5} />
+            </LinearGradient>
+          </View>
         </View>
-      </AnimatedButton>
-    </View>
+        
+        <Text style={styles.cardDescription}>{pattern.description}</Text>
+        
+        <View style={styles.phasesList}>
+          {pattern.phases.map((phase, index) => (
+            <View key={index} style={styles.phaseItem}>
+              <View style={[styles.phaseDot, { backgroundColor: gradientColors[0] }]} />
+              <Text style={styles.phaseItemText}>
+                {phase.name} ({phase.duration}s)
+              </Text>
+            </View>
+          ))}
+        </View>
+        
+        <View style={styles.benefits}>
+          <Text style={styles.benefitsTitle}>Benefits</Text>
+          <View style={styles.benefitsList}>
+            {pattern.benefits.map((benefit, index) => (
+              <View key={index} style={styles.benefitItem}>
+                <View style={[styles.benefitDot, { backgroundColor: gradientColors[1] }]} />
+                <Text style={styles.benefitText}>{benefit}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        
+        <AnimatedButton onPress={onStart} style={styles.startButton}>
+          <LinearGradient
+            colors={gradientColors}
+            style={styles.startButtonGradient}
+          >
+            <View style={styles.startButtonContent}>
+              <Play size={18} color="#ffffff" strokeWidth={1.5} />
+              <Text style={styles.startButtonText}>Start Session</Text>
+            </View>
+          </LinearGradient>
+        </AnimatedButton>
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
@@ -318,40 +560,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingTop: 60,
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
-  greeting: {
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoText: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: '#0f172a',
-    lineHeight: 34,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 140, // Extra padding for tab bar
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardGradient: {
+    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -363,28 +627,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
+    fontSize: 22,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   cardDuration: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e0f2fe',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#475569',
+    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 20,
     lineHeight: 24,
   },
@@ -398,15 +674,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   phaseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#0ea5e9',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   phaseItemText: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   benefits: {
     marginBottom: 24,
@@ -414,21 +689,41 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
+    color: '#ffffff',
     marginBottom: 12,
   },
+  benefitsList: {
+    gap: 8,
+  },
   benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  benefitDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  benefitText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#475569',
-    marginBottom: 6,
+    color: 'rgba(255, 255, 255, 0.8)',
     lineHeight: 20,
+    flex: 1,
   },
   startButton: {
-    backgroundColor: '#0ea5e9',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startButtonGradient: {
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
   },
   startButtonContent: {
     flexDirection: 'row',
@@ -441,29 +736,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },
+  bottomPadding: {
+    height: 40,
+  },
+  
+  // Session Styles
   sessionContainer: {
     flex: 1,
   },
   sessionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
     paddingBottom: 24,
     gap: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  backButtonGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
   sessionInfo: {
     flex: 1,
@@ -471,61 +775,113 @@ const styles = StyleSheet.create({
   sessionTitle: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#0f172a',
+    color: '#ffffff',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   sessionSubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   visualizerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+    position: 'relative',
+  },
+  glowRing: {
+    position: 'absolute',
+    borderRadius: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  outerGlow: {
+    width: 400,
+    height: 400,
+  },
+  middleGlow: {
+    width: 320,
+    height: 320,
   },
   breathingCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: '#0ea5e9',
-    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    overflow: 'hidden',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  circleGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   phaseInfo: {
+    position: 'absolute',
     alignItems: 'center',
     zIndex: 10,
   },
   phaseText: {
-    fontSize: 24,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1e293b',
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
     marginBottom: 8,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   instructionText: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     marginBottom: 20,
   },
+  timerContainer: {
+    alignItems: 'center',
+  },
   timerText: {
-    fontSize: 48,
+    fontSize: 56,
     fontFamily: 'Inter-Bold',
-    color: '#0f172a',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  timerLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 4,
   },
   intentionDisplay: {
     paddingHorizontal: 40,
     paddingVertical: 20,
     alignItems: 'center',
   },
+  intentionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
   intentionText: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Inter-Medium',
     fontStyle: 'italic',
-    color: '#475569',
+    color: '#ffffff',
     textAlign: 'center',
+    flex: 1,
   },
   sessionControls: {
     flexDirection: 'row',
@@ -533,29 +889,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
+    paddingBottom: 140, // Extra padding to ensure buttons are above tab bar
     gap: 24,
   },
   controlButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#ffffff',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  controlButtonGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#0ea5e9',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  playButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stopButtonText: {
-    color: '#64748b',
+    color: '#ffffff',
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
   },
