@@ -123,27 +123,8 @@ export default function Settings() {
     try {
       console.log('Creating default schedules for user:', user.id);
       
-      // Create morning motivation schedule
-      await storageService.addNotificationSchedule({
-        user_id: user.id,
-        title: 'Good Morning Motivation',
-        message: 'Good morning! Start your day with intention. What will you manifest today?',
-        use_random_manifestation: false,
-        time: '08:00',
-        days: [1, 2, 3, 4, 5], // Monday to Friday
-        is_active: true,
-      });
-      
-      // Create evening reflection schedule
-      await storageService.addNotificationSchedule({
-        user_id: user.id,
-        title: 'Evening Reflection',
-        message: 'Time to wind down and reflect on your day. What went well?',
-        use_random_manifestation: false,
-        time: '20:00',
-        days: [0, 1, 2, 3, 4, 5, 6], // Every day
-        is_active: true,
-      });
+      // Use the helper function to create defaults
+      await storageService.createDefaultSchedulesForCurrentUser();
       
       console.log('Default schedules created successfully');
       
@@ -557,6 +538,36 @@ export default function Settings() {
                         }}
                       >
                         <Text style={styles.refreshButtonText}>Create Defaults</Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    {/* Debug button to check database directly */}
+                    {user && (
+                      <TouchableOpacity
+                        style={[styles.refreshButton, { backgroundColor: 'rgba(239, 68, 68, 0.3)' }]}
+                        onPress={async () => {
+                          console.log('=== DEBUG: Checking database directly ===');
+                          try {
+                            const { data, error } = await supabase
+                              .from('notification_schedules')
+                              .select('*')
+                              .eq('user_id', user.id);
+                            
+                            console.log('Direct DB query result:', { data, error });
+                            console.log('User ID being queried:', user.id);
+                            
+                            if (data) {
+                              console.log('Found schedules in DB:', data.length);
+                              data.forEach((schedule, index) => {
+                                console.log(`Schedule ${index + 1}:`, schedule);
+                              });
+                            }
+                          } catch (err) {
+                            console.error('Direct DB query failed:', err);
+                          }
+                        }}
+                      >
+                        <Text style={styles.refreshButtonText}>Debug DB</Text>
                       </TouchableOpacity>
                     )}
                   </View>

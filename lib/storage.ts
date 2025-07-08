@@ -299,9 +299,13 @@ export const storageService = {
       
       if (isAuth) {
         console.log('Fetching notification schedules from Supabase...');
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('Current user ID:', user?.id);
+        
         const { data, error } = await supabase
           .from('notification_schedules')
           .select('*')
+          .eq('user_id', user?.id)
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -314,6 +318,7 @@ export const storageService = {
           return parsed;
         }
         console.log('Notification schedules from Supabase:', data?.length || 0, 'schedules');
+        console.log('Raw Supabase data:', data);
         return data || [];
       } else {
         console.log('Not authenticated, using local storage for notification schedules...');
@@ -347,6 +352,10 @@ export const storageService = {
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
         console.log('Adding notification schedule to Supabase for user:', user?.id);
+        console.log('Schedule data being inserted:', {
+          ...schedule,
+          user_id: user?.id,
+        });
         
         if (!user) {
           console.log('No user found, saving to local storage instead');
@@ -363,6 +372,7 @@ export const storageService = {
         
         if (error) {
           console.error('Supabase insert notification schedule error:', error);
+          console.error('Error details:', error.details, error.hint, error.code);
           console.log('Supabase failed, falling back to local storage');
           await this.saveNotificationScheduleLocally(schedule);
           return;
@@ -379,6 +389,40 @@ export const storageService = {
       console.error('Error adding notification schedule:', error);
       throw error;
     }
+  },
+
+  // Helper function to force create default schedules (for debugging)
+  async createDefaultSchedulesForCurrentUser(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('No authenticated user found');
+    }
+
+    console.log('Force creating default schedules for user:', user.id);
+    
+    // Create morning motivation schedule
+    await this.addNotificationSchedule({
+      user_id: user.id,
+      title: 'Good Morning Motivation',
+      message: 'Good morning! Start your day with intention. What will you manifest today?',
+      use_random_manifestation: false,
+      time: '08:00',
+      days: [1, 2, 3, 4, 5], // Monday to Friday
+      is_active: true,
+    });
+    
+    // Create evening reflection schedule
+    await this.addNotificationSchedule({
+      user_id: user.id,
+      title: 'Evening Reflection',
+      message: 'Time to wind down and reflect on your day. What went well?',
+      use_random_manifestation: false,
+      time: '20:00',
+      days: [0, 1, 2, 3, 4, 5, 6], // Every day
+      is_active: true,
+    });
+    
+    console.log('Default schedules created successfully');
   },
 
   async saveNotificationScheduleLocally(schedule: NotificationScheduleInsert): Promise<void> {
