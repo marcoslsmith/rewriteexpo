@@ -184,7 +184,8 @@ export const audioService = {
   async generateTTSAudio(text: string): Promise<string> {
     try {
       // Call OpenAI TTS API via Supabase Edge Function
-      console.log('Generating TTS for text:', text.substring(0, 100) + '...');
+      console.log('Generating TTS for text:', text.substring(0, 50) + '...');
+      console.log('Calling Supabase Edge Function: openai-tts');
       
       const { data, error } = await supabase.functions.invoke('openai-tts', {
         body: {
@@ -196,15 +197,35 @@ export const audioService = {
       });
 
       if (error) {
-        console.error('TTS generation error details:', {
-          message: error.message,
-          details: error.details,
-          context: error.context
-        });
-        throw new Error(`Failed to generate speech audio: ${error.message}`);
+        console.error('Edge Function invocation error:', error);
+        
+        // Check if it's a network/connection error
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+          throw new Error('Network error: Unable to connect to the TTS service. Please check your internet connection and try again.');
+        }
+        
+        // Check if it's an authentication error
+        if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+          throw new Error('Authentication error: Please check that the OpenAI API key is properly configured in Supabase Edge Function secrets.');
+        }
+        
+        // Check if it's a rate limit error
+        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+          throw new Error('Rate limit exceeded: Please wait a moment before trying again.');
+        }
+        
+        throw new Error(`TTS service error: ${error.message || 'Unknown error occurred'}`);
       }
 
-      if (data?.audioUrl || data?.audioData) {
+      console.log('Edge Function response received:', {
+        hasData: !!data,
+        hasAudioUrl: !!data?.audioUrl,
+        hasAudioData: !!data?.audioData,
+        success: data?.success,
+        dataKeys: data ? Object.keys(data) : []
+      });
+
+      if (data?.success && (data?.audioUrl || data?.audioData)) {
         console.log('TTS generation successful, audio received');
         
         // If we have audioUrl, use it directly
@@ -218,19 +239,35 @@ export const audioService = {
         }
       }
 
-      console.error('No audio URL in response:', data);
-      throw new Error(`No audio URL returned from TTS service. Response: ${JSON.stringify(data)}`);
+      console.error('Invalid response from TTS service:', {
+        data,
+        hasSuccess: !!data?.success,
+        hasAudioUrl: !!data?.audioUrl,
+        hasAudioData: !!data?.audioData
+      });
+      
+      // Check if there's an error in the response
+      if (data?.error) {
+        throw new Error(`TTS service error: ${data.error} (${data.code || 'UNKNOWN_CODE'})`);
+      }
+      
+      throw new Error('Invalid response from TTS service: No audio data received');
     } catch (error) {
       console.error('TTS generation failed:', error);
       
-      // For development, return a placeholder, but in production we should handle this better
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using placeholder audio due to TTS failure');
-        return this.getBackgroundMusicUrl('meditation');
+      // Provide more helpful error messages
+      if (error instanceof Error) {
+        // If it's already a well-formatted error, re-throw it
+        if (error.message.includes('TTS service error') || 
+            error.message.includes('Network error') || 
+            error.message.includes('Authentication error') ||
+            error.message.includes('Rate limit exceeded')) {
+          throw error;
+        }
       }
       
-      // Re-throw the error in production so the UI can handle it appropriately
-      throw error;
+      // For any other errors, provide a generic but helpful message
+      throw new Error('Failed to generate speech audio. Please check your connection and try again.');
     }
   },
 
