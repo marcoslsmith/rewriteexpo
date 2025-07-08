@@ -13,9 +13,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { Challenge, ChallengeProgress } from '@/types/global';
 import { challengeData } from '@/lib/challenges';
-import { AnimatedButton } from '@/components/AnimatedButton';
-import { LoadingShimmer } from '@/components/LoadingShimmer';
-import { EmptyState } from '@/components/EmptyState';
+import AnimatedButton from '@/components/AnimatedButton';
+import LoadingShimmer from '@/components/LoadingShimmer';
+import EmptyState from '@/components/EmptyState';
 import {
   Target,
   Heart,
