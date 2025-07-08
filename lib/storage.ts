@@ -341,6 +341,11 @@ export const storageService = {
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
         console.log('Adding notification schedule to Supabase for user:', user?.id);
+        
+        if (!user) {
+          throw new Error('User not found');
+        }
+        
         const { error } = await supabase
           .from('notification_schedules')
           .insert({
@@ -353,24 +358,12 @@ export const storageService = {
           throw error;
         }
         console.log('Notification schedule added to Supabase successfully');
+        
+        // Also save to local storage as backup
+        await this.saveNotificationScheduleLocally(schedule);
       } else {
         console.log('Not authenticated, saving notification schedule to local storage...');
-        // Fallback to local storage
-        const schedules = await this.getNotificationSchedules();
-        const newSchedule: NotificationSchedule = {
-          id: Date.now().toString(),
-          user_id: 'local',
-          title: schedule.title,
-          message: schedule.message || '',
-          use_random_manifestation: schedule.use_random_manifestation || true,
-          time: schedule.time,
-          days: schedule.days,
-          is_active: schedule.is_active !== false,
-          created_at: new Date().toISOString(),
-        };
-        schedules.push(newSchedule);
-        await this.saveNotificationSchedules(schedules);
-        console.log('Notification schedule saved to local storage');
+        await this.saveNotificationScheduleLocally(schedule);
       }
     } catch (error) {
       console.error('Error adding notification schedule:', error);
@@ -378,6 +371,23 @@ export const storageService = {
     }
   },
 
+  async saveNotificationScheduleLocally(schedule: NotificationScheduleInsert): Promise<void> {
+    const schedules = await this.getNotificationSchedules();
+    const newSchedule: NotificationSchedule = {
+      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      user_id: schedule.user_id || 'local',
+      title: schedule.title,
+      message: schedule.message || '',
+      use_random_manifestation: schedule.use_random_manifestation !== false,
+      time: schedule.time,
+      days: schedule.days,
+      is_active: schedule.is_active !== false,
+      created_at: new Date().toISOString(),
+    };
+    schedules.push(newSchedule);
+    await this.saveNotificationSchedules(schedules);
+    console.log('Notification schedule saved to local storage:', newSchedule.id);
+  },
   async updateNotificationSchedule(id: string, updates: NotificationScheduleUpdate): Promise<void> {
     try {
       const isAuth = await this.isAuthenticated();

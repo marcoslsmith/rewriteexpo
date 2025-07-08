@@ -110,10 +110,56 @@ export default function Settings() {
       console.log('Notification schedules fetched:', data.length, 'schedules');
       console.log('Schedules data:', data);
       setSchedules(data);
+      
+      // If user has no schedules, create default ones
+      if (data.length === 0) {
+        console.log('No schedules found, creating default schedules...');
+        await createDefaultSchedules();
+      }
     } catch (error) {
       console.error('Error fetching schedules:', error);
       setError('Failed to load notification schedules');
       setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const createDefaultSchedules = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('Creating default schedules for user:', user.id);
+      
+      // Create morning motivation schedule
+      await storageService.addNotificationSchedule({
+        user_id: user.id,
+        title: 'Good Morning Motivation',
+        message: 'Good morning! Start your day with intention. What will you manifest today?',
+        use_random_manifestation: false,
+        time: '08:00',
+        days: [1, 2, 3, 4, 5], // Monday to Friday
+        is_active: true,
+      });
+      
+      // Create evening reflection schedule
+      await storageService.addNotificationSchedule({
+        user_id: user.id,
+        title: 'Evening Reflection',
+        message: 'Time to wind down and reflect on your day. What went well?',
+        use_random_manifestation: false,
+        time: '20:00',
+        days: [0, 1, 2, 3, 4, 5, 6], // Every day
+        is_active: true,
+      });
+      
+      console.log('Default schedules created successfully');
+      
+      // Refresh the schedules list
+      setTimeout(() => {
+        fetchSchedules();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error creating default schedules:', error);
     }
   };
 
