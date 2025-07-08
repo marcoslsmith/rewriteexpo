@@ -328,7 +328,7 @@ export default function Library() {
         {/* Content */}
         <Animated.ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -621,7 +621,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
-    flexGrow: 1,
   },
   card: {
     borderRadius: 20,
