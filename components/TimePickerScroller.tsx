@@ -154,6 +154,9 @@ export default function TimePickerScroller({ value, onChange, style }: TimePicke
 
       {/* Selection Indicator */}
       <View style={styles.selectionIndicator} />
+      
+      {/* Selection Bubble - cut off at bottom */}
+      <View style={styles.selectionBubble} />
     </View>
   );
 }
@@ -214,10 +217,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 50,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     pointerEvents: 'none',
+    overflow: 'hidden',
+  },
+  selectionBubble: {
+    position: 'absolute',
+    top: 50,
+    left: '50%',
+    width: 80,
+    height: 60, // Only 3/4 of a full circle (80px)
+    marginLeft: -40,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomWidth: 0, // Remove bottom border to create cut-off effect
+    pointerEvents: 'none',
+    shadowColor: 'rgba(255, 255, 255, 0.3)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
