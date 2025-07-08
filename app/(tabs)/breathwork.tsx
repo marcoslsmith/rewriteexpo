@@ -56,7 +56,7 @@ export default function Breathwork() {
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
-      useNativeDriver: false,
+      useNativeDriver: true,
       listener: (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
         const isScrollingDown = currentScrollY > lastScrollY.current;
