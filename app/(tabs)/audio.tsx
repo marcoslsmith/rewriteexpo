@@ -63,6 +63,8 @@ export default function PersonalizedAudio() {
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
+  const [isLooping, setIsLooping] = useState(true);
+  const [audioConfig, setAudioConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export default function PersonalizedAudio() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const waveAnim = useRef(new Animated.Value(0)).current;
+  const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
     // Animate in the content when component mounts
@@ -172,7 +175,15 @@ export default function PersonalizedAudio() {
       });
 
       setGeneratedAudioUrl(audioUrl);
-      setTotalDuration(selectedDuration * 60); // Convert to seconds
+      
+      // Get the actual duration and configuration from the audio service
+      const actualDuration = audioService.getAudioDuration(audioUrl);
+      const config = audioService.parseAudioConfig(audioUrl);
+      
+      setTotalDuration(actualDuration);
+      setAudioConfig(config);
+      setIsLooping(audioService.isSeamlessLoop(audioUrl));
+      
       setShowPlayer(true);
       setSuccess('✨ Your personalized audio is ready!');
       setTimeout(() => setSuccess(null), 3000);
@@ -189,18 +200,36 @@ export default function PersonalizedAudio() {
     if (isPlaying) {
       // Pause audio
       setIsPlaying(false);
+      if (playbackTimerRef.current) {
+        clearInterval(playbackTimerRef.current);
+        playbackTimerRef.current = null;
+      }
     } else {
       // Play audio
       setIsPlaying(true);
-      // Start timer simulation
-      const timer = setInterval(() => {
+      
+      // Start timer simulation with looping support
+      playbackTimerRef.current = setInterval(() => {
         setCurrentTime(prev => {
-          if (prev >= totalDuration) {
-            setIsPlaying(false);
-            clearInterval(timer);
-            return 0;
+          const nextTime = prev + 1;
+          
+          if (nextTime >= totalDuration) {
+            if (isLooping) {
+              // Seamlessly loop back to the beginning
+              console.log('Seamlessly looping audio playback');
+              return 0;
+            } else {
+              // Stop playback
+              setIsPlaying(false);
+              if (playbackTimerRef.current) {
+                clearInterval(playbackTimerRef.current);
+                playbackTimerRef.current = null;
+              }
+              return 0;
+            }
           }
-          return prev + 1;
+          
+          return nextTime;
         });
       }, 1000);
     }
@@ -209,7 +238,20 @@ export default function PersonalizedAudio() {
   const stopPlayback = () => {
     setIsPlaying(false);
     setCurrentTime(0);
+    if (playbackTimerRef.current) {
+      clearInterval(playbackTimerRef.current);
+      playbackTimerRef.current = null;
+    }
   };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (playbackTimerRef.current) {
+        clearInterval(playbackTimerRef.current);
+      }
+    };
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -436,7 +478,7 @@ export default function PersonalizedAudio() {
                 <View style={styles.playerTitleContainer}>
                   <Text style={styles.playerTitle}>Your Personalized Audio</Text>
                   <Text style={styles.playerSubtitle}>
-                    {selectedManifestations.size} manifestation{selectedManifestations.size > 1 ? 's' : ''} • {selectedDuration} minutes
+                    {selectedManifestations.size} manifestation{selectedManifestations.size > 1 ? 's' : ''} • {selectedDuration} minutes • {isLooping ? 'Looping' : 'Single Play'}
                   </Text>
                 </View>
 
@@ -477,11 +519,30 @@ export default function PersonalizedAudio() {
                       { width: `${getProgressPercentage()}%` }
                     ]} 
                   />
+                  {/* Loop indicator on progress bar */}
+                  {isLooping && (
+                    <View style={styles.loopIndicator}>
+                      <Text style={styles.loopText}>∞</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.timeContainer}>
                   <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                  <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
+                  <Text style={styles.timeText}>
+                    {isLooping ? `${formatTime(totalDuration)} (Loop)` : formatTime(totalDuration)}
+                  </Text>
                 </View>
+                
+                {/* Audio Configuration Info */}
+                {audioConfig && (
+                  <View style={styles.audioInfo}>
+                    <Text style={styles.audioInfoText}>
+                      {audioConfig.voiceSequence ? `${audioConfig.audioUrls?.length || selectedManifestations.size} manifestations` : 'Audio'} • 
+                      {audioConfig.backgroundMusic ? ` ${selectedMusicStyle} background` : ' No background'} • 
+                      {audioConfig.seamlessLoop ? ' Seamless loop' : ' Single play'}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Player Controls */}
@@ -933,6 +994,21 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 2,
+    position: 'relative',
+  },
+  loopIndicator: {
+    position: 'absolute',
+    right: 8,
+    top: -20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  loopText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
   },
   timeContainer: {
     flexDirection: 'row',
@@ -942,6 +1018,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  audioInfo: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  audioInfoText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
   },
   playerControls: {
     flexDirection: 'row',

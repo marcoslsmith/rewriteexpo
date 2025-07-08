@@ -55,13 +55,13 @@ export const audioService = {
         }
       }
 
-      // Step 2: Combine audio clips to match desired duration
-      console.log(`Combining ${audioUrls.length} audio clips for ${duration} minutes`);
-      const combinedAudioUrl = await this.combineAudioClips(audioUrls, duration);
+      // Step 2: Create looped sequence to match desired duration
+      console.log(`Creating looped sequence from ${audioUrls.length} audio clips for ${duration} minutes`);
+      const loopedSequenceUrl = await this.createLoopedSequence(audioUrls, duration);
 
-      // Step 3: Add background music
+      // Step 3: Add looping background music
       console.log(`Adding ${musicStyle} background music`);
-      const finalAudioUrl = await this.addBackgroundMusic(combinedAudioUrl, musicStyle);
+      const finalAudioUrl = await this.addLoopingBackgroundMusic(loopedSequenceUrl, musicStyle, duration);
 
       // Update session with final audio URL
       await this.updateAudioSession(sessionId, 'completed', finalAudioUrl);
@@ -234,54 +234,81 @@ export const audioService = {
     }
   },
 
-  async combineAudioClips(audioUrls: string[], targetDurationMinutes: number): Promise<string> {
+  async createLoopedSequence(audioUrls: string[], targetDurationMinutes: number): Promise<string> {
     try {
-      // For now, return the first audio URL as a placeholder
-      // In a real implementation, this would:
-      // 1. Download all audio clips
-      // 2. Loop/repeat them to fill the target duration
-      // 3. Combine them into a single audio file
-      // 4. Upload to Supabase Storage
-      // 5. Return the public URL
+      const targetDurationSeconds = targetDurationMinutes * 60;
+      console.log(`Creating looped sequence for ${targetDurationSeconds} seconds`);
       
-      console.log(`Combining ${audioUrls.length} audio clips for ${targetDurationMinutes} minutes`);
+      // Calculate how many times we need to loop the sequence
+      // Assume each TTS clip is approximately 10-15 seconds
+      const estimatedClipDuration = 12; // seconds per manifestation
+      const totalSequenceDuration = audioUrls.length * estimatedClipDuration;
+      const loopCount = Math.ceil(targetDurationSeconds / totalSequenceDuration);
       
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log(`Estimated sequence duration: ${totalSequenceDuration}s, will loop ${loopCount} times`);
       
-      // Return the first audio URL or a fallback
-      return audioUrls[0] || this.getBackgroundMusicUrl('meditation');
-    } catch (error) {
-      console.error('Error combining audio clips:', error);
-      throw new Error('Failed to combine audio clips');
-    }
-  },
-
-  async addBackgroundMusic(voiceAudioUrl: string, musicStyle: string): Promise<string> {
-    try {
-      // For now, return the voice audio URL as a placeholder
-      // In a real implementation, this would:
-      // 1. Download the voice audio
-      // 2. Get the appropriate background music track from Supabase Storage
-      // 3. Mix them together with proper volume levels
-      // 4. Upload the final mixed audio to Supabase Storage
-      // 5. Return the public URL
-      
-      console.log(`Adding ${musicStyle} background music to audio`);
-      
-      // Get the background music URL from Supabase Storage
-      const backgroundMusicUrl = this.getBackgroundMusicUrl(musicStyle);
-      console.log(`Background music URL: ${backgroundMusicUrl}`);
+      // Create the looped sequence metadata
+      const loopedSequence = {
+        audioUrls,
+        loopCount,
+        targetDuration: targetDurationSeconds,
+        sequenceDuration: totalSequenceDuration,
+        seamlessLoop: true, // Enable seamless looping
+        crossfadeDuration: 0.5 // 500ms crossfade between loops
+      };
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // For now, return the voice audio URL
-      // In production, this would be the mixed audio
-      return voiceAudioUrl;
+      // For now, return a data URL with the sequence information
+      // In production, this would generate the actual looped audio file
+      const sequenceData = btoa(JSON.stringify(loopedSequence));
+      return `data:audio/sequence;base64,${sequenceData}`;
     } catch (error) {
-      console.error('Error adding background music:', error);
-      throw new Error('Failed to add background music');
+      console.error('Error creating looped sequence:', error);
+      throw new Error('Failed to create looped audio sequence');
+    }
+  },
+
+  async addLoopingBackgroundMusic(voiceSequenceUrl: string, musicStyle: string, durationMinutes: number): Promise<string> {
+    try {
+      const targetDurationSeconds = durationMinutes * 60;
+      console.log(`Adding looping ${musicStyle} background music for ${targetDurationSeconds} seconds`);
+      
+      // Get the background music URL
+      const backgroundMusicUrl = this.getBackgroundMusicUrl(musicStyle);
+      console.log(`Background music URL: ${backgroundMusicUrl}`);
+      
+      // Create the final mixed audio configuration
+      const mixedAudioConfig = {
+        voiceSequence: voiceSequenceUrl,
+        backgroundMusic: {
+          url: backgroundMusicUrl,
+          loop: true, // Enable seamless background music looping
+          volume: 0.3, // Background music at 30% volume
+          fadeIn: 2.0, // 2 second fade in
+          fadeOut: 2.0, // 2 second fade out
+        },
+        voice: {
+          volume: 0.8, // Voice at 80% volume
+          priority: true, // Voice takes priority in mix
+        },
+        totalDuration: targetDurationSeconds,
+        seamlessLoop: true,
+        format: 'mp3',
+        quality: 'high'
+      };
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // For now, return a data URL with the mixed audio configuration
+      // In production, this would generate the actual mixed audio file
+      const mixedData = btoa(JSON.stringify(mixedAudioConfig));
+      return `data:audio/mixed;base64,${mixedData}`;
+    } catch (error) {
+      console.error('Error adding looping background music:', error);
+      throw new Error('Failed to add looping background music');
     }
   },
 
@@ -359,6 +386,39 @@ export const audioService = {
       console.error('Failed to fetch audio sessions:', error);
       return [];
     }
+  },
+
+  // Parse audio configuration from data URL
+  parseAudioConfig(dataUrl: string): any {
+    try {
+      if (dataUrl.startsWith('data:audio/sequence;base64,')) {
+        const base64Data = dataUrl.replace('data:audio/sequence;base64,', '');
+        return JSON.parse(atob(base64Data));
+      } else if (dataUrl.startsWith('data:audio/mixed;base64,')) {
+        const base64Data = dataUrl.replace('data:audio/mixed;base64,', '');
+        return JSON.parse(atob(base64Data));
+      }
+      return null;
+    } catch (error) {
+      console.error('Error parsing audio config:', error);
+      return null;
+    }
+  },
+
+  // Get the actual duration of the generated audio
+  getAudioDuration(audioUrl: string): number {
+    const config = this.parseAudioConfig(audioUrl);
+    if (config && config.totalDuration) {
+      return config.totalDuration;
+    }
+    // Fallback to default duration
+    return 600; // 10 minutes default
+  },
+
+  // Check if audio should loop seamlessly
+  isSeamlessLoop(audioUrl: string): boolean {
+    const config = this.parseAudioConfig(audioUrl);
+    return config?.seamlessLoop === true;
   },
 
   // Upload audio file to Supabase Storage
