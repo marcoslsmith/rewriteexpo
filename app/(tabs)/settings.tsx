@@ -108,7 +108,10 @@ export default function Settings() {
       // If user has no schedules and is authenticated, create default ones
       if (data.length === 0 && user) {
         console.log('No schedules found, creating default schedules...');
-        await createDefaultSchedules();
+        // Wait a moment then try to create defaults
+        setTimeout(async () => {
+          await createDefaultSchedules();
+        }, 1000);
       }
     } catch (error) {
       console.error('Error fetching schedules:', error);
@@ -131,11 +134,13 @@ export default function Settings() {
       // Refresh the schedules list after a short delay
       setTimeout(async () => {
         console.log('Refreshing schedules after creating defaults...');
-        fetchSchedules();
+        await fetchSchedules();
       }, 1000);
       
     } catch (error) {
       console.error('Error creating default schedules:', error);
+      setError('Failed to create default schedules');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -546,28 +551,47 @@ export default function Settings() {
                       <TouchableOpacity
                         style={[styles.refreshButton, { backgroundColor: 'rgba(239, 68, 68, 0.3)' }]}
                         onPress={async () => {
-                          console.log('=== DEBUG: Checking database directly ===');
-                          try {
-                            const { data, error } = await supabase
-                              .from('notification_schedules')
-                              .select('*')
-                              .eq('user_id', user.id);
-                            
-                            console.log('Direct DB query result:', { data, error });
-                            console.log('User ID being queried:', user.id);
-                            
-                            if (data) {
-                              console.log('Found schedules in DB:', data.length);
-                              data.forEach((schedule, index) => {
-                                console.log(`Schedule ${index + 1}:`, schedule);
-                              });
-                            }
-                          } catch (err) {
-                            console.error('Direct DB query failed:', err);
-                          }
+                          const result = await storageService.debugNotificationSchedules();
+                          console.log('Debug result:', result);
                         }}
                       >
                         <Text style={styles.refreshButtonText}>Debug DB</Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    {/* Force refresh everything */}
+                    {user && (
+                      <TouchableOpacity
+                        style={[styles.refreshButton, { backgroundColor: 'rgba(168, 85, 247, 0.3)' }]}
+                        onPress={async () => {
+                          console.log('=== FORCE REFRESH EVERYTHING ===');
+                          setLoading(true);
+                          try {
+                            // First debug what's in the database
+                            await storageService.debugNotificationSchedules();
+                            
+                            // Then refresh schedules
+                            await fetchSchedules();
+                            
+                            // If still no schedules, force create them
+                            const currentSchedules = await storageService.getNotificationSchedules();
+                            if (currentSchedules.length === 0) {
+                              console.log('Still no schedules, force creating...');
+                              await storageService.createDefaultSchedulesForCurrentUser();
+                              
+                              // Wait and refresh again
+                              setTimeout(async () => {
+                                await fetchSchedules();
+                              }, 2000);
+                            }
+                          } catch (error) {
+                            console.error('Force refresh failed:', error);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                      >
+                        <Text style={styles.refreshButtonText}>Force Refresh All</Text>
                       </TouchableOpacity>
                     )}
                   </View>

@@ -28,6 +28,12 @@ export const storageService = {
     return !!user;
   },
 
+  // Get current user
+  async getCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  },
+
   // Manifestations
   async getManifestations(): Promise<Manifestation[]> {
     try {
@@ -400,9 +406,34 @@ export const storageService = {
 
     console.log('Force creating default schedules for user:', user.id);
     
+    try {
+      // Use the database function to force create schedules
+      const { error } = await supabase.rpc('force_create_default_schedules_for_user', {
+        user_uuid: user.id
+      });
+      
+      if (error) {
+        console.error('Error calling force_create_default_schedules_for_user:', error);
+        // Fallback to manual creation
+        await this.createSchedulesManually(user.id);
+      } else {
+        console.log('Successfully called database function to create default schedules');
+      }
+    } catch (error) {
+      console.error('Error with database function, falling back to manual creation:', error);
+      await this.createSchedulesManually(user.id);
+    }
+    
+    console.log('Default schedules created successfully');
+  },
+
+  // Manual schedule creation as fallback
+  async createSchedulesManually(userId: string): Promise<void> {
+    console.log('Creating schedules manually for user:', userId);
+    
     // Create morning motivation schedule
     await this.addNotificationSchedule({
-      user_id: user.id,
+      user_id: userId,
       title: 'Good Morning Motivation',
       message: 'Good morning! Start your day with intention. What will you manifest today?',
       use_random_manifestation: false,
@@ -413,7 +444,7 @@ export const storageService = {
     
     // Create evening reflection schedule
     await this.addNotificationSchedule({
-      user_id: user.id,
+      user_id: userId,
       title: 'Evening Reflection',
       message: 'Time to wind down and reflect on your day. What went well?',
       use_random_manifestation: false,
@@ -422,7 +453,65 @@ export const storageService = {
       is_active: true,
     });
     
-    console.log('Default schedules created successfully');
+    console.log('Manual schedule creation completed');
+  },
+
+  // Debug function to check database directly
+  async debugNotificationSchedules(): Promise<any> {
+    const user = await this.getCurrentUser();
+    if (!user) {
+      console.log('No authenticated user for debug');
+      return null;
+    }
+
+    try {
+      console.log('=== DEBUG: Checking notification schedules ===');
+      console.log('User ID:', user.id);
+      console.log('User Email:', user.email);
+      
+      // Direct query to check what's in the database
+      const { data, error } = await supabase
+        .from('notification_schedules')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      console.log('Direct DB query result:', { data, error });
+      
+      if (error) {
+        console.error('Direct DB query error:', error);
+        return { error, data: null };
+      }
+      
+      console.log('Found schedules in DB:', data?.length || 0);
+      if (data) {
+        data.forEach((schedule, index) => {
+          console.log(`Schedule ${index + 1}:`, {
+            id: schedule.id,
+            title: schedule.title,
+            time: schedule.time,
+            days: schedule.days,
+            is_active: schedule.is_active,
+            created_at: schedule.created_at
+          });
+        });
+      }
+      
+      // Also check using the debug function
+      try {
+        const { data: debugData, error: debugError } = await supabase.rpc('check_user_schedules', {
+          user_email_param: user.email
+        });
+        
+        console.log('Debug function result:', { debugData, debugError });
+      } catch (debugErr) {
+        console.log('Debug function not available or failed:', debugErr);
+      }
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Debug function failed:', err);
+      return { error: err, data: null };
+    }
   },
 
   async saveNotificationScheduleLocally(schedule: NotificationScheduleInsert): Promise<void> {
