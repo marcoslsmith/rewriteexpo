@@ -238,6 +238,7 @@ export const storageService = {
       
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('Adding challenge progress for user:', user?.id, 'challenge:', progress.challenge_id);
         
         // First check if progress already exists for this user and challenge
         const { data: existingProgress } = await supabase
@@ -249,9 +250,10 @@ export const storageService = {
         
         if (existingProgress) {
           console.log('Challenge progress already exists for user:', user?.id, 'challenge:', progress.challenge_id);
-          return; // Don't insert duplicate, just return
+          throw new Error('Challenge already started'); // Throw error so caller can handle appropriately
         }
         
+        console.log('Inserting new challenge progress...');
         const { error } = await supabase
           .from('challenge_progress')
           .insert({
@@ -259,7 +261,11 @@ export const storageService = {
             user_id: user?.id!,
           });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase insert error:', error);
+          throw error;
+        }
+        console.log('Challenge progress inserted successfully');
       } else {
         // Check local storage for existing progress
         const allProgress = await this.getChallengeProgress();
@@ -269,7 +275,7 @@ export const storageService = {
         
         if (existingProgress) {
           console.log('Challenge progress already exists locally for challenge:', progress.challenge_id);
-          return; // Don't add duplicate
+          throw new Error('Challenge already started'); // Throw error so caller can handle appropriately
         }
         
         // Add new progress to local storage
@@ -288,15 +294,10 @@ export const storageService = {
         };
         allProgress.push(newProgress);
         await this.saveChallengeProgress(allProgress);
+        console.log('Challenge progress saved to local storage');
       }
     } catch (error) {
       console.error('Error adding challenge progress:', error);
-      
-      // Check if this is a duplicate key constraint violation
-      if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint')) {
-        console.log('Duplicate challenge progress detected, this is expected behavior');
-        return; // Don't throw error for duplicates
-      }
       
       throw error;
     }

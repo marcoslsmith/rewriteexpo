@@ -139,6 +139,7 @@ export default function Challenges() {
         return;
       }
 
+      console.log('Starting new challenge:', challenge.id, 'for user');
       await storageService.addChallengeProgress({
         challenge_id: challenge.id,
         current_day: 1,
@@ -149,48 +150,44 @@ export default function Challenges() {
         start_date: new Date().toISOString(),
       });
       
+      console.log('Challenge progress added, reloading data...');
       await loadData();
       
-      const newProgress = (await storageService.getChallengeProgress())
-        .find(p => p.challenge_id === challenge.id && !p.completed_at);
+      // Get the updated progress list
+      const updatedProgressList = await storageService.getChallengeProgress();
+      const newProgress = updatedProgressList.find(p => p.challenge_id === challenge.id && !p.completed_at);
       
       if (newProgress) {
+        console.log('New progress found, opening day modal');
         setSelectedChallenge(challenge);
         setCurrentProgress(newProgress);
         setCurrentDay(1);
         setShowDayModal(true);
+        setSuccess('Challenge started successfully!');
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        // If no new progress found, check if user already has this challenge
-        const allProgress = await storageService.getChallengeProgress();
-        const existingAfterAdd = allProgress.find(p => p.challenge_id === challenge.id && !p.completed_at);
-        
-        if (existingAfterAdd) {
-          setSuccess('Found your existing challenge! Continuing where you left off...');
-          setTimeout(() => setSuccess(null), 3000);
-          continueChallenge(challenge, existingAfterAdd);
-        } else {
-          setError('Unable to start challenge. Please try again.');
-          setTimeout(() => setError(null), 3000);
-        }
+        console.error('No progress found after adding challenge');
+        setError('Unable to start challenge. Please try again.');
+        setTimeout(() => setError(null), 3000);
       }
     } catch (error) {
       console.error('Error starting challenge:', error);
       
-      // Reload data to sync with current state
-      await loadData();
-      
-      // Check if the challenge was actually started despite the error
-      const updatedProgress = await storageService.getChallengeProgress();
-      const existingProgress = updatedProgress.find(p => p.challenge_id === challenge.id && !p.completed_at);
-      
-      if (existingProgress) {
-        setSuccess('Challenge found! Continuing where you left off...');
-        setTimeout(() => setSuccess(null), 3000);
-        continueChallenge(challenge, existingProgress);
-      } else {
-        setError('Failed to start challenge. Please try again.');
-        setTimeout(() => setError(null), 3000);
+      // Check if this is a duplicate error (which we can handle gracefully)
+      if (error instanceof Error && error.message.includes('duplicate')) {
+        console.log('Duplicate challenge detected, checking for existing progress...');
+        await loadData();
+        const existingProgress = activeProgress.find(p => p.challenge_id === challenge.id);
+        if (existingProgress) {
+          setSuccess('Found your existing challenge! Continuing where you left off...');
+          setTimeout(() => setSuccess(null), 3000);
+          continueChallenge(challenge, existingProgress);
+          return;
+        }
       }
+      
+      setError('Failed to start challenge. Please try again.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
