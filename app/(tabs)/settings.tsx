@@ -17,10 +17,11 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import GradientBackground from '@/components/GradientBackground';
 import FloatingActionButton from '@/components/FloatingActionButton';
+import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, Edit } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
@@ -44,6 +45,7 @@ export default function Settings() {
   const [success, setSuccess] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<NotificationSchedule | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -52,11 +54,10 @@ export default function Settings() {
   const [favoriteManifestations, setFavoriteManifestations] = useState<Manifestation[]>([]);
   
   const [newSchedule, setNewSchedule] = useState({
-    title: '',
     message: '',
-    time: '',
+    time: '09:00',
     days: [] as number[],
-    isManifestationType: false,
+    isManifestationType: true, // Default to manifestation first
     selectedCategory: '',
     selectedManifestation: null as Manifestation | null,
     useRandomFavorites: true
@@ -156,26 +157,55 @@ export default function Settings() {
 
   const resetScheduleForm = () => {
     setNewSchedule({
-      title: '',
       message: '',
-      time: '',
+      time: '09:00',
       days: [],
-      isManifestationType: false,
+      isManifestationType: true,
       selectedCategory: '',
       selectedManifestation: null,
       useRandomFavorites: true
     });
+    setEditingSchedule(null);
   };
 
-  const handleAddSchedule = async () => {
-    if (!user || !newSchedule.title || !newSchedule.time || newSchedule.days.length === 0) {
-      setError('Please fill in all required fields');
+  const openEditModal = (schedule: NotificationSchedule) => {
+    setEditingSchedule(schedule);
+    setNewSchedule({
+      message: schedule.message,
+      time: schedule.time,
+      days: [...schedule.days],
+      isManifestationType: schedule.use_random_manifestation || favoriteManifestations.some(m => m.transformed_text === schedule.message),
+      selectedCategory: '',
+      selectedManifestation: favoriteManifestations.find(m => m.transformed_text === schedule.message) || null,
+      useRandomFavorites: schedule.use_random_manifestation
+    });
+    setShowScheduleModal(true);
+  };
+
+  const getScheduleTitle = () => {
+    if (newSchedule.isManifestationType) {
+      if (newSchedule.useRandomFavorites) {
+        return 'Random Favorite Manifestation';
+      } else if (newSchedule.selectedManifestation) {
+        return newSchedule.selectedManifestation.transformed_text.substring(0, 50) + '...';
+      }
+      return 'Manifestation Reminder';
+    } else {
+      const category = reminderCategories.find(c => c.id === newSchedule.selectedCategory);
+      return category ? `${category.name} Reminder` : 'Custom Reminder';
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!user || !newSchedule.time || newSchedule.days.length === 0) {
+      setError('Please select time and days');
       setTimeout(() => setError(null), 3000);
       return;
     }
 
     let finalMessage = newSchedule.message;
     let useRandomManifestation = false;
+    let title = getScheduleTitle();
 
     if (newSchedule.isManifestationType) {
       if (newSchedule.useRandomFavorites) {
@@ -183,6 +213,7 @@ export default function Settings() {
         finalMessage = ''; // Will be populated dynamically
       } else if (newSchedule.selectedManifestation) {
         finalMessage = newSchedule.selectedManifestation.transformed_text;
+        title = newSchedule.selectedManifestation.transformed_text.substring(0, 50) + (newSchedule.selectedManifestation.transformed_text.length > 50 ? '...' : '');
       } else {
         setError('Please select a manifestation or choose random favorites');
         setTimeout(() => setError(null), 3000);
@@ -190,21 +221,38 @@ export default function Settings() {
       }
     } else if (newSchedule.selectedCategory) {
       const categoryMessages = defaultReminderMessages[newSchedule.selectedCategory as keyof typeof defaultReminderMessages];
-      finalMessage = categoryMessages[Math.floor(Math.random() * categoryMessages.length)];
+      finalMessage = newSchedule.message || categoryMessages[Math.floor(Math.random() * categoryMessages.length)];
+    } else if (!newSchedule.message.trim()) {
+      setError('Please enter a message or select a category');
+      setTimeout(() => setError(null), 3000);
+      return;
     }
 
     try {
-      await storageService.addNotificationSchedule({
-        user_id: user.id,
-        title: newSchedule.title,
-        message: finalMessage,
-        use_random_manifestation: useRandomManifestation,
-        time: newSchedule.time,
-        days: newSchedule.days,
-        is_active: true,
-      });
+      if (editingSchedule) {
+        // Update existing schedule
+        await storageService.updateNotificationSchedule(editingSchedule.id, {
+          title,
+          message: finalMessage,
+          use_random_manifestation: useRandomManifestation,
+          time: newSchedule.time,
+          days: newSchedule.days,
+        });
+        setSuccess('Schedule updated successfully!');
+      } else {
+        // Create new schedule
+        await storageService.addNotificationSchedule({
+          user_id: user.id,
+          title,
+          message: finalMessage,
+          use_random_manifestation: useRandomManifestation,
+          time: newSchedule.time,
+          days: newSchedule.days,
+          is_active: true,
+        });
+        setSuccess('Schedule added successfully!');
+      }
 
-      setSuccess('Schedule added successfully!');
       setShowScheduleModal(false);
       resetScheduleForm();
       fetchSchedules();
@@ -255,8 +303,7 @@ export default function Settings() {
       setNewSchedule(prev => ({
         ...prev,
         selectedCategory: categoryId,
-        title: prev.title || `${category.name} Reminder`,
-        message: categoryMessages[0]
+        message: prev.message || categoryMessages[0]
       }));
     }
   };
@@ -363,6 +410,7 @@ export default function Settings() {
                       key={schedule.id}
                       schedule={schedule}
                       onToggleActive={() => toggleScheduleActive(schedule)}
+                      onEdit={() => openEditModal(schedule)}
                       onDelete={() => deleteSchedule(schedule.id)}
                     />
                   ))
@@ -469,7 +517,7 @@ export default function Settings() {
           </GradientBackground>
         </Modal>
 
-        {/* Add Schedule Modal */}
+        {/* Add/Edit Schedule Modal */}
         <Modal
           visible={showScheduleModal}
           animationType="slide"
@@ -478,7 +526,9 @@ export default function Settings() {
           <GradientBackground colors={['#667eea', '#764ba2']}>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Reminder</Text>
+                <Text style={styles.modalTitle}>
+                  {editingSchedule ? 'Edit Reminder' : 'Add Reminder'}
+                </Text>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => {
@@ -496,22 +546,6 @@ export default function Settings() {
                   <TouchableOpacity
                     style={[
                       styles.typeToggleButton,
-                      !newSchedule.isManifestationType && styles.typeToggleButtonActive
-                    ]}
-                    onPress={() => setNewSchedule(prev => ({ ...prev, isManifestationType: false }))}
-                  >
-                    <MessageSquare size={18} color={!newSchedule.isManifestationType ? "#667eea" : "rgba(255, 255, 255, 0.7)"} />
-                    <Text style={[
-                      styles.typeToggleText,
-                      !newSchedule.isManifestationType && styles.typeToggleTextActive
-                    ]}>
-                      Reminder
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.typeToggleButton,
                       newSchedule.isManifestationType && styles.typeToggleButtonActive
                     ]}
                     onPress={() => setNewSchedule(prev => ({ ...prev, isManifestationType: true }))}
@@ -524,65 +558,26 @@ export default function Settings() {
                       Manifestation
                     </Text>
                   </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.typeToggleButton,
+                      !newSchedule.isManifestationType && styles.typeToggleButtonActive
+                    ]}
+                    onPress={() => setNewSchedule(prev => ({ ...prev, isManifestationType: false }))}
+                  >
+                    <MessageSquare size={18} color={!newSchedule.isManifestationType ? "#667eea" : "rgba(255, 255, 255, 0.7)"} />
+                    <Text style={[
+                      styles.typeToggleText,
+                      !newSchedule.isManifestationType && styles.typeToggleTextActive
+                    ]}>
+                      Reminder
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Title Input */}
-                <Text style={styles.inputLabel}>Title *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter reminder title"
-                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                  value={newSchedule.title}
-                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, title: text }))}
-                />
-
                 {/* Content Selection */}
-                {!newSchedule.isManifestationType ? (
-                  <>
-                    <Text style={styles.inputLabel}>Category</Text>
-                    <View style={styles.categoryGrid}>
-                      {reminderCategories.map((category) => {
-                        const IconComponent = category.icon;
-                        const isSelected = newSchedule.selectedCategory === category.id;
-                        return (
-                          <TouchableOpacity
-                            key={category.id}
-                            style={[
-                              styles.categoryCard,
-                              isSelected && styles.categoryCardSelected
-                            ]}
-                            onPress={() => selectCategory(category.id)}
-                          >
-                            <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
-                              <IconComponent size={20} color="#ffffff" />
-                            </View>
-                            <Text style={[
-                              styles.categoryName,
-                              isSelected && styles.categoryNameSelected
-                            ]}>
-                              {category.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-
-                    {newSchedule.selectedCategory && (
-                      <>
-                        <Text style={styles.inputLabel}>Message</Text>
-                        <TextInput
-                          style={[styles.input, styles.textArea]}
-                          placeholder="Custom message (optional)"
-                          placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                          value={newSchedule.message}
-                          onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
-                          multiline
-                          numberOfLines={3}
-                        />
-                      </>
-                    )}
-                  </>
-                ) : (
+                {newSchedule.isManifestationType ? (
                   <>
                     <Text style={styles.inputLabel}>Manifestation Source</Text>
                     <View style={styles.manifestationOptions}>
@@ -659,20 +654,59 @@ export default function Settings() {
                       </View>
                     )}
                   </>
+                ) : (
+                  <>
+                    <Text style={styles.inputLabel}>Category</Text>
+                    <View style={styles.categoryGrid}>
+                      {reminderCategories.map((category) => {
+                        const IconComponent = category.icon;
+                        const isSelected = newSchedule.selectedCategory === category.id;
+                        return (
+                          <TouchableOpacity
+                            key={category.id}
+                            style={[
+                              styles.categoryCard,
+                              isSelected && styles.categoryCardSelected
+                            ]}
+                            onPress={() => selectCategory(category.id)}
+                          >
+                            <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
+                              <IconComponent size={20} color="#ffffff" />
+                            </View>
+                            <Text style={[
+                              styles.categoryName,
+                              isSelected && styles.categoryNameSelected
+                            ]}>
+                              {category.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Message</Text>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      placeholder="Enter your custom message..."
+                      placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                      value={newSchedule.message}
+                      onChangeText={(text) => setNewSchedule(prev => ({ ...prev, message: text }))}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </>
                 )}
 
-                {/* Time Input */}
-                <Text style={styles.inputLabel}>Time *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="HH:MM (e.g., 09:00)"
-                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                {/* Time Picker */}
+                <Text style={styles.inputLabel}>Time</Text>
+                <TimePickerScroller
                   value={newSchedule.time}
-                  onChangeText={(text) => setNewSchedule(prev => ({ ...prev, time: text }))}
+                  onChange={(time) => setNewSchedule(prev => ({ ...prev, time }))}
+                  style={styles.timePicker}
                 />
 
                 {/* Days Selection */}
-                <Text style={styles.inputLabel}>Days of the week *</Text>
+                <Text style={styles.inputLabel}>Days of the week</Text>
                 <View style={styles.daysContainer}>
                   {dayNamesLong.map((day, index) => (
                     <TouchableOpacity
@@ -710,13 +744,15 @@ export default function Settings() {
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
-                    (!newSchedule.title || !newSchedule.time || newSchedule.days.length === 0) && 
+                    (!newSchedule.time || newSchedule.days.length === 0) && 
                     styles.primaryButtonDisabled
                   ]}
-                  onPress={handleAddSchedule}
-                  disabled={!newSchedule.title || !newSchedule.time || newSchedule.days.length === 0}
+                  onPress={handleSaveSchedule}
+                  disabled={!newSchedule.time || newSchedule.days.length === 0}
                 >
-                  <Text style={styles.primaryButtonText}>Add Reminder</Text>
+                  <Text style={styles.primaryButtonText}>
+                    {editingSchedule ? 'Update Reminder' : 'Add Reminder'}
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -730,19 +766,35 @@ export default function Settings() {
 interface ScheduleCardProps {
   schedule: NotificationSchedule;
   onToggleActive: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
-function ScheduleCard({ schedule, onToggleActive, onDelete }: ScheduleCardProps) {
+function ScheduleCard({ schedule, onToggleActive, onEdit, onDelete }: ScheduleCardProps) {
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
   return (
     <View style={styles.scheduleCard}>
       <View style={styles.scheduleHeader}>
         <View style={styles.scheduleInfo}>
-          <Text style={styles.scheduleTitle}>{schedule.title}</Text>
-          <Text style={styles.scheduleTime}>{schedule.time}</Text>
+          <Text style={styles.scheduleTitle} numberOfLines={2}>
+            {schedule.use_random_manifestation ? 'Random Favorite Manifestation' : schedule.title}
+          </Text>
+          <Text style={styles.scheduleTime}>{formatTime(schedule.time)}</Text>
         </View>
         
         <View style={styles.scheduleControls}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={onEdit}
+          >
+            <Edit size={16} color="#ffffff" />
+          </TouchableOpacity>
           <Switch
             value={schedule.is_active}
             onValueChange={onToggleActive}
@@ -758,9 +810,9 @@ function ScheduleCard({ schedule, onToggleActive, onDelete }: ScheduleCardProps)
         </View>
       </View>
       
-      {schedule.message && (
+      {schedule.message && !schedule.use_random_manifestation && (
         <Text style={styles.scheduleMessage} numberOfLines={2}>
-          {schedule.use_random_manifestation ? 'Random favorite manifestation' : schedule.message}
+          {schedule.message}
         </Text>
       )}
       
@@ -932,6 +984,7 @@ const styles = StyleSheet.create({
   },
   scheduleInfo: {
     flex: 1,
+    marginRight: 12,
   },
   scheduleTitle: {
     fontSize: 16,
@@ -948,7 +1001,10 @@ const styles = StyleSheet.create({
   scheduleControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+  },
+  editButton: {
+    padding: 4,
   },
   deleteButton: {
     padding: 4,
@@ -1220,6 +1276,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     padding: 20,
     fontFamily: 'Inter-Regular',
+  },
+  timePicker: {
+    marginBottom: 20,
   },
   daysContainer: {
     gap: 8,
