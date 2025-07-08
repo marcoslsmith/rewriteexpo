@@ -16,20 +16,19 @@ export const getGreeting = (userName?: string): string => {
 };
 
 export const getMotivationalGreeting = (): string => {
-  const greetings = [
-    "Let's rewrite today together",
-    "Ready to transform your thoughts?",
-    "Your journey of growth continues",
-    "Time to manifest your dreams",
-    "What will you create today?",
-    "Your story is waiting to be written",
-    "Let's turn thoughts into power",
-    "Ready to embrace your potential?",
-    "Your transformation starts here",
-    "Let's make today meaningful",
-  ];
+  const hour = new Date().getHours();
   
-  return greetings[Math.floor(Math.random() * greetings.length)];
+  if (hour < 6) {
+    return "Rest well, dream big";
+  } else if (hour < 12) {
+    return "Let's rewrite today together";
+  } else if (hour < 17) {
+    return "Your transformation continues";
+  } else if (hour < 21) {
+    return "Time to manifest your dreams";
+  } else {
+    return "Reflect and prepare for tomorrow";
+  }
 };
 
 export const getInspirationalQuote = (): string => {
