@@ -57,16 +57,22 @@ export const challengePrompts: { [challengeId: string]: { [day: number]: string 
 export const challengeService = {
   async getChallenges(): Promise<Challenge[]> {
     try {
+      console.log('Loading challenges from Supabase...');
       const { data, error } = await supabase
         .from('challenges')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase challenges error:', error);
+        throw error;
+      }
+      console.log('Challenges loaded from Supabase:', data?.length || 0);
       return data || [];
     } catch (error) {
       console.error('Error loading challenges:', error);
+      console.log('Using fallback challenges...');
       // Return default challenges as fallback
       return [
         {

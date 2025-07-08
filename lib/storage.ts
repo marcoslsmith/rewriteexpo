@@ -34,20 +34,29 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Authenticated user, fetching from Supabase...');
         const { data, error } = await supabase
           .from('manifestations')
           .select('*')
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+        console.log('Supabase data loaded:', data?.length || 0, 'manifestations');
         return data || [];
       } else {
+        console.log('Not authenticated, using local storage...');
         // Fallback to local storage
         const data = await AsyncStorage.getItem(STORAGE_KEYS.MANIFESTATIONS);
-        return data ? JSON.parse(data) : [];
+        const parsed = data ? JSON.parse(data) : [];
+        console.log('Local storage data loaded:', parsed.length, 'manifestations');
+        return parsed;
       }
     } catch (error) {
       console.error('Error loading manifestations:', error);
+      console.log('Falling back to local storage due to error...');
       // Fallback to local storage
       const data = await AsyncStorage.getItem(STORAGE_KEYS.MANIFESTATIONS);
       return data ? JSON.parse(data) : [];
@@ -181,20 +190,29 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Fetching challenge progress from Supabase...');
         const { data, error } = await supabase
           .from('challenge_progress')
           .select('*')
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase challenge progress error:', error);
+          throw error;
+        }
+        console.log('Challenge progress loaded:', data?.length || 0, 'entries');
         return data || [];
       } else {
+        console.log('Using local storage for challenge progress...');
         // Fallback to local storage
         const data = await AsyncStorage.getItem(STORAGE_KEYS.CHALLENGES);
-        return data ? JSON.parse(data) : [];
+        const parsed = data ? JSON.parse(data) : [];
+        console.log('Local challenge progress loaded:', parsed.length, 'entries');
+        return parsed;
       }
     } catch (error) {
       console.error('Error loading challenge progress:', error);
+      console.log('Falling back to local storage for challenges...');
       const data = await AsyncStorage.getItem(STORAGE_KEYS.CHALLENGES);
       return data ? JSON.parse(data) : [];
     }
