@@ -147,7 +147,7 @@ export default function TabLayout() {
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
-                  opacity: focused ? 0 : 1, // Hide label when focused
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -180,7 +180,7 @@ export default function TabLayout() {
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
-                  opacity: focused ? 0 : 1, // Hide label when focused
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -213,7 +213,7 @@ export default function TabLayout() {
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
-                  opacity: focused ? 0 : 1, // Hide label when focused
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -246,7 +246,7 @@ export default function TabLayout() {
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
-                  opacity: focused ? 0 : 1, // Hide label when focused
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
                 },
                 { opacity: opacity }
               ]}
@@ -279,7 +279,7 @@ export default function TabLayout() {
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
                   color: color,
-                  opacity: focused ? 0 : 1, // Hide label when focused
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
                 },
                 { opacity: opacity }
               ]}
