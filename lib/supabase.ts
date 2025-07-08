@@ -127,6 +127,9 @@ export type Database = {
           start_date: string;
           completed_at: string | null;
           created_at: string;
+          status: 'in_progress' | 'completed' | 'paused';
+          ai_summary: string | null;
+          run_number: number;
         };
         Insert: {
           id?: string;
@@ -140,6 +143,9 @@ export type Database = {
           start_date?: string;
           completed_at?: string | null;
           created_at?: string;
+          status?: 'in_progress' | 'completed' | 'paused';
+          ai_summary?: string | null;
+          run_number?: number;
         };
         Update: {
           id?: string;
@@ -153,6 +159,9 @@ export type Database = {
           start_date?: string;
           completed_at?: string | null;
           created_at?: string;
+          status?: 'in_progress' | 'completed' | 'paused';
+          ai_summary?: string | null;
+          run_number?: number;
         };
       };
       notification_schedules: {
