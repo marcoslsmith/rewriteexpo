@@ -273,6 +273,7 @@ export const storageService = {
 
   async updateChallengeProgress(id: string, updates: ChallengeProgressUpdate): Promise<void> {
     try {
+      console.log('Updating challenge progress:', id, 'with updates:', updates);
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
@@ -281,7 +282,11 @@ export const storageService = {
           .update(updates)
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase update challenge progress error:', error);
+          throw error;
+        }
+        console.log('Challenge progress updated in Supabase successfully');
       } else {
         // Fallback to local storage
         const allProgress = await this.getChallengeProgress();
@@ -289,6 +294,7 @@ export const storageService = {
         if (index !== -1) {
           allProgress[index] = { ...allProgress[index], ...updates };
           await this.saveChallengeProgress(allProgress);
+          console.log('Challenge progress updated in local storage');
         }
       }
     } catch (error) {

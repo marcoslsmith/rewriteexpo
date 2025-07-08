@@ -353,6 +353,31 @@ export default function Challenges() {
             </View>
           )}
 
+          {/* Completed Challenges */}
+          {challenges.some(challenge => {
+            const progress = activeProgress.find(p => p.challenge_id === challenge.id);
+            return progress && progress.completed_at;
+          }) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🏆 Completed Challenges</Text>
+              {challenges
+                .filter(challenge => {
+                  const progress = activeProgress.find(p => p.challenge_id === challenge.id);
+                  return progress && progress.completed_at;
+                })
+                .map((challenge) => {
+                  const progress = activeProgress.find(p => p.challenge_id === challenge.id)!;
+                  return (
+                    <CompletedChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      progress={progress}
+                    />
+                  );
+                })}
+            </View>
+          )}
+
           {/* Available Challenges */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🎯 Available Challenges</Text>
@@ -562,6 +587,70 @@ function ActiveChallengeCard({ challenge, progress, onContinue }: ActiveChalleng
             </View>
           </LinearGradient>
         </AnimatedButton>
+      </LinearGradient>
+    </View>
+  );
+}
+
+interface CompletedChallengeCardProps {
+  challenge: Challenge;
+  progress: ChallengeProgress;
+}
+
+function CompletedChallengeCard({ challenge, progress }: CompletedChallengeCardProps) {
+  const IconComponent = challengeIcons[challenge.id as keyof typeof challengeIcons] || Target;
+  const gradientColors = challengeGradients[challenge.id as keyof typeof challengeGradients] || ['#667eea', '#764ba2'];
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <View style={styles.completedCard}>
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        style={styles.completedCardGradient}
+      >
+        <View style={styles.completedCardHeader}>
+          <View style={[styles.completedIconContainer, { backgroundColor: gradientColors[0] }]}>
+            <IconComponent size={20} color="#ffffff" strokeWidth={1.5} />
+          </View>
+          <View style={styles.completedCardInfo}>
+            <Text style={styles.completedCardTitle}>{challenge.title}</Text>
+            <Text style={styles.completedCardDate}>
+              Completed {progress.completed_at ? formatDate(progress.completed_at) : 'Recently'}
+            </Text>
+          </View>
+          <View style={styles.completedBadge}>
+            <Trophy size={16} color="#fbbf24" fill="#fbbf24" strokeWidth={1.5} />
+          </View>
+        </View>
+        
+        <View style={styles.completedStatsContainer}>
+          <View style={styles.completedStat}>
+            <Text style={styles.completedStatNumber}>{challenge.duration}</Text>
+            <Text style={styles.completedStatLabel}>Days</Text>
+          </View>
+          <View style={styles.completedStat}>
+            <Text style={styles.completedStatNumber}>{progress.points}</Text>
+            <Text style={styles.completedStatLabel}>Points</Text>
+          </View>
+          <View style={styles.completedStat}>
+            <Text style={styles.completedStatNumber}>{progress.streak}</Text>
+            <Text style={styles.completedStatLabel}>Streak</Text>
+          </View>
+        </View>
+        
+        <View style={styles.completedRecapNote}>
+          <BookOpen size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+          <Text style={styles.completedRecapText}>
+            Your journey recap has been saved to your library
+          </Text>
+        </View>
       </LinearGradient>
     </View>
   );
@@ -956,6 +1045,93 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
+  },
+  completedCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  completedCardGradient: {
+    padding: 24,
+  },
+  completedCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  completedIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  completedCardInfo: {
+    flex: 1,
+  },
+  completedCardTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  completedCardDate: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  completedBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completedStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+  },
+  completedStat: {
+    alignItems: 'center',
+  },
+  completedStatNumber: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  completedStatLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  completedRecapNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  completedRecapText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+    flex: 1,
   },
   challengeCard: {
     borderRadius: 20,
