@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
-import { Sparkles, Save, Plus } from 'lucide-react-native';
+import { Sparkles, Save, Plus, Heart, Zap, Star, ArrowRight, PenTool, BookOpen } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
 import { getGreeting, getMotivationalGreeting } from '../../lib/greetings';
@@ -19,7 +21,7 @@ import AnimatedButton from '../../components/AnimatedButton';
 import LoadingShimmer from '../../components/LoadingShimmer';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function Journal() {
   const [journalEntry, setJournalEntry] = useState('');
@@ -30,6 +32,24 @@ export default function Journal() {
   const [showFAB, setShowFAB] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  React.useEffect(() => {
+    // Animate in the content when component mounts
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -98,9 +118,19 @@ export default function Journal() {
     }
   };
 
+  const quickPrompts = [
+    { text: "I want to feel more confident...", icon: Star },
+    { text: "I'm struggling with...", icon: Heart },
+    { text: "My biggest dream is...", icon: Sparkles },
+    { text: "I feel anxious about...", icon: Zap },
+  ];
+
+  const handleQuickPrompt = (prompt: string) => {
+    setJournalEntry(prompt);
+  };
 
   return (
-    <GradientBackground colors={['#fefbff', '#f8fafc', '#f1f5f9']}>
+    <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
@@ -111,89 +141,187 @@ export default function Journal() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {/* Brand Header */}
-          <View style={styles.brandHeader}>
-            <Text style={styles.brandTitle}>The Rewrite</Text>
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.title}>{getMotivationalGreeting()}</Text>
-          </View>
+          {/* Hero Header with Logo */}
+          <Animated.View 
+            style={[
+              styles.heroSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
+            <View style={styles.logoContainer}>
+              <LinearGradient
+                colors={['#ffffff', '#f8fafc']}
+                style={styles.logoBackground}
+              >
+                <PenTool size={32} color="#667eea" strokeWidth={2} />
+              </LinearGradient>
+              <Text style={styles.logoText}>The Rewrite</Text>
+              <Text style={styles.logoSubtext}>Transform your thoughts</Text>
+            </View>
+            
+            <View style={styles.greetingContainer}>
+              <Text style={styles.greeting}>{getGreeting()}</Text>
+              <Text style={styles.motivationalText}>{getMotivationalGreeting()}</Text>
+            </View>
+          </Animated.View>
 
           {/* Status Messages */}
           {error && (
-            <View style={styles.errorContainer}>
+            <Animated.View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
-            </View>
+            </Animated.View>
           )}
           
           {success && (
-            <View style={styles.successContainer}>
+            <Animated.View style={styles.successContainer}>
               <Text style={styles.successText}>{success}</Text>
-            </View>
+            </Animated.View>
           )}
 
-          {/* Journal Entry Card */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Plus size={20} color="#64748b" strokeWidth={1.5} />
-              <Text style={styles.cardTitle}>New Entry</Text>
+          {/* Quick Start Prompts */}
+          <View style={styles.quickPromptsSection}>
+            <Text style={styles.sectionTitle}>Quick Start</Text>
+            <Text style={styles.sectionSubtitle}>Tap a prompt to get started</Text>
+            <View style={styles.promptsGrid}>
+              {quickPrompts.map((prompt, index) => {
+                const IconComponent = prompt.icon;
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.promptCard}
+                    onPress={() => handleQuickPrompt(prompt.text)}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                      style={styles.promptGradient}
+                    >
+                      <IconComponent size={20} color="#ffffff" strokeWidth={1.5} />
+                      <Text style={styles.promptText}>{prompt.text}</Text>
+                      <ArrowRight size={16} color="rgba(255, 255, 255, 0.7)" strokeWidth={1.5} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            
-            <TextInput
-              style={styles.textInput}
-              placeholder="Write about your thoughts, feelings, dreams, or challenges..."
-              placeholderTextColor="#94a3b8"
-              value={journalEntry}
-              onChangeText={setJournalEntry}
-              multiline
-              textAlignVertical="top"
-            />
-            
-            <AnimatedButton
-              onPress={handleTransform}
-              disabled={isTransforming}
-              style={[styles.button, styles.transformButton]}
+          </View>
+
+          {/* Main Journal Entry Card */}
+          <View style={styles.journalCard}>
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+              style={styles.cardGradient}
             >
-              <View style={styles.buttonContent}>
-                {isTransforming ? (
-                  <LoadingShimmer width={18} height={18} borderRadius={9} />
-                ) : (
-                  <Sparkles size={18} color="#ffffff" strokeWidth={1.5} />
+              <View style={styles.cardHeader}>
+                <View style={styles.cardTitleContainer}>
+                  <BookOpen size={24} color="#667eea" strokeWidth={1.5} />
+                  <Text style={styles.cardTitle}>Your Journal</Text>
+                </View>
+                {journalEntry.length > 0 && (
+                  <Text style={styles.characterCount}>{journalEntry.length} characters</Text>
                 )}
-                <Text style={styles.buttonText}>
-                  {isTransforming ? 'Transforming...' : 'Transform'}
-                </Text>
               </View>
-            </AnimatedButton>
+              
+              <TextInput
+                style={styles.textInput}
+                placeholder="What's on your mind today? Share your thoughts, dreams, challenges, or anything you'd like to transform into something positive..."
+                placeholderTextColor="#94a3b8"
+                value={journalEntry}
+                onChangeText={setJournalEntry}
+                multiline
+                textAlignVertical="top"
+              />
+              
+              <AnimatedButton
+                onPress={handleTransform}
+                disabled={isTransforming || !journalEntry.trim()}
+                style={[
+                  styles.transformButton,
+                  (!journalEntry.trim() || isTransforming) && styles.transformButtonDisabled
+                ]}
+              >
+                <LinearGradient
+                  colors={journalEntry.trim() && !isTransforming ? ['#667eea', '#764ba2'] : ['#94a3b8', '#64748b']}
+                  style={styles.buttonGradient}
+                >
+                  <View style={styles.buttonContent}>
+                    {isTransforming ? (
+                      <LoadingShimmer width={20} height={20} borderRadius={10} />
+                    ) : (
+                      <Sparkles size={20} color="#ffffff" strokeWidth={1.5} />
+                    )}
+                    <Text style={styles.buttonText}>
+                      {isTransforming ? 'Transforming...' : 'Transform with AI'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </AnimatedButton>
+            </LinearGradient>
           </View>
 
           {/* Manifestation Result */}
           {transformedText ? (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Sparkles size={20} color="#2563eb" strokeWidth={1.5} />
-                <Text style={styles.cardTitle}>Your Manifestation</Text>
-              </View>
-              
-              <View style={styles.manifestationCard}>
-                <Text style={styles.manifestationText}>{transformedText}</Text>
-              </View>
-            </View>
+            <Animated.View style={styles.manifestationCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                style={styles.cardGradient}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleContainer}>
+                    <Sparkles size={24} color="#f59e0b" strokeWidth={1.5} />
+                    <Text style={styles.cardTitle}>Your Manifestation</Text>
+                  </View>
+                  <View style={styles.savedBadge}>
+                    <Text style={styles.savedBadgeText}>Saved</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.manifestationContent}>
+                  <Text style={styles.manifestationText}>{transformedText}</Text>
+                </View>
+                
+                <View style={styles.manifestationActions}>
+                  <TouchableOpacity style={styles.actionChip}>
+                    <Heart size={16} color="#ef4444" strokeWidth={1.5} />
+                    <Text style={styles.actionChipText}>Add to Favorites</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionChip}>
+                    <BookOpen size={16} color="#667eea" strokeWidth={1.5} />
+                    <Text style={styles.actionChipText}>View in Library</Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </Animated.View>
           ) : null}
 
           {/* Tips Section */}
-          <View style={styles.tipsCard}>
-            <Text style={styles.tipsTitle}>Writing Tips</Text>
-            <View style={styles.tipsList}>
-              <Text style={styles.tipText}>✨ Be honest about your current thoughts and feelings</Text>
-              <Text style={styles.tipText}>💭 Share your challenges, fears, or limiting beliefs</Text>
-              <Text style={styles.tipText}>🌟 Describe what you want to create or change</Text>
-              <Text style={styles.tipText}>🚀 Transform your words into empowering affirmations</Text>
-              <Text style={styles.tipText}>💾 Your manifestations are automatically saved to your library</Text>
-            </View>
+          <View style={styles.tipsSection}>
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']}
+              style={styles.tipsGradient}
+            >
+              <Text style={styles.tipsTitle}>✨ Writing Tips</Text>
+              <View style={styles.tipsList}>
+                <View style={styles.tipItem}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>Be honest about your current thoughts and feelings</Text>
+                </View>
+                <View style={styles.tipItem}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>Share your challenges, fears, or limiting beliefs</Text>
+                </View>
+                <View style={styles.tipItem}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>Describe what you want to create or change</Text>
+                </View>
+                <View style={styles.tipItem}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>Your manifestations are automatically saved</Text>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
           
           {/* Bottom padding for FAB */}
@@ -212,130 +340,234 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  brandHeader: {
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
-  brandTitle: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#1e293b',
-    letterSpacing: -0.5,
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  header: {
-    marginBottom: 32,
+  logoText: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  logoSubtext: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+  },
+  greetingContainer: {
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-Regular',
-    color: '#64748b',
-    marginBottom: 4,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 8,
     textAlign: 'center',
   },
-  title: {
-    fontSize: 20,
+  motivationalText: {
+    fontSize: 22,
     fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
-    lineHeight: 28,
+    color: '#ffffff',
     textAlign: 'center',
+    lineHeight: 28,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
   },
   errorText: {
-    color: '#dc2626',
+    color: '#ff6b6b',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
   },
   successText: {
-    color: '#16a34a',
+    color: '#4ade80',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
+  quickPromptsSection: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 20,
+  },
+  promptsGrid: {
+    gap: 12,
+  },
+  promptCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
+  },
+  promptGradient: {
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  promptText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
+  },
+  journalCard: {
+    borderRadius: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  manifestationCard: {
+    borderRadius: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardGradient: {
+    padding: 24,
+    borderRadius: 20,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
-    gap: 8,
+  },
+  cardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
+    color: '#1e293b',
+  },
+  characterCount: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#64748b',
+  },
+  savedBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  savedBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
   },
   textInput: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    minHeight: 140,
+    minHeight: 160,
     backgroundColor: '#f8fafc',
-    color: '#0f172a',
-    marginBottom: 20,
+    color: '#1e293b',
+    marginBottom: 24,
     lineHeight: 24,
+    textAlignVertical: 'top',
   },
-  button: {
-    paddingVertical: 16,
+  transformButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  transformButtonDisabled: {
+    opacity: 0.6,
+  },
+  buttonGradient: {
+    paddingVertical: 18,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  },
-  transformButton: {
-    backgroundColor: '#2563eb',
-  },
-  saveButton: {
-    backgroundColor: '#059669',
+    gap: 12,
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-SemiBold',
   },
-  manifestationCard: {
+  manifestationContent: {
     backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
   },
   manifestationText: {
     fontSize: 18,
@@ -345,28 +577,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  tipsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+  manifestationActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  actionChipText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#475569',
+  },
+  tipsSection: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  tipsGradient: {
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   tipsTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#0f172a',
+    color: '#ffffff',
     marginBottom: 16,
+    textAlign: 'center',
   },
   tipsList: {
     gap: 12,
   },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  tipBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+    marginTop: 8,
+  },
   tipText: {
+    flex: 1,
     fontSize: 15,
-    color: '#475569',
+    color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: 'Inter-Regular',
     lineHeight: 22,
   },
