@@ -10,8 +10,10 @@ import {
   Platform,
   Animated,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
-import { Heart, Search, Star, Copy, Trash2, Filter } from 'lucide-react-native';
+import { Heart, Search, Star, Copy, Trash2, Filter, BookOpen, Sparkles, Calendar, Clock } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
@@ -19,6 +21,8 @@ import GradientBackground from '../../components/GradientBackground';
 import EmptyState from '../../components/EmptyState';
 import AnimatedButton from '../../components/AnimatedButton';
 import FloatingActionButton from '../../components/FloatingActionButton';
+
+const { width } = Dimensions.get('window');
 
 type Manifestation = Database['public']['Tables']['manifestations']['Row'];
 
@@ -35,6 +39,24 @@ export default function Library() {
   const [showFAB, setShowFAB] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  React.useEffect(() => {
+    // Animate in the content when component mounts
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -91,6 +113,7 @@ export default function Library() {
     await loadManifestations();
     setRefreshing(false);
   };
+
   const filterManifestations = () => {
     let filtered = manifestations;
 
@@ -148,12 +171,12 @@ export default function Library() {
     if (Platform.OS === 'web') {
       try {
         await navigator.clipboard.writeText(text);
-        setSuccess('Copied to clipboard!');
+        setSuccess('✨ Copied to clipboard!');
       } catch (error) {
         setError('Failed to copy to clipboard');
       }
     } else {
-      setSuccess('Copied to clipboard!');
+      setSuccess('✨ Copied to clipboard!');
     }
     
     setTimeout(() => setSuccess(null), 2000);
@@ -163,7 +186,7 @@ export default function Library() {
     try {
       await storageService.deleteManifestation(id);
       await loadManifestations();
-      setSuccess('Manifestation deleted');
+      setSuccess('✨ Manifestation deleted');
       setTimeout(() => setSuccess(null), 2000);
     } catch (error) {
       setError('Failed to delete manifestation.');
@@ -171,69 +194,134 @@ export default function Library() {
     }
   };
 
+  const getTotalManifestations = () => manifestations.length;
+  const getFavoriteCount = () => manifestations.filter(m => m.is_favorite).length;
+  const getRecentCount = () => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return manifestations.filter(m => new Date(m.created_at) > oneWeekAgo).length;
+  };
+
   if (loading) {
     return (
-      <GradientBackground>
+      <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading your library...</Text>
+          <Sparkles size={48} color="#ffffff" strokeWidth={1.5} />
+          <Text style={styles.loadingText}>Loading your sacred collection...</Text>
         </View>
       </GradientBackground>
     );
   }
 
   return (
-    <GradientBackground>
+    <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Your sacred collection</Text>
-          <Text style={styles.title}>Manifestation Library</Text>
-          
+        {/* Hero Header */}
+        <Animated.View 
+          style={[
+            styles.heroSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#ffffff', '#f8fafc']}
+              style={styles.logoBackground}
+            >
+              <BookOpen size={32} color="#667eea" strokeWidth={2} />
+            </LinearGradient>
+            <Text style={styles.logoText}>Your Library</Text>
+            <Text style={styles.logoSubtext}>Sacred collection of manifestations</Text>
+          </View>
+
+          {/* Stats Cards */}
           <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{manifestations.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <Text style={styles.statNumber}>{getTotalManifestations()}</Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </LinearGradient>
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{manifestations.filter(m => m.is_favorite).length}</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
+            
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <Text style={styles.statNumber}>{getFavoriteCount()}</Text>
+                <Text style={styles.statLabel}>Favorites</Text>
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                style={styles.statGradient}
+              >
+                <Text style={styles.statNumber}>{getRecentCount()}</Text>
+                <Text style={styles.statLabel}>This Week</Text>
+              </LinearGradient>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Status Messages */}
         {error && (
-          <View style={styles.errorContainer}>
+          <Animated.View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-          </View>
+          </Animated.View>
         )}
         
         {success && (
-          <View style={styles.successContainer}>
+          <Animated.View style={styles.successContainer}>
             <Text style={styles.successText}>{success}</Text>
-          </View>
+          </Animated.View>
         )}
 
-        {/* Search and Filter */}
+        {/* Search and Filter Section */}
         <View style={styles.searchSection}>
           <View style={styles.searchContainer}>
-            <Search size={18} color="#64748b" strokeWidth={1.5} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search manifestations..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+              style={styles.searchGradient}
+            >
+              <Search size={20} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search your manifestations..."
+                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </LinearGradient>
           </View>
           
           <TouchableOpacity
             style={[styles.filterButton, showFavoritesOnly && styles.filterButtonActive]}
             onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
           >
-            <Filter size={18} color={showFavoritesOnly ? '#ffffff' : '#64748b'} strokeWidth={1.5} />
+            <LinearGradient
+              colors={showFavoritesOnly 
+                ? ['#f59e0b', '#f97316'] 
+                : ['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']
+              }
+              style={styles.filterGradient}
+            >
+              <Heart 
+                size={20} 
+                color={showFavoritesOnly ? "#ffffff" : "rgba(255, 255, 255, 0.8)"} 
+                fill={showFavoritesOnly ? "#ffffff" : "transparent"}
+                strokeWidth={1.5} 
+              />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -249,7 +337,7 @@ export default function Library() {
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor="#ffffff"
-              colors={['#f472b6']}
+              colors={['#ffffff']}
             />
           }
         >
@@ -264,7 +352,7 @@ export default function Library() {
                 ? 'Your first manifestation will live here. Visit Journal to begin your transformation journey.'
                 : 'Try adjusting your search or filters to find what you\'re looking for.'
               }
-              iconColor="#f472b6"
+              iconColor="#ffffff"
             />
           ) : (
             filteredManifestations.map((manifestation) => (
@@ -291,49 +379,70 @@ interface ManifestationCardProps {
 }
 
 function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Today';
+    if (diffDays === 2) return 'Yesterday';
+    if (diffDays <= 7) return `${diffDays - 1} days ago`;
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+  };
+
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <TouchableOpacity
-          onPress={() => onToggleFavorite(manifestation.id)}
-          style={styles.favoriteButton}
-        >
-          <Heart
-            size={20}
-            color={manifestation.is_favorite ? '#ef4444' : '#cbd5e1'} 
-            fill={manifestation.is_favorite ? '#ef4444' : 'transparent'}
-            strokeWidth={1.5}
-          />
-        </TouchableOpacity>
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        style={styles.cardGradient}
+      >
+        <View style={styles.cardHeader}>
+          <TouchableOpacity
+            onPress={() => onToggleFavorite(manifestation.id)}
+            style={styles.favoriteButton}
+          >
+            <Heart
+              size={24}
+              color={manifestation.is_favorite ? '#f59e0b' : 'rgba(255, 255, 255, 0.6)'} 
+              fill={manifestation.is_favorite ? '#f59e0b' : 'transparent'}
+              strokeWidth={1.5}
+            />
+          </TouchableOpacity>
+          
+          <View style={styles.dateContainer}>
+            <Clock size={14} color="rgba(255, 255, 255, 0.6)" strokeWidth={1.5} />
+            <Text style={styles.cardDate}>
+              {formatDate(manifestation.created_at)}
+            </Text>
+          </View>
+        </View>
         
-        <Text style={styles.cardDate}>
-          {new Date(manifestation.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          })}
+        <Text style={styles.manifestationText}>
+          {manifestation.transformed_text}
         </Text>
-      </View>
-      
-      <Text style={styles.manifestationText}>
-        {manifestation.transformed_text}
-      </Text>
-      
-      <View style={styles.cardActions}>
-        <AnimatedButton onPress={() => onCopy(manifestation.transformed_text)}>
-          <View style={styles.actionButtonContent}>
-            <Copy size={16} color="#2563eb" strokeWidth={1.5} />
-            <Text style={styles.actionText}>Copy</Text>
-          </View>
-        </AnimatedButton>
         
-        <AnimatedButton onPress={() => onDelete(manifestation.id)}>
-          <View style={styles.actionButtonContent}>
-            <Trash2 size={16} color="#ef4444" strokeWidth={1.5} />
-            <Text style={styles.deleteText}>Delete</Text>
-          </View>
-        </AnimatedButton>
-      </View>
+        <View style={styles.cardActions}>
+          <AnimatedButton onPress={() => onCopy(manifestation.transformed_text)}>
+            <View style={styles.actionButton}>
+              <Copy size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+              <Text style={styles.actionText}>Copy</Text>
+            </View>
+          </AnimatedButton>
+          
+          <AnimatedButton onPress={() => onDelete(manifestation.id)}>
+            <View style={styles.actionButton}>
+              <Trash2 size={16} color="#ff6b6b" strokeWidth={1.5} />
+              <Text style={styles.deleteText}>Delete</Text>
+            </View>
+          </AnimatedButton>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
@@ -346,74 +455,113 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 16,
   },
   loadingText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748b',
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
+    textAlign: 'center',
   },
-  header: {
-    paddingTop: 60,
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
-  greeting: {
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoText: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: '#0f172a',
-    lineHeight: 34,
-    marginBottom: 24,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 32,
+    gap: 16,
+    width: '100%',
   },
-  stat: {
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statGradient: {
+    padding: 20,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#0f172a',
+    color: '#ffffff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#64748b',
-    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 16,
   },
   errorText: {
-    color: '#dc2626',
+    color: '#ff6b6b',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 16,
   },
   successText: {
-    color: '#16a34a',
+    color: '#4ade80',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
@@ -421,45 +569,51 @@ const styles = StyleSheet.create({
   searchSection: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
     gap: 12,
   },
   searchContainer: {
     flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  searchGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#0f172a',
+    color: '#ffffff',
   },
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   filterButtonActive: {
-    backgroundColor: '#2563eb',
+    // Active styling handled by gradient
+  },
+  filterGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
@@ -469,59 +623,71 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardGradient: {
+    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   favoriteButton: {
     padding: 4,
   },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   cardDate: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   manifestationText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#1e293b',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 16,
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#ffffff',
+    fontFamily: 'Inter-Medium',
+    marginBottom: 24,
     fontStyle: 'italic',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   cardActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  actionButtonContent: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   actionText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#2563eb',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   deleteText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#ef4444',
+    color: '#ff6b6b',
   },
 });
