@@ -15,6 +15,7 @@ import { Headphones, Play, Pause, Square, Volume2, Clock, Music, Sparkles, Check
 import { LinearGradient } from 'expo-linear-gradient';
 import { storageService } from '../../lib/storage';
 import { audioService } from '../../lib/audio';
+import { testTTSFunction, testEdgeFunctionDeployment } from '../../lib/testTTS';
 import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
@@ -68,6 +69,7 @@ export default function PersonalizedAudio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -151,6 +153,63 @@ export default function PersonalizedAudio() {
     } else {
       setSelectedManifestations(new Set(favoriteManifestations.map(m => m.id)));
     }
+  };
+
+  const runTTSTest = async () => {
+    setDebugInfo('Running TTS test...');
+    setError(null);
+    
+    try {
+      const result = await testTTSFunction();
+      if (result.success) {
+        setSuccess('✅ TTS test successful! The Edge Function is working.');
+        setDebugInfo(`Audio generated successfully. Size: ${result.audioSize} bytes`);
+        
+        // Play the test audio if available
+        if (result.playAudio) {
+          setTimeout(() => {
+            result.playAudio();
+          }, 1000);
+        }
+      } else {
+        setError(`❌ TTS test failed: ${result.error}`);
+        setDebugInfo(`Error details: ${JSON.stringify(result.details, null, 2)}`);
+      }
+    } catch (error) {
+      setError(`❌ TTS test exception: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setDebugInfo(null);
+    }
+    
+    setTimeout(() => {
+      setSuccess(null);
+      setError(null);
+      setDebugInfo(null);
+    }, 10000);
+  };
+
+  const checkDeployment = async () => {
+    setDebugInfo('Checking Edge Function deployment...');
+    setError(null);
+    
+    try {
+      const result = await testEdgeFunctionDeployment();
+      if (result.deployed && result.accessible) {
+        setSuccess('✅ Edge Function is deployed and accessible');
+        setDebugInfo('The openai-tts function is properly deployed');
+      } else {
+        setError(`❌ Edge Function deployment issue: Status ${result.status || 'unknown'}`);
+        setDebugInfo('The openai-tts function may not be deployed or configured correctly');
+      }
+    } catch (error) {
+      setError(`❌ Deployment check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setDebugInfo(null);
+    }
+    
+    setTimeout(() => {
+      setSuccess(null);
+      setError(null);
+      setDebugInfo(null);
+    }, 8000);
   };
 
   const generateAudio = async () => {
@@ -312,6 +371,12 @@ export default function PersonalizedAudio() {
             <Text style={styles.successText}>{success}</Text>
           </Animated.View>
         )}
+        
+        {debugInfo && (
+          <Animated.View style={styles.debugContainer}>
+            <Text style={styles.debugText}>{debugInfo}</Text>
+          </Animated.View>
+        )}
 
         <ScrollView
           style={styles.scrollView}
@@ -320,6 +385,34 @@ export default function PersonalizedAudio() {
         >
           {favoriteManifestations.length === 0 ? (
             <View style={styles.emptyState}>
+              {/* Debug Section */}
+              <View style={styles.debugSection}>
+                <Text style={styles.debugSectionTitle}>🛠️ Troubleshooting</Text>
+                <Text style={styles.debugSectionSubtitle}>
+                  Test the TTS service to diagnose any issues
+                </Text>
+                
+                <View style={styles.debugButtons}>
+                  <AnimatedButton onPress={checkDeployment} style={styles.debugButton}>
+                    <LinearGradient
+                      colors={['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.8)']}
+                      style={styles.debugButtonGradient}
+                    >
+                      <Text style={styles.debugButtonText}>Check Deployment</Text>
+                    </LinearGradient>
+                  </AnimatedButton>
+                  
+                  <AnimatedButton onPress={runTTSTest} style={styles.debugButton}>
+                    <LinearGradient
+                      colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.8)']}
+                      style={styles.debugButtonGradient}
+                    >
+                      <Text style={styles.debugButtonText}>Test TTS</Text>
+                    </LinearGradient>
+                  </AnimatedButton>
+                </View>
+              </View>
+              
               <Heart size={48} color="rgba(255, 255, 255, 0.6)" strokeWidth={1.5} />
               <Text style={styles.emptyTitle}>No Favorite Manifestations</Text>
               <Text style={styles.emptySubtitle}>
@@ -328,6 +421,19 @@ export default function PersonalizedAudio() {
             </View>
           ) : (
             <>
+              {/* Debug Section for users with manifestations */}
+              <View style={styles.compactDebugSection}>
+                <Text style={styles.compactDebugTitle}>Having issues? Test the TTS service:</Text>
+                <View style={styles.compactDebugButtons}>
+                  <TouchableOpacity onPress={runTTSTest} style={styles.compactDebugButton}>
+                    <Text style={styles.compactDebugButtonText}>Test TTS</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={checkDeployment} style={styles.compactDebugButton}>
+                    <Text style={styles.compactDebugButtonText}>Check Service</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
               {/* Manifestation Selection */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -715,6 +821,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
+  },
+  debugContainer: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    padding: 16,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  debugText: {
+    color: '#60a5fa',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
+  },
+  debugSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  debugSectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  debugSectionSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  debugButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  debugButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  debugButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  debugButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  compactDebugSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  compactDebugTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  compactDebugButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  compactDebugButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  compactDebugButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
   },
   scrollView: {
     flex: 1,
