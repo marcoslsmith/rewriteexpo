@@ -105,14 +105,9 @@ export default function TabLayout() {
               }
             ]}
           >
-            <LinearGradient
-              colors={['rgba(102, 126, 234, 0.95)', 'rgba(118, 75, 162, 0.95)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradient}
-            >
+            <View style={styles.solidBackground}>
               <View style={styles.glassOverlay} />
-            </LinearGradient>
+            </View>
           </Animated.View>
         ),
         tabBarLabelStyle: {
@@ -383,12 +378,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
   },
-  gradient: {
+  solidBackground: {
     flex: 1,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
+    backgroundColor: 'rgba(30, 41, 59, 0.95)', // Dark solid color instead of gradient
   },
   glassOverlay: {
     position: 'absolute',
