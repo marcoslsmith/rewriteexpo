@@ -1,22 +1,24 @@
 import { Tabs } from 'expo-router';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Animated, View, StyleSheet, Platform } from 'react-native';
 import { CreditCard as Edit3, Heart, Wind, Target, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabLayout() {
   const translateY = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     // Subtle floating animation
     const floatAnimation = Animated.loop(
       Animated.sequence([
-        Animated.timing(translateY, {
+        Animated.timing(floatAnim, {
           toValue: -2,
           duration: 2000,
           useNativeDriver: true,
         }),
-        Animated.timing(translateY, {
+        Animated.timing(floatAnim, {
           toValue: 0,
           duration: 2000,
           useNativeDriver: true,
@@ -27,6 +29,36 @@ export default function TabLayout() {
 
     return () => floatAnimation.stop();
   }, []);
+
+  // Function to hide/show tab bar
+  const hideTabBar = () => {
+    if (isVisible) {
+      setIsVisible(false);
+      Animated.timing(translateY, {
+        toValue: 120, // Move down by tab bar height + margin
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const showTabBar = () => {
+    if (!isVisible) {
+      setIsVisible(true);
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  // Expose scroll handlers to child screens
+  useEffect(() => {
+    // Store references globally so child screens can access them
+    (global as any).hideTabBar = hideTabBar;
+    (global as any).showTabBar = showTabBar;
+  }, [isVisible]);
 
   return (
     <Tabs
@@ -39,7 +71,7 @@ export default function TabLayout() {
           bottom: 30,
           left: 20,
           right: 20,
-          height: 80,
+          height: 90, // Increased height for better text visibility
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
@@ -50,7 +82,9 @@ export default function TabLayout() {
             style={[
               styles.tabBarBackground,
               {
-                transform: [{ translateY }],
+                transform: [
+                  { translateY: Animated.add(translateY, floatAnim) }
+                ],
               }
             ]}
           >
@@ -65,16 +99,17 @@ export default function TabLayout() {
           </Animated.View>
         ),
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: 'Inter-SemiBold',
-          marginTop: 4,
-          marginBottom: 8,
+          marginTop: 6,
+          marginBottom: 12, // Increased bottom margin
         },
         tabBarIconStyle: {
-          marginTop: 8,
+          marginTop: 12, // Increased top margin
         },
         tabBarItemStyle: {
           paddingVertical: 8,
+          height: 90, // Match the tab bar height
         },
       }}>
       <Tabs.Screen

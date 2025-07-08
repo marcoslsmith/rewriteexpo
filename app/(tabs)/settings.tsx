@@ -314,10 +314,28 @@ export default function Settings() {
       useNativeDriver: false,
       listener: (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
-        setShowFAB(currentScrollY < 100);
+        const isScrollingDown = currentScrollY > lastScrollY.current;
+        
+        if (isScrollingDown && currentScrollY > 100) {
+          setShowFAB(false);
+          // Hide tab bar on scroll down
+          if ((global as any).hideTabBar) {
+            (global as any).hideTabBar();
+          }
+        } else if (!isScrollingDown) {
+          setShowFAB(true);
+          // Show tab bar on scroll up
+          if ((global as any).showTabBar) {
+            (global as any).showTabBar();
+          }
+        }
+        
+        lastScrollY.current = currentScrollY;
       }
     }
   );
+  
+  const lastScrollY = useRef(0);
 
   const getTotalManifestations = () => manifestations.length;
   const getTotalFavorites = () => favoriteManifestations.length;

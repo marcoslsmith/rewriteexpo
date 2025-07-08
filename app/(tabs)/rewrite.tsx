@@ -68,8 +68,16 @@ export default function Library() {
         
         if (isScrollingDown && currentScrollY > 100) {
           setShowFAB(false);
+          // Hide tab bar on scroll down
+          if ((global as any).hideTabBar) {
+            (global as any).hideTabBar();
+          }
         } else if (!isScrollingDown) {
           setShowFAB(true);
+          // Show tab bar on scroll up
+          if ((global as any).showTabBar) {
+            (global as any).showTabBar();
+          }
         }
         
         lastScrollY.current = currentScrollY;
