@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,10 +30,23 @@ export default function Journal() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showFAB, setShowFAB] = useState(true);
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const promptFadeAnim = useRef(new Animated.Value(1)).current;
+
+  const quickPrompts = [
+    { text: "I want to feel more confident...", icon: Star, color: '#f59e0b' },
+    { text: "I'm struggling with...", icon: Heart, color: '#ef4444' },
+    { text: "My biggest dream is...", icon: Sparkles, color: '#8b5cf6' },
+    { text: "I feel anxious about...", icon: Zap, color: '#06b6d4' },
+    { text: "I wish I could...", icon: Star, color: '#10b981' },
+    { text: "I'm grateful for...", icon: Heart, color: '#f97316' },
+    { text: "I want to create...", icon: Sparkles, color: '#ec4899' },
+    { text: "I'm ready to...", icon: Zap, color: '#6366f1' },
+  ];
 
   React.useEffect(() => {
     // Animate in the content when component mounts
@@ -49,6 +62,28 @@ export default function Journal() {
         useNativeDriver: true,
       }),
     ]).start();
+  }, []);
+
+  // Auto-rotate prompts
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.sequence([
+        Animated.timing(promptFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(promptFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      setCurrentPromptIndex((prev) => (prev + 1) % quickPrompts.length);
+    }, 4000); // Change every 4 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleScroll = Animated.event(
@@ -118,16 +153,12 @@ export default function Journal() {
     }
   };
 
-  const quickPrompts = [
-    { text: "I want to feel more confident...", icon: Star },
-    { text: "I'm struggling with...", icon: Heart },
-    { text: "My biggest dream is...", icon: Sparkles },
-    { text: "I feel anxious about...", icon: Zap },
-  ];
-
   const handleQuickPrompt = (prompt: string) => {
     setJournalEntry(prompt);
   };
+
+  const currentPrompt = quickPrompts[currentPromptIndex];
+  const IconComponent = currentPrompt.icon;
 
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
@@ -181,30 +212,50 @@ export default function Journal() {
             </Animated.View>
           )}
 
-          {/* Quick Start Prompts */}
-          <View style={styles.quickPromptsSection}>
+          {/* Rotating Quick Start Prompt */}
+          <View style={styles.quickStartSection}>
             <Text style={styles.sectionTitle}>Quick Start</Text>
-            <Text style={styles.sectionSubtitle}>Tap a prompt to get started</Text>
-            <View style={styles.promptsGrid}>
-              {quickPrompts.map((prompt, index) => {
-                const IconComponent = prompt.icon;
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.promptCard}
-                    onPress={() => handleQuickPrompt(prompt.text)}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
-                      style={styles.promptGradient}
-                    >
+            <Text style={styles.sectionSubtitle}>Tap to get started with a prompt</Text>
+            
+            <Animated.View style={{ opacity: promptFadeAnim }}>
+              <TouchableOpacity
+                style={styles.rotatingPromptCard}
+                onPress={() => handleQuickPrompt(currentPrompt.text)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                  style={styles.promptGradient}
+                >
+                  <View style={styles.promptIconContainer}>
+                    <View style={[styles.promptIconBackground, { backgroundColor: currentPrompt.color }]}>
                       <IconComponent size={20} color="#ffffff" strokeWidth={1.5} />
-                      <Text style={styles.promptText}>{prompt.text}</Text>
-                      <ArrowRight size={16} color="rgba(255, 255, 255, 0.7)" strokeWidth={1.5} />
-                    </LinearGradient>
-                  </TouchableOpacity>
-                );
-              })}
+                    </View>
+                  </View>
+                  
+                  <View style={styles.promptTextContainer}>
+                    <Text style={styles.rotatingPromptText}>{currentPrompt.text}</Text>
+                    <Text style={styles.promptHint}>Tap to use this prompt</Text>
+                  </View>
+                  
+                  <View style={styles.promptArrowContainer}>
+                    <ArrowRight size={20} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Prompt Indicators */}
+            <View style={styles.promptIndicators}>
+              {quickPrompts.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.indicator,
+                    index === currentPromptIndex && styles.activeIndicator
+                  ]}
+                />
+              ))}
             </View>
           </View>
 
@@ -428,7 +479,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  quickPromptsSection: {
+  quickStartSection: {
     marginBottom: 32,
   },
   sectionTitle: {
@@ -446,29 +497,75 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 20,
   },
-  promptsGrid: {
-    gap: 12,
-  },
-  promptCard: {
-    borderRadius: 16,
+  rotatingPromptCard: {
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    marginBottom: 16,
   },
   promptGradient: {
-    padding: 20,
+    padding: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    minHeight: 80,
   },
-  promptText: {
+  promptIconContainer: {
+    marginRight: 16,
+  },
+  promptIconBackground: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  promptTextContainer: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    marginRight: 16,
+  },
+  rotatingPromptText: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
+    marginBottom: 4,
+    lineHeight: 24,
+  },
+  promptHint: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  promptArrowContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promptIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  activeIndicator: {
+    backgroundColor: '#ffffff',
+    width: 24,
   },
   journalCard: {
     borderRadius: 20,
