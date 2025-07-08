@@ -69,7 +69,9 @@ export const storageService = {
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          throw new Error('User not authenticated');
+          console.warn('User not found, falling back to local storage');
+          await this.saveManifestationLocally(manifestation);
+          return;
         }
         
         const { error } = await supabase
@@ -81,44 +83,45 @@ export const storageService = {
         
         if (error) {
           console.error('Supabase insert error:', error);
-          throw error;
+          console.warn('Supabase failed, falling back to local storage');
+          await this.saveManifestationLocally(manifestation);
+          return;
         }
+        
+        // Also save locally as backup
+        await this.saveManifestationLocally(manifestation);
       } else {
-        // Fallback to local storage
-        const manifestations = await this.getManifestations();
-        const newManifestation: Manifestation = {
-          id: Date.now().toString(),
-          user_id: null,
-          original_entry: manifestation.original_entry,
-          transformed_text: manifestation.transformed_text,
-          is_favorite: manifestation.is_favorite || false,
-          tags: manifestation.tags || [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        manifestations.push(newManifestation);
-        await this.saveManifestations(manifestations);
+        await this.saveManifestationLocally(manifestation);
       }
     } catch (error) {
       console.error('Error adding manifestation:', error);
-      // Always try local storage as fallback
-      const manifestations = await this.getManifestations();
-      const newManifestation: Manifestation = {
-        id: Date.now().toString(),
-        user_id: null,
-        original_entry: manifestation.original_entry,
-        transformed_text: manifestation.transformed_text,
-        is_favorite: manifestation.is_favorite || false,
-        tags: manifestation.tags || [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      manifestations.push(newManifestation);
-      await this.saveManifestations(manifestations);
-      throw error;
+      // Final fallback to local storage
+      try {
+        await this.saveManifestationLocally(manifestation);
+        console.log('Manifestation saved to local storage as fallback');
+      } catch (localError) {
+        console.error('Failed to save to local storage:', localError);
+        throw new Error('Failed to save manifestation to both remote and local storage');
+      }
     }
   },
 
+  async saveManifestationLocally(manifestation: ManifestationInsert): Promise<void> {
+    const manifestations = await this.getManifestations();
+    const newManifestation: Manifestation = {
+      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      user_id: null,
+      original_entry: manifestation.original_entry,
+      transformed_text: manifestation.transformed_text,
+      is_favorite: manifestation.is_favorite || false,
+      tags: manifestation.tags || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    manifestations.unshift(newManifestation); // Add to beginning for newest first
+    await this.saveManifestations(manifestations);
+    console.log('Manifestation saved locally:', newManifestation.id);
+  },
   async updateManifestation(id: string, updates: ManifestationUpdate): Promise<void> {
     try {
       const isAuth = await this.isAuthenticated();

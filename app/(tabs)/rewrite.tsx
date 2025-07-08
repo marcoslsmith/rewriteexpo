@@ -59,13 +59,19 @@ export default function Library() {
   }, []);
 
   useEffect(() => {
-    // Set up a listener for when the tab becomes focused
-    const unsubscribe = router.addListener ? router.addListener('focus', () => {
+    loadManifestations();
+  }, []);
+
+  // Reload when tab becomes focused
+  useEffect(() => {
+    const unsubscribe = router.addListener('focus', () => {
+      console.log('Library tab focused, reloading manifestations...');
       loadManifestations();
-    }) : undefined;
+    });
 
     return unsubscribe;
-  }, []);
+  }, [router]);
+  
   useEffect(() => {
     filterManifestations();
   }, [manifestations, searchQuery, showFavoritesOnly]);

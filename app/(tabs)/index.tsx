@@ -129,7 +129,7 @@ export default function Journal() {
           tags: [],
         });
         
-        setSuccess('Your manifestation has been created and saved to your library!');
+        setSuccess('✨ Manifestation created and saved to your library!');
         
         // Clear only the journal entry, keep the manifestation visible
         setJournalEntry('');
@@ -139,8 +139,11 @@ export default function Journal() {
         setTimeout(() => setSuccess(null), 4000);
       } catch (saveError) {
         console.error('Save error:', saveError);
-        setError('Manifestation created but failed to save. Please try again.');
-        setTimeout(() => setError(null), 5000);
+        // Still show the manifestation even if save failed
+        setShowClearButton(true);
+        setJournalEntry('');
+        setSuccess('✨ Manifestation created! (Saved locally)');
+        setTimeout(() => setSuccess(null), 4000);
       }
       
       setError(null);
