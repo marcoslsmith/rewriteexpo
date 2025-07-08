@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: '#8b5cf6', // Solid purple color
+    backgroundColor: 'rgba(139, 92, 246, 0.85)', // Purple with transparency
   },
   glassOverlay: {
     position: 'absolute',
@@ -397,14 +397,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Reduced overlay for cleaner purple
+    backgroundColor: 'rgba(255, 255, 255, 0.1)', // Slightly increased overlay for glass effect
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)', // Reduced border opacity
+    borderColor: 'rgba(255, 255, 255, 0.15)', // Subtle border for glass effect
     borderBottomWidth: 0,
+    backdropFilter: 'blur(10px)', // Add blur effect for glass appearance
   },
   activeIconContainer: {
     width: 48,
