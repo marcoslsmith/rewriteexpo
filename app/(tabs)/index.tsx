@@ -29,6 +29,7 @@ export default function Journal() {
   const [isTransforming, setIsTransforming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showClearButton, setShowClearButton] = useState(false);
   const [showFAB, setShowFAB] = useState(true);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -130,13 +131,12 @@ export default function Journal() {
         
         setSuccess('Your manifestation has been created and saved to your library!');
         
-        // Clear the form after successful transformation and save
+        // Clear only the journal entry, keep the manifestation visible
         setJournalEntry('');
+        setShowClearButton(true);
         
-        setTimeout(() => {
-          setSuccess(null);
-          setTransformedText('');
-        }, 4000);
+        // Clear success message after 4 seconds, but keep manifestation
+        setTimeout(() => setSuccess(null), 4000);
       } catch (saveError) {
         console.error('Save error:', saveError);
         setError('Manifestation created but failed to save. Please try again.');
@@ -151,6 +151,11 @@ export default function Journal() {
     } finally {
       setIsTransforming(false);
     }
+  };
+
+  const clearManifestation = () => {
+    setTransformedText('');
+    setShowClearButton(false);
   };
 
   const handleQuickPrompt = (prompt: string) => {
@@ -324,9 +329,14 @@ export default function Journal() {
                     <Sparkles size={24} color="#f59e0b" strokeWidth={1.5} />
                     <Text style={styles.cardTitle}>Your Manifestation</Text>
                   </View>
-                  <View style={styles.savedBadge}>
-                    <Text style={styles.savedBadgeText}>Saved</Text>
-                  </View>
+                  {showClearButton && (
+                    <TouchableOpacity
+                      style={styles.clearButton}
+                      onPress={clearManifestation}
+                    >
+                      <Text style={styles.clearButtonText}>Clear</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
                 <View style={styles.manifestationContent}>
@@ -500,6 +510,7 @@ const styles = StyleSheet.create({
   rotatingPromptCard: {
     borderRadius: 20,
     overflow: 'hidden',
+    height: 100, // Fixed height to prevent shifting
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -511,7 +522,7 @@ const styles = StyleSheet.create({
     padding: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 80,
+    height: 100, // Fixed height matching card
   },
   promptIconContainer: {
     marginRight: 16,
@@ -617,6 +628,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   savedBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  clearButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  clearButtonText: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
