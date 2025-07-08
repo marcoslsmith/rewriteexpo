@@ -238,6 +238,20 @@ export const storageService = {
       
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // First check if progress already exists for this user and challenge
+        const { data: existingProgress } = await supabase
+          .from('challenge_progress')
+          .select('*')
+          .eq('user_id', user?.id!)
+          .eq('challenge_id', progress.challenge_id)
+          .single();
+        
+        if (existingProgress) {
+          console.log('Challenge progress already exists for user:', user?.id, 'challenge:', progress.challenge_id);
+          return; // Don't insert duplicate, just return
+        }
+        
         const { error } = await supabase
           .from('challenge_progress')
           .insert({
@@ -247,8 +261,18 @@ export const storageService = {
         
         if (error) throw error;
       } else {
-        // Fallback to local storage
+        // Check local storage for existing progress
         const allProgress = await this.getChallengeProgress();
+        const existingProgress = allProgress.find(p => 
+          p.challenge_id === progress.challenge_id && !p.completed_at
+        );
+        
+        if (existingProgress) {
+          console.log('Challenge progress already exists locally for challenge:', progress.challenge_id);
+          return; // Don't add duplicate
+        }
+        
+        // Add new progress to local storage
         const newProgress: ChallengeProgress = {
           id: Date.now().toString(),
           user_id: 'local',
@@ -267,6 +291,13 @@ export const storageService = {
       }
     } catch (error) {
       console.error('Error adding challenge progress:', error);
+      
+      // Check if this is a duplicate key constraint violation
+      if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint')) {
+        console.log('Duplicate challenge progress detected, this is expected behavior');
+        return; // Don't throw error for duplicates
+      }
+      
       throw error;
     }
   },
