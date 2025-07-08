@@ -281,7 +281,7 @@ export default function Settings() {
       <View style={styles.container}>
         <FloatingActionButton visible={showFAB} />
         
-        {/* Header */}
+        {/* Compact Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Your account</Text>
           <Text style={styles.title}>Profile & Settings</Text>
@@ -299,29 +299,6 @@ export default function Settings() {
             <Text style={styles.successText}>{success}</Text>
           </View>
         )}
-
-        {/* User Stats */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{getTotalManifestations()}</Text>
-            <Text style={styles.statLabel}>Manifestations</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{getTotalFavorites()}</Text>
-            <Text style={styles.statLabel}>Favorites</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{getActiveSchedules()}</Text>
-            <Text style={styles.statLabel}>Reminders</Text>
-          </View>
-        </View>
-        
-        {/* Inspirational Quote */}
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteText}>"{inspirationalQuote}"</Text>
-        </View>
 
         <Animated.ScrollView
           style={styles.scrollView}
@@ -343,7 +320,28 @@ export default function Settings() {
                   <Text style={styles.profileJoined}>
                     Joined {new Date(user.created_at).toLocaleDateString()}
                   </Text>
+                  
+                  {/* Compact Stats Row */}
+                  <View style={styles.compactStatsRow}>
+                    <View style={styles.compactStat}>
+                      <Text style={styles.compactStatNumber}>{getTotalManifestations()}</Text>
+                      <Text style={styles.compactStatLabel}>Manifestations</Text>
+                    </View>
+                    <View style={styles.compactStat}>
+                      <Text style={styles.compactStatNumber}>{getTotalFavorites()}</Text>
+                      <Text style={styles.compactStatLabel}>Favorites</Text>
+                    </View>
+                    <View style={styles.compactStat}>
+                      <Text style={styles.compactStatNumber}>{getActiveSchedules()}</Text>
+                      <Text style={styles.compactStatLabel}>Reminders</Text>
+                    </View>
+                  </View>
                 </View>
+              </View>
+
+              {/* Inspirational Quote */}
+              <View style={styles.quoteCard}>
+                <Text style={styles.quoteText}>"{inspirationalQuote}"</Text>
               </View>
 
               {/* Notification Schedules */}
@@ -795,7 +793,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: 'white',
     fontFamily: 'Inter-Bold',
@@ -829,52 +827,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
-  },
-  statsCard: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    backdropFilter: 'blur(10px)',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-    fontFamily: 'Inter-Bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Inter-Medium',
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 16,
-  },
-  quoteCard: {
-    marginHorizontal: 24,
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    backdropFilter: 'blur(10px)',
-  },
-  quoteText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: 'white',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontFamily: 'Inter-Regular',
   },
   scrollView: {
     flex: 1,
@@ -923,6 +875,46 @@ const styles = StyleSheet.create({
   profileJoined: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 16,
+    fontFamily: 'Inter-Regular',
+  },
+  compactStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  compactStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  compactStatNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+    fontFamily: 'Inter-Bold',
+  },
+  compactStatLabel: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Inter-Medium',
+  },
+  quoteCard: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    backdropFilter: 'blur(10px)',
+  },
+  quoteText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: 20,
     fontFamily: 'Inter-Regular',
   },
   scheduleCard: {
