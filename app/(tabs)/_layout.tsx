@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function TabLayout() {
   const translateY = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -34,22 +35,36 @@ export default function TabLayout() {
   const hideTabBar = () => {
     if (isVisible) {
       setIsVisible(false);
-      Animated.timing(translateY, {
-        toValue: 120, // Move down by tab bar height + margin
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 120, // Move down by tab bar height + margin
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   };
 
   const showTabBar = () => {
     if (!isVisible) {
       setIsVisible(true);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   };
 
@@ -71,7 +86,7 @@ export default function TabLayout() {
           bottom: 30,
           left: 20,
           right: 20,
-          height: 90, // Increased height for better text visibility
+          height: 90,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
@@ -82,6 +97,7 @@ export default function TabLayout() {
             style={[
               styles.tabBarBackground,
               {
+                opacity: opacity,
                 transform: [
                   { translateY: Animated.add(translateY, floatAnim) }
                 ],
@@ -102,14 +118,14 @@ export default function TabLayout() {
           fontSize: 12,
           fontFamily: 'Inter-SemiBold',
           marginTop: 6,
-          marginBottom: 12, // Increased bottom margin
+          marginBottom: 12,
         },
         tabBarIconStyle: {
-          marginTop: 12, // Increased top margin
+          marginTop: 12,
         },
         tabBarItemStyle: {
           paddingVertical: 8,
-          height: 90, // Match the tab bar height
+          height: 90,
         },
       }}>
       <Tabs.Screen
@@ -117,12 +133,30 @@ export default function TabLayout() {
         options={{
           title: 'Journal',
           tabBarIcon: ({ size, color, focused }) => (
-            <TabIcon 
-              Icon={Edit3} 
-              color={color} 
-              focused={focused}
-              gradientColors={['#667eea', '#764ba2']}
-            />
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Edit3} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#667eea', '#764ba2']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: 12,
+                  color: color,
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
           ),
         }}
       />
@@ -131,12 +165,30 @@ export default function TabLayout() {
         options={{
           title: 'Library',
           tabBarIcon: ({ size, color, focused }) => (
-            <TabIcon 
-              Icon={Heart} 
-              color={color} 
-              focused={focused}
-              gradientColors={['#f093fb', '#f5576c']}
-            />
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Heart} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#f093fb', '#f5576c']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: 12,
+                  color: color,
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
           ),
         }}
       />
@@ -145,12 +197,30 @@ export default function TabLayout() {
         options={{
           title: 'Breathe',
           tabBarIcon: ({ size, color, focused }) => (
-            <TabIcon 
-              Icon={Wind} 
-              color={color} 
-              focused={focused}
-              gradientColors={['#4facfe', '#00f2fe']}
-            />
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Wind} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#4facfe', '#00f2fe']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: 12,
+                  color: color,
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
           ),
         }}
       />
@@ -159,12 +229,30 @@ export default function TabLayout() {
         options={{
           title: 'Growth',
           tabBarIcon: ({ size, color, focused }) => (
-            <TabIcon 
-              Icon={Target} 
-              color={color} 
-              focused={focused}
-              gradientColors={['#43e97b', '#38f9d7']}
-            />
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Target} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#43e97b', '#38f9d7']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: 12,
+                  color: color,
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
           ),
         }}
       />
@@ -173,12 +261,30 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ size, color, focused }) => (
-            <TabIcon 
-              Icon={User} 
-              color={color} 
-              focused={focused}
-              gradientColors={['#fa709a', '#fee140']}
-            />
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={User} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#fa709a', '#fee140']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: 12,
+                  color: color,
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
           ),
         }}
       />
