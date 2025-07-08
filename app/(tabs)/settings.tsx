@@ -79,6 +79,17 @@ export default function Settings() {
     }
   }, [user]);
 
+  // Add effect to fetch schedules when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      console.log('User found, fetching schedules for user:', user.id);
+      fetchSchedules();
+    } else {
+      console.log('No user found, clearing schedules');
+      setSchedules([]);
+    }
+  }, [user]);
+
   const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -94,16 +105,23 @@ export default function Settings() {
     if (!user) return;
     
     try {
+      console.log('Fetching notification schedules...');
       const data = await storageService.getNotificationSchedules();
+      console.log('Notification schedules fetched:', data.length, 'schedules');
+      console.log('Schedules data:', data);
       setSchedules(data);
     } catch (error) {
       console.error('Error fetching schedules:', error);
+      setError('Failed to load notification schedules');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
   const fetchManifestations = async () => {
     try {
+      console.log('Fetching manifestations...');
       const data = await storageService.getManifestations();
+      console.log('Manifestations fetched:', data.length, 'manifestations');
       setManifestations(data);
       setFavoriteManifestations(data.filter(m => m.is_favorite));
     } catch (error) {
@@ -115,6 +133,7 @@ export default function Settings() {
     try {
       setError(null);
       setLoading(true);
+      console.log('Attempting to sign in...');
 
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
@@ -122,6 +141,7 @@ export default function Settings() {
           password,
         });
         if (error) throw error;
+        console.log('Sign up successful');
         setSuccess('Account created successfully!');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -129,14 +149,23 @@ export default function Settings() {
           password,
         });
         if (error) throw error;
+        console.log('Sign in successful');
         setSuccess('Signed in successfully!');
       }
 
       setShowSignInModal(false);
       setEmail('');
       setPassword('');
-      checkUser();
+      await checkUser();
+      // Force refresh of data after sign in
+      setTimeout(() => {
+        if (user) {
+          fetchSchedules();
+          fetchManifestations();
+        }
+      }, 1000);
     } catch (error: any) {
+      console.error('Sign in error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -145,13 +174,19 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     try {
+      console.log('Signing out...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
       setSchedules([]);
+      setManifestations([]);
+      setFavoriteManifestations([]);
       setSuccess('Signed out successfully!');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
+      console.error('Sign out error:', error);
       setError(error.message);
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -207,6 +242,8 @@ export default function Settings() {
     let useRandomManifestation = false;
     let title = getScheduleTitle();
 
+    console.log('Saving schedule:', { title, finalMessage, useRandomManifestation });
+
     if (newSchedule.isManifestationType) {
       if (newSchedule.useRandomFavorites) {
         useRandomManifestation = true;
@@ -231,6 +268,7 @@ export default function Settings() {
     try {
       if (editingSchedule) {
         // Update existing schedule
+        console.log('Updating existing schedule:', editingSchedule.id);
         await storageService.updateNotificationSchedule(editingSchedule.id, {
           title,
           message: finalMessage,
@@ -241,6 +279,7 @@ export default function Settings() {
         setSuccess('Schedule updated successfully!');
       } else {
         // Create new schedule
+        console.log('Creating new schedule for user:', user.id);
         await storageService.addNotificationSchedule({
           user_id: user.id,
           title,
@@ -255,9 +294,13 @@ export default function Settings() {
 
       setShowScheduleModal(false);
       resetScheduleForm();
-      fetchSchedules();
+      // Wait a moment then refresh schedules
+      setTimeout(() => {
+        fetchSchedules();
+      }, 500);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
+      console.error('Error saving schedule:', error);
       setError(error.message);
       setTimeout(() => setError(null), 3000);
     }
@@ -265,11 +308,15 @@ export default function Settings() {
 
   const toggleScheduleActive = async (schedule: NotificationSchedule) => {
     try {
+      console.log('Toggling schedule active state:', schedule.id, !schedule.is_active);
       await storageService.updateNotificationSchedule(schedule.id, {
         is_active: !schedule.is_active
       });
-      fetchSchedules();
+      setTimeout(() => {
+        fetchSchedules();
+      }, 300);
     } catch (error: any) {
+      console.error('Error toggling schedule:', error);
       setError('Failed to update schedule');
       setTimeout(() => setError(null), 3000);
     }
@@ -277,11 +324,15 @@ export default function Settings() {
 
   const deleteSchedule = async (scheduleId: string) => {
     try {
+      console.log('Deleting schedule:', scheduleId);
       await storageService.deleteNotificationSchedule(scheduleId);
       setSuccess('Schedule deleted');
-      fetchSchedules();
+      setTimeout(() => {
+        fetchSchedules();
+      }, 300);
       setTimeout(() => setSuccess(null), 2000);
     } catch (error: any) {
+      console.error('Error deleting schedule:', error);
       setError('Failed to delete schedule');
       setTimeout(() => setError(null), 3000);
     }
@@ -422,6 +473,11 @@ export default function Settings() {
                   </TouchableOpacity>
                 </View>
                 
+                {/* Debug info - remove this in production */}
+                <Text style={styles.debugText}>
+                  Schedules loaded: {schedules.length} | User: {user?.email || 'none'}
+                </Text>
+                
                 {schedules.length > 0 ? (
                   schedules.map((schedule) => (
                     <ScheduleCard
@@ -439,6 +495,15 @@ export default function Settings() {
                     <Text style={styles.emptySubtext}>
                       Add your first reminder to stay on track
                     </Text>
+                    <TouchableOpacity
+                      style={styles.refreshButton}
+                      onPress={() => {
+                        console.log('Manual refresh triggered');
+                        fetchSchedules();
+                      }}
+                    >
+                      <Text style={styles.refreshButtonText}>Refresh</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -1371,5 +1436,23 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+  },
+  debugText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 12,
+    fontFamily: 'Inter-Regular',
+  },
+  refreshButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
   },
 });

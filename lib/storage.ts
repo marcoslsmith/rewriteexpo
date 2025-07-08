@@ -297,20 +297,29 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Fetching notification schedules from Supabase...');
         const { data, error } = await supabase
           .from('notification_schedules')
           .select('*')
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase notification schedules error:', error);
+          throw error;
+        }
+        console.log('Notification schedules from Supabase:', data?.length || 0, 'schedules');
         return data || [];
       } else {
+        console.log('Not authenticated, using local storage for notification schedules...');
         // Fallback to local storage
         const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-        return data ? JSON.parse(data) : [];
+        const parsed = data ? JSON.parse(data) : [];
+        console.log('Local notification schedules loaded:', parsed.length, 'schedules');
+        return parsed;
       }
     } catch (error) {
       console.error('Error loading notification schedules:', error);
+      console.log('Falling back to local storage for notification schedules...');
       const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
       return data ? JSON.parse(data) : [];
     }
@@ -318,6 +327,7 @@ export const storageService = {
 
   async saveNotificationSchedules(schedules: NotificationSchedule[]): Promise<void> {
     try {
+      console.log('Saving notification schedules to local storage:', schedules.length, 'schedules');
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(schedules));
     } catch (error) {
       console.error('Error saving notification schedules locally:', error);
@@ -330,6 +340,7 @@ export const storageService = {
       
       if (isAuth) {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('Adding notification schedule to Supabase for user:', user?.id);
         const { error } = await supabase
           .from('notification_schedules')
           .insert({
@@ -337,8 +348,13 @@ export const storageService = {
             user_id: user?.id!,
           });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase insert notification schedule error:', error);
+          throw error;
+        }
+        console.log('Notification schedule added to Supabase successfully');
       } else {
+        console.log('Not authenticated, saving notification schedule to local storage...');
         // Fallback to local storage
         const schedules = await this.getNotificationSchedules();
         const newSchedule: NotificationSchedule = {
@@ -354,6 +370,7 @@ export const storageService = {
         };
         schedules.push(newSchedule);
         await this.saveNotificationSchedules(schedules);
+        console.log('Notification schedule saved to local storage');
       }
     } catch (error) {
       console.error('Error adding notification schedule:', error);
@@ -366,19 +383,26 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Updating notification schedule in Supabase:', id);
         const { error } = await supabase
           .from('notification_schedules')
           .update(updates)
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase update notification schedule error:', error);
+          throw error;
+        }
+        console.log('Notification schedule updated in Supabase successfully');
       } else {
+        console.log('Not authenticated, updating notification schedule in local storage...');
         // Fallback to local storage
         const schedules = await this.getNotificationSchedules();
         const index = schedules.findIndex(s => s.id === id);
         if (index !== -1) {
           schedules[index] = { ...schedules[index], ...updates };
           await this.saveNotificationSchedules(schedules);
+          console.log('Notification schedule updated in local storage');
         }
       }
     } catch (error) {
@@ -392,17 +416,24 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Deleting notification schedule from Supabase:', id);
         const { error } = await supabase
           .from('notification_schedules')
           .delete()
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase delete notification schedule error:', error);
+          throw error;
+        }
+        console.log('Notification schedule deleted from Supabase successfully');
       } else {
+        console.log('Not authenticated, deleting notification schedule from local storage...');
         // Fallback to local storage
         const schedules = await this.getNotificationSchedules();
         const filtered = schedules.filter(s => s.id !== id);
         await this.saveNotificationSchedules(filtered);
+        console.log('Notification schedule deleted from local storage');
       }
     } catch (error) {
       console.error('Error deleting notification schedule:', error);
