@@ -12,7 +12,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { Heart, Search, Star, Copy, Trash2, Filter, BookOpen, Sparkles, Calendar, Clock } from 'lucide-react-native';
+import { Heart, Search, Star, Copy, Trash2, Filter, BookOpen, Sparkles, Calendar, Clock, ChevronDown, ChevronUp, FileText } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { storageService } from '../../lib/storage';
@@ -384,6 +384,9 @@ interface ManifestationCardProps {
 }
 
 function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }: ManifestationCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const expandAnim = useRef(new Animated.Value(0)).current;
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -400,6 +403,27 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     });
   };
+
+  const toggleExpanded = () => {
+    const toValue = isExpanded ? 0 : 1;
+    setIsExpanded(!isExpanded);
+    
+    Animated.timing(expandAnim, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const expandedHeight = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 120], // Adjust based on content
+  });
+
+  const rotateIcon = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   return (
     <View style={styles.card}>
@@ -431,6 +455,42 @@ function ManifestationCard({ manifestation, onToggleFavorite, onCopy, onDelete }
         <Text style={styles.manifestationText}>
           {manifestation.transformed_text}
         </Text>
+        
+        {/* Expandable Original Entry Section */}
+        <TouchableOpacity 
+          style={styles.expandButton}
+          onPress={toggleExpanded}
+          activeOpacity={0.7}
+        >
+          <View style={styles.expandButtonContent}>
+            <FileText size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+            <Text style={styles.expandButtonText}>
+              {isExpanded ? 'Hide' : 'View'} Original Entry
+            </Text>
+            <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
+              <ChevronDown size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+            </Animated.View>
+          </View>
+        </TouchableOpacity>
+        
+        <Animated.View 
+          style={[
+            styles.originalEntryContainer,
+            {
+              height: expandedHeight,
+              opacity: expandAnim,
+            }
+          ]}
+        >
+          <View style={styles.originalEntryContent}>
+            <View style={styles.originalEntryHeader}>
+              <Text style={styles.originalEntryLabel}>Original Journal Entry</Text>
+            </View>
+            <Text style={styles.originalEntryText} numberOfLines={4}>
+              {manifestation.original_entry}
+            </Text>
+          </View>
+        </Animated.View>
         
         <View style={styles.cardActions}>
           <AnimatedButton onPress={() => onCopy(manifestation.transformed_text)}>
@@ -664,12 +724,59 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: '#ffffff',
     fontFamily: 'Inter-Medium',
-    marginBottom: 24,
+    marginBottom: 20,
     fontStyle: 'italic',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  expandButton: {
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  expandButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  expandButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  originalEntryContainer: {
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  originalEntryContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  originalEntryHeader: {
+    marginBottom: 12,
+  },
+  originalEntryLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: 'rgba(255, 255, 255, 0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  originalEntryText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 20,
   },
   cardActions: {
     flexDirection: 'row',
