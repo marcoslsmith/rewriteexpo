@@ -44,14 +44,14 @@ export default function TimePickerScroller({ value, onChange, style }: TimePicke
     }
   }, [value]);
 
-  useEffect(() => {
-    const hour24 = selectedPeriod === 'AM' 
-      ? (selectedHour === 12 ? 0 : selectedHour)
-      : (selectedHour === 12 ? 12 : selectedHour + 12);
+  const updateTime = (hour: number, minute: number, period: string) => {
+    const hour24 = period === 'AM' 
+      ? (hour === 12 ? 0 : hour)
+      : (hour === 12 ? 12 : hour + 12);
     
-    const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+    const timeString = `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     onChange(timeString);
-  }, [selectedHour, selectedMinute, selectedPeriod, onChange]);
+  };
 
   const handleScroll = (
     event: any,
@@ -62,7 +62,17 @@ export default function TimePickerScroller({ value, onChange, style }: TimePicke
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / itemHeight);
     const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
-    setter(getValue(items[clampedIndex]));
+    const newValue = getValue(items[clampedIndex]);
+    setter(newValue);
+    
+    // Update time when any value changes
+    if (setter === setSelectedHour) {
+      updateTime(newValue, selectedMinute, selectedPeriod);
+    } else if (setter === setSelectedMinute) {
+      updateTime(selectedHour, newValue, selectedPeriod);
+    } else if (setter === setSelectedPeriod) {
+      updateTime(selectedHour, selectedMinute, newValue);
+    }
   };
 
   const scrollToValue = (scrollRef: React.RefObject<ScrollView>, value: number, items: any[]) => {
