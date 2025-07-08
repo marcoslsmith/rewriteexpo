@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: 'rgba(139, 92, 246, 0.85)', // Purple with transparency
+    backgroundColor: 'rgba(139, 92, 246, 0.95)', // Purple with less transparency
   },
   glassOverlay: {
     position: 'absolute',
@@ -397,13 +397,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)', // Slightly increased overlay for glass effect
+    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Reduced overlay for less transparency
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)', // Subtle border for glass effect
+    borderColor: 'rgba(255, 255, 255, 0.1)', // More subtle border
     borderBottomWidth: 0,
     backdropFilter: 'blur(10px)', // Add blur effect for glass appearance
   },
