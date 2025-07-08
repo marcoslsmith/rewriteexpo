@@ -21,7 +21,7 @@ import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, Edit } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
