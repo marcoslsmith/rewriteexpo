@@ -274,7 +274,7 @@ export default function ChallengesScreen() {
         .eq('user_id', user.id)
         .eq('challenge_id', challengeId)
         .eq('status', 'in_progress')
-        .single();
+        .maybeSingle();
 
       if (existingProgress) {
         Alert.alert(
