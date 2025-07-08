@@ -47,7 +47,7 @@ export default function Settings() {
   const [success, setSuccess] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<NotificationSchedule | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,9 +59,9 @@ export default function Settings() {
   // Profile editing state
   const [editingProfile, setEditingProfile] = useState({
     display_name: '',
-    username: ''
+    username: '',
   });
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   
   const [newSchedule, setNewSchedule] = useState({
     message: '',
@@ -84,14 +84,9 @@ export default function Settings() {
 
   useEffect(() => {
     if (user) {
+      fetchProfile();
       fetchSchedules();
       fetchManifestations();
-      fetchProfile();
-    } else {
-      // Clear schedules when no user
-      setSchedules([]);
-      setManifestations([]);
-      setFavoriteManifestations([]);
     }
   }, [user]);
 
@@ -103,67 +98,6 @@ export default function Settings() {
       console.error('Error checking user:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchSchedules = async () => {
-    if (!user) return;
-    
-    try {
-      console.log('Fetching notification schedules...');
-      const data = await storageService.getNotificationSchedules();
-      console.log('Notification schedules fetched:', data.length, 'schedules');
-      console.log('Schedules data:', data);
-      setSchedules(data);
-      
-      // If user has no schedules and is authenticated, create default ones
-      if (data.length === 0 && user) {
-        console.log('No schedules found, creating default schedules...');
-        // Wait a moment then try to create defaults
-        setTimeout(async () => {
-          await createDefaultSchedules();
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      setError('Failed to load notification schedules');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const createDefaultSchedules = async () => {
-    if (!user) return;
-    
-    try {
-      console.log('Creating default schedules for user:', user.id);
-      
-      // Use the helper function to create defaults
-      await storageService.createDefaultSchedulesForCurrentUser();
-      
-      console.log('Default schedules created successfully');
-      
-      // Refresh the schedules list after a short delay
-      setTimeout(async () => {
-        console.log('Refreshing schedules after creating defaults...');
-        await fetchSchedules();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Error creating default schedules:', error);
-      setError('Failed to create default schedules');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const fetchManifestations = async () => {
-    try {
-      console.log('Fetching manifestations...');
-      const data = await storageService.getManifestations();
-      console.log('Manifestations fetched:', data.length, 'manifestations');
-      setManifestations(data);
-      setFavoriteManifestations(data.filter(m => m.is_favorite));
-    } catch (error) {
-      console.error('Error fetching manifestations:', error);
     }
   };
 
@@ -185,72 +119,38 @@ export default function Settings() {
       setProfile(data);
       setEditingProfile({
         display_name: data.display_name || '',
-        username: data.username || ''
+        username: data.username || '',
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
   };
 
-  const handleUpdateProfile = async () => {
-    if (!user || !profile) return;
+  const fetchSchedules = async () => {
+    if (!user) return;
     
-    setProfileLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          display_name: editingProfile.display_name.trim() || null,
-          username: editingProfile.username.trim() || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-      
-      if (error) {
-        if (error.code === '23505' && error.message.includes('username')) {
-          setError('Username is already taken. Please choose a different one.');
-        } else {
-          setError('Failed to update profile. Please try again.');
-        }
-        setTimeout(() => setError(null), 3000);
-        return;
-      }
-      
-      // Update local state
-      const updatedProfile = {
-        ...profile,
-        display_name: editingProfile.display_name.trim() || null,
-        username: editingProfile.username.trim() || null,
-        updated_at: new Date().toISOString()
-      };
-      setProfile(updatedProfile);
-      
-      setSuccess('Profile updated successfully!');
-      setTimeout(() => setSuccess(null), 3000);
-      setShowEditProfileModal(false);
-    } catch (error: any) {
-      setError('Failed to update profile. Please try again.');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setProfileLoading(false);
+      const data = await storageService.getNotificationSchedules();
+      setSchedules(data);
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
     }
   };
 
-  const openEditProfile = () => {
-    if (profile) {
-      setEditingProfile({
-        display_name: profile.display_name || '',
-        username: profile.username || ''
-      });
+  const fetchManifestations = async () => {
+    try {
+      const data = await storageService.getManifestations();
+      setManifestations(data);
+      setFavoriteManifestations(data.filter(m => m.is_favorite));
+    } catch (error) {
+      console.error('Error fetching manifestations:', error);
     }
-    setShowEditProfileModal(true);
   };
 
   const handleSignIn = async () => {
     try {
       setError(null);
       setLoading(true);
-      console.log('Attempting to sign in...');
 
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
@@ -258,7 +158,6 @@ export default function Settings() {
           password,
         });
         if (error) throw error;
-        console.log('Sign up successful');
         setSuccess('Account created successfully!');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -266,22 +165,14 @@ export default function Settings() {
           password,
         });
         if (error) throw error;
-        console.log('Sign in successful');
         setSuccess('Signed in successfully!');
       }
 
       setShowSignInModal(false);
       setEmail('');
       setPassword('');
-      await checkUser();
-      // Force refresh of data after sign in
-      setTimeout(async () => {
-        console.log('Refreshing data after sign in...');
-        await fetchSchedules();
-        await fetchManifestations();
-      }, 1000);
+      checkUser();
     } catch (error: any) {
-      console.error('Sign in error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -290,19 +181,52 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     try {
-      console.log('Signing out...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
+      setProfile(null);
       setSchedules([]);
-      setManifestations([]);
-      setFavoriteManifestations([]);
       setSuccess('Signed out successfully!');
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user || !profile) return;
+    
+    setProfileSaving(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name: editingProfile.display_name.trim() || null,
+          username: editingProfile.username.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setProfile({
+        ...profile,
+        display_name: editingProfile.display_name.trim() || null,
+        username: editingProfile.username.trim() || null,
+        updated_at: new Date().toISOString(),
+      });
+      
+      setSuccess('Profile updated successfully!');
+      setShowProfileModal(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
-      console.error('Sign out error:', error);
-      setError(error.message);
+      console.error('Error updating profile:', error);
+      setError(error.message || 'Failed to update profile');
       setTimeout(() => setError(null), 3000);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -333,6 +257,14 @@ export default function Settings() {
     setShowScheduleModal(true);
   };
 
+  const openProfileEditModal = () => {
+    setEditingProfile({
+      display_name: profile?.display_name || '',
+      username: profile?.username || '',
+    });
+    setShowProfileModal(true);
+  };
+
   const getScheduleTitle = () => {
     if (newSchedule.isManifestationType) {
       if (newSchedule.useRandomFavorites) {
@@ -358,8 +290,6 @@ export default function Settings() {
     let useRandomManifestation = false;
     let title = getScheduleTitle();
 
-    console.log('Saving schedule:', { title, finalMessage, useRandomManifestation });
-
     if (newSchedule.isManifestationType) {
       if (newSchedule.useRandomFavorites) {
         useRandomManifestation = true;
@@ -384,7 +314,6 @@ export default function Settings() {
     try {
       if (editingSchedule) {
         // Update existing schedule
-        console.log('Updating existing schedule:', editingSchedule.id);
         await storageService.updateNotificationSchedule(editingSchedule.id, {
           title,
           message: finalMessage,
@@ -395,7 +324,6 @@ export default function Settings() {
         setSuccess('Schedule updated successfully!');
       } else {
         // Create new schedule
-        console.log('Creating new schedule for user:', user.id);
         await storageService.addNotificationSchedule({
           user_id: user.id,
           title,
@@ -410,14 +338,9 @@ export default function Settings() {
 
       setShowScheduleModal(false);
       resetScheduleForm();
-      // Wait a moment then refresh schedules
-      setTimeout(async () => {
-        console.log('Refreshing schedules after save...');
-        fetchSchedules();
-      }, 800);
+      fetchSchedules();
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
-      console.error('Error saving schedule:', error);
       setError(error.message);
       setTimeout(() => setError(null), 3000);
     }
@@ -425,16 +348,11 @@ export default function Settings() {
 
   const toggleScheduleActive = async (schedule: NotificationSchedule) => {
     try {
-      console.log('Toggling schedule active state:', schedule.id, !schedule.is_active);
       await storageService.updateNotificationSchedule(schedule.id, {
         is_active: !schedule.is_active
       });
-      setTimeout(async () => {
-        console.log('Refreshing schedules after toggle...');
-        fetchSchedules();
-      }, 500);
+      fetchSchedules();
     } catch (error: any) {
-      console.error('Error toggling schedule:', error);
       setError('Failed to update schedule');
       setTimeout(() => setError(null), 3000);
     }
@@ -442,16 +360,11 @@ export default function Settings() {
 
   const deleteSchedule = async (scheduleId: string) => {
     try {
-      console.log('Deleting schedule:', scheduleId);
       await storageService.deleteNotificationSchedule(scheduleId);
       setSuccess('Schedule deleted');
-      setTimeout(async () => {
-        console.log('Refreshing schedules after delete...');
-        fetchSchedules();
-      }, 500);
+      fetchSchedules();
       setTimeout(() => setSuccess(null), 2000);
     } catch (error: any) {
-      console.error('Error deleting schedule:', error);
       setError('Failed to delete schedule');
       setTimeout(() => setError(null), 3000);
     }
@@ -551,26 +464,24 @@ export default function Settings() {
                   <Text style={styles.sectionTitle}>Profile</Text>
                   <TouchableOpacity
                     style={styles.editButton}
-                    onPress={openEditProfile}
+                    onPress={openProfileEditModal}
                   >
                     <Edit size={16} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.profileCard}>
-                  <View style={styles.profileHeader}>
-                    <View style={styles.profileInfo}>
-                      {profile?.display_name && (
-                        <Text style={styles.profileDisplayName}>{profile.display_name}</Text>
-                      )}
-                      {profile?.username && (
-                        <Text style={styles.profileUsername}>@{profile.username}</Text>
-                      )}
-                      <Text style={styles.profileEmail}>{user.email}</Text>
-                    </View>
+                  <View style={styles.profileInfo}>
+                    <Text style={styles.profileEmail}>{user.email}</Text>
+                    {profile?.display_name && (
+                      <Text style={styles.profileDisplayName}>{profile.display_name}</Text>
+                    )}
+                    {profile?.username && (
+                      <Text style={styles.profileUsername}>@{profile.username}</Text>
+                    )}
+                    <Text style={styles.profileJoined}>
+                      Joined {new Date(user.created_at).toLocaleDateString()}
+                    </Text>
                   </View>
-                  <Text style={styles.profileJoined}>
-                    Joined {new Date(user.created_at).toLocaleDateString()}
-                  </Text>
                   
                   {/* Compact Stats Row */}
                   <View style={styles.compactStatsRow}>
@@ -608,11 +519,6 @@ export default function Settings() {
                   </TouchableOpacity>
                 </View>
                 
-                {/* Debug info - remove this in production */}
-                <Text style={styles.debugText}>
-                  Schedules: {schedules.length} | User: {user?.email || 'none'} | Auth: {user ? 'yes' : 'no'}
-                </Text>
-                
                 {schedules.length > 0 ? (
                   schedules.map((schedule) => (
                     <ScheduleCard
@@ -630,76 +536,6 @@ export default function Settings() {
                     <Text style={styles.emptySubtext}>
                       Add your first reminder to stay on track
                     </Text>
-                    <TouchableOpacity
-                      style={styles.refreshButton}
-                      onPress={() => {
-                        console.log('Manual refresh triggered by user');
-                        fetchSchedules();
-                      }}
-                    >
-                      <Text style={styles.refreshButtonText}>Refresh</Text>
-                    </TouchableOpacity>
-                    
-                    {user && (
-                      <TouchableOpacity
-                        style={[styles.refreshButton, { backgroundColor: 'rgba(34, 197, 94, 0.3)' }]}
-                        onPress={() => {
-                          console.log('Force create defaults triggered by user');
-                          createDefaultSchedules();
-                        }}
-                      >
-                        <Text style={styles.refreshButtonText}>Create Defaults</Text>
-                      </TouchableOpacity>
-                    )}
-                    
-                    {/* Debug button to check database directly */}
-                    {user && (
-                      <TouchableOpacity
-                        style={[styles.refreshButton, { backgroundColor: 'rgba(239, 68, 68, 0.3)' }]}
-                        onPress={async () => {
-                          const result = await storageService.debugNotificationSchedules();
-                          console.log('Debug result:', result);
-                        }}
-                      >
-                        <Text style={styles.refreshButtonText}>Debug DB</Text>
-                      </TouchableOpacity>
-                    )}
-                    
-                    {/* Force refresh everything */}
-                    {user && (
-                      <TouchableOpacity
-                        style={[styles.refreshButton, { backgroundColor: 'rgba(168, 85, 247, 0.3)' }]}
-                        onPress={async () => {
-                          console.log('=== FORCE REFRESH EVERYTHING ===');
-                          setLoading(true);
-                          try {
-                            // First debug what's in the database
-                            await storageService.debugNotificationSchedules();
-                            
-                            // Then refresh schedules
-                            await fetchSchedules();
-                            
-                            // If still no schedules, force create them
-                            const currentSchedules = await storageService.getNotificationSchedules();
-                            if (currentSchedules.length === 0) {
-                              console.log('Still no schedules, force creating...');
-                              await storageService.createDefaultSchedulesForCurrentUser();
-                              
-                              // Wait and refresh again
-                              setTimeout(async () => {
-                                await fetchSchedules();
-                              }, 2000);
-                            }
-                          } catch (error) {
-                            console.error('Force refresh failed:', error);
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                      >
-                        <Text style={styles.refreshButtonText}>Force Refresh All</Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
                 )}
               </View>
@@ -796,9 +632,9 @@ export default function Settings() {
           </GradientBackground>
         </Modal>
 
-        {/* Edit Profile Modal */}
+        {/* Profile Edit Modal */}
         <Modal
-          visible={showEditProfileModal}
+          visible={showProfileModal}
           animationType="slide"
           presentationStyle="pageSheet"
         >
@@ -808,59 +644,47 @@ export default function Settings() {
                 <Text style={styles.modalTitle}>Edit Profile</Text>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
-                  onPress={() => setShowEditProfileModal(false)}
+                  onPress={() => setShowProfileModal(false)}
                 >
                   <X size={24} color="#ffffff" />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.modalContent}>
-                <View style={styles.profileEditSection}>
-                  <Text style={styles.inputLabel}>Display Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your display name"
-                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                    value={editingProfile.display_name}
-                    onChangeText={(text) => setEditingProfile(prev => ({ ...prev, display_name: text }))}
-                    maxLength={50}
-                  />
-                  <Text style={styles.inputHint}>This is how your name will appear to others</Text>
-                </View>
+                <Text style={styles.inputLabel}>Display Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your display name"
+                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                  value={editingProfile.display_name}
+                  onChangeText={(text) => setEditingProfile(prev => ({ ...prev, display_name: text }))}
+                />
 
-                <View style={styles.profileEditSection}>
-                  <Text style={styles.inputLabel}>Username</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Choose a unique username"
-                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                    value={editingProfile.username}
-                    onChangeText={(text) => setEditingProfile(prev => ({ ...prev, username: text.toLowerCase().replace(/[^a-z0-9_]/g, '') }))}
-                    maxLength={30}
-                    autoCapitalize="none"
-                  />
-                  <Text style={styles.inputHint}>Letters, numbers, and underscores only</Text>
-                </View>
+                <Text style={styles.inputLabel}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your username"
+                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                  value={editingProfile.username}
+                  onChangeText={(text) => setEditingProfile(prev => ({ ...prev, username: text }))}
+                  autoCapitalize="none"
+                />
 
-                <View style={styles.profileEditSection}>
-                  <Text style={styles.inputLabel}>Email</Text>
-                  <View style={styles.disabledInput}>
-                    <Text style={styles.disabledInputText}>{user?.email}</Text>
-                  </View>
-                  <Text style={styles.inputHint}>Email cannot be changed from this screen</Text>
-                </View>
+                <Text style={styles.inputHint}>
+                  Your username will be used for sharing and connecting with others.
+                </Text>
 
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
-                    profileLoading && styles.primaryButtonDisabled
+                    profileSaving && styles.primaryButtonDisabled
                   ]}
                   onPress={handleUpdateProfile}
-                  disabled={profileLoading}
+                  disabled={profileSaving}
                 >
                   <View style={styles.buttonContent}>
-                    {profileLoading ? (
-                      <Text style={styles.primaryButtonText}>Updating...</Text>
+                    {profileSaving ? (
+                      <Text style={styles.primaryButtonText}>Saving...</Text>
                     ) : (
                       <>
                         <Save size={18} color="#ffffff" strokeWidth={1.5} />
@@ -1268,42 +1092,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   profileCard: {
     padding: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 12,
     backdropFilter: 'blur(10px)',
   },
-  profileHeader: {
+  profileInfo: {
     marginBottom: 16,
   },
-  profileInfo: {
-    marginBottom: 8,
-  },
-  profileDisplayName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-    fontFamily: 'Inter-Bold',
-  },
-  profileUsername: {
+  profileEmail: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
+    color: 'white',
+    marginBottom: 4,
     fontFamily: 'Inter-Medium',
   },
-  profileEmail: {
+  profileDisplayName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 2,
+    fontFamily: 'Inter-SemiBold',
+  },
+  profileUsername: {
     fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Inter-Medium',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+    fontFamily: 'Inter-Regular',
   },
   profileJoined: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 12,
     fontFamily: 'Inter-Regular',
   },
   compactStatsRow: {
@@ -1377,36 +1205,6 @@ const styles = StyleSheet.create({
   scheduleControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  editButton: {
-    padding: 4,
-  },
-  profileEditSection: {
-    marginBottom: 24,
-  },
-  inputHint: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginTop: 4,
-    fontFamily: 'Inter-Regular',
-  },
-  disabledInput: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  disabledInputText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Inter-Regular',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
   },
   deleteButton: {
@@ -1551,6 +1349,18 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 8,
     fontFamily: 'Inter-Medium',
+  },
+  inputHint: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 20,
+    fontFamily: 'Inter-Regular',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   typeToggleContainer: {
     flexDirection: 'row',
@@ -1756,23 +1566,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-  },
-  debugText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 12,
-    fontFamily: 'Inter-Regular',
-  },
-  refreshButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-  },
-  refreshButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
   },
 });
