@@ -376,12 +376,12 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         throw new Error('Failed to generate AI summary');
       }
 
-      const aiSummary = data?.response || 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
+      const finalSummary = data?.response || 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
 
       // Update the challenge progress with the AI summary
       const { error: updateError } = await supabase
         .from('challenge_progress')
-        .update({ ai_summary: aiSummary })
+        .update({ ai_summary: finalSummary })
         .eq('id', progressId);
 
       if (updateError) {
@@ -389,9 +389,42 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         throw new Error('Failed to save AI summary');
       }
 
-      return aiSummary;
+      return finalSummary;
     } catch (error) {
       console.error('Error generating AI summary:', error);
+      throw error;
+    }
+  },
+
+  // Complete a challenge and generate AI summary
+  async updateChallengeProgressWithCompletion(progressId: string, updates: ChallengeProgressUpdate): Promise<void> {
+    try {
+      console.log('Updating challenge progress with completion:', progressId, updates);
+      const isAuth = await this.isAuthenticated();
+      
+      if (isAuth) {
+        const { error } = await supabase
+          .from('challenge_progress')
+          .update(updates)
+          .eq('id', progressId);
+        
+        if (error) {
+          console.error('Supabase update challenge progress error:', error);
+          throw error;
+        }
+        console.log('Challenge progress updated in Supabase successfully');
+      } else {
+        // Fallback to local storage
+        const allProgress = await this.getChallengeProgress();
+        const index = allProgress.findIndex(p => p.id === progressId);
+        if (index !== -1) {
+          allProgress[index] = { ...allProgress[index], ...updates };
+          await this.saveChallengeProgress(allProgress);
+          console.log('Challenge progress updated in local storage');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating challenge progress with completion:', error);
       throw error;
     }
   },
@@ -417,25 +450,26 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
-        console.log('Updating challenge status to completed in Supabase');
-        // Update status to completed
-        const { error: updateError } = await supabase
-          .from('challenge_progress')
-          .update({ 
-            status: 'completed',
-            completed_at: new Date().toISOString()
-          })
-          .eq('id', progressId);
+        console.log('Updating challenge status to completed in Supabase and generating AI summary');
         
-        if (updateError) {
-          console.error('Error updating challenge status:', updateError);
-          throw updateError;
+        // First update the status to completed
+        await this.updateChallengeProgressWithCompletion(progressId, {
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        });
+        
+        // Then generate AI summary
+        let aiSummary: string;
+        try {
+          aiSummary = await this.generateAISummary(progressId);
+          console.log('AI summary generated successfully:', aiSummary);
+        } catch (summaryError) {
+          console.error('Error generating AI summary, using fallback:', summaryError);
+          aiSummary = 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
+          // Still update with fallback summary
+          await this.updateChallengeProgressWithCompletion(progressId, { ai_summary: aiSummary });
         }
         
-        console.log('Generating AI summary...');
-        // Generate AI summary
-        const aiSummary = await this.generateAISummary(progressId);
-        console.log('AI summary generated successfully');
         return aiSummary;
       } else {
         console.log('Not authenticated, updating local storage');
@@ -443,14 +477,15 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         const allProgress = await this.getChallengeProgress();
         const index = allProgress.findIndex(p => p.id === progressId);
         if (index !== -1) {
+          const fallbackSummary = 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
           allProgress[index] = { 
             ...allProgress[index], 
             status: 'completed',
             completed_at: new Date().toISOString(),
-            ai_summary: 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.'
+            ai_summary: fallbackSummary
           };
           await this.saveChallengeProgress(allProgress);
-          return allProgress[index].ai_summary!;
+          return fallbackSummary;
         }
         console.error('Challenge progress not found in local storage');
         throw new Error('Challenge progress not found');
@@ -477,11 +512,11 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         
         if (error) {
           console.error('Supabase update challenge progress error:', error);
-          throw error;
+          throw updateError;
         }
         console.log('Challenge progress updated in Supabase successfully');
       } else {
-        // Fallback to local storage
+        // Local storage fallback
         const allProgress = await this.getChallengeProgress();
         const index = allProgress.findIndex(p => p.id === id);
         if (index !== -1) {

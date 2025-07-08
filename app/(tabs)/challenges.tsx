@@ -230,7 +230,7 @@ export default function Challenges() {
     }
 
     try {
-      const updatedProgress: Partial<ChallengeProgress> = {
+      let updatedProgress: Partial<ChallengeProgress> = {
         completed_days: [...currentProgress.completed_days, currentDay],
         responses: { ...currentProgress.responses, [currentDay]: dayResponse },
         points: currentProgress.points + 10,
@@ -240,40 +240,43 @@ export default function Challenges() {
       // Check if this completes the challenge
       const isCompleting = updatedProgress.completed_days!.length === selectedChallenge.duration;
 
-      if (updatedProgress.completed_days!.length === selectedChallenge.duration) {
+      if (isCompleting) {
+        console.log('Challenge is being completed, adding completion bonus');
+        updatedProgress.points = updatedProgress.points! + 50; // Completion bonus
         updatedProgress.status = 'completed';
-        updatedProgress.points = updatedProgress.points! + 50;
+        updatedProgress.completed_at = new Date().toISOString();
         
-        // Complete the challenge and generate AI summary
+        // First update the progress with completion data
+        await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
+        
+        // Then generate AI summary
         try {
+          console.log('Generating AI summary for completed challenge...');
           const aiSummary = await storageService.completeChallenge(currentProgress.id);
-          updatedProgress.ai_summary = aiSummary;
-          console.log('AI Summary generated:', aiSummary);
+          console.log('AI Summary generated successfully:', aiSummary);
           setSuccess(`🎉 Challenge completed! Your journey summary has been saved. You earned ${updatedProgress.points} points total!`);
         } catch (summaryError) {
           console.error('Error generating AI summary:', summaryError);
-          updatedProgress.completed_at = new Date().toISOString();
-          setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total!`);
+          // Even if AI summary fails, the challenge is still completed
+          setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total! (Summary will be generated shortly)`);
         }
-      } else {
-        setSuccess('✨ Day completed! Great work!');
-      }
-
-      await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
-      
-      // If we just completed the challenge, close the modal immediately
-      if (isCompleting) {
+        
+        // Close modal and refresh data
         setShowDayModal(false);
         setDayResponse('');
         await loadData();
+        setTimeout(() => setSuccess(null), 5000);
         return;
+      } else {
+        setSuccess('✨ Day completed! Great work!');
+        // Update progress for non-completing day
+        await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
+        setTimeout(() => setSuccess(null), 3000);
       }
+
 
       setShowDayModal(false);
       setDayResponse('');
-      
-      setTimeout(() => setSuccess(null), updatedProgress.status === 'completed' ? 5000 : 3000);
-      
       await loadData();
     } catch (error) {
       setError('Failed to submit response. Please try again.');
