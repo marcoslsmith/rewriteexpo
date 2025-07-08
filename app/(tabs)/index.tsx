@@ -317,7 +317,7 @@ export default function Journal() {
                       <Sparkles size={20} color="#ffffff" strokeWidth={1.5} />
                     )}
                     <Text style={styles.buttonText}>
-                      {isTransforming ? 'Transforming...' : 'Transform with AI'}
+                      {isTransforming ? 'Transforming...' : 'Transform'}
                     </Text>
                   </View>
                 </LinearGradient>
