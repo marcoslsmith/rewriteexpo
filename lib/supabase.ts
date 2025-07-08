@@ -199,6 +199,88 @@ export type Database = {
           created_at?: string;
         };
       };
+      audio_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          manifestation_ids: string[];
+          duration_minutes: number;
+          music_style: string;
+          audio_url: string | null;
+          file_size: number | null;
+          status: 'pending' | 'generating' | 'completed' | 'failed';
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title?: string;
+          manifestation_ids: string[];
+          duration_minutes: number;
+          music_style: string;
+          audio_url?: string | null;
+          file_size?: number | null;
+          status?: 'pending' | 'generating' | 'completed' | 'failed';
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          manifestation_ids?: string[];
+          duration_minutes?: number;
+          music_style?: string;
+          audio_url?: string | null;
+          file_size?: number | null;
+          status?: 'pending' | 'generating' | 'completed' | 'failed';
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+      };
+      audio_files: {
+        Row: {
+          id: string;
+          user_id: string;
+          manifestation_id: string | null;
+          text_hash: string;
+          audio_url: string;
+          file_size: number | null;
+          voice_model: string;
+          tts_model: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          manifestation_id?: string | null;
+          text_hash: string;
+          audio_url: string;
+          file_size?: number | null;
+          voice_model?: string;
+          tts_model?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          manifestation_id?: string | null;
+          text_hash?: string;
+          audio_url?: string;
+          file_size?: number | null;
+          voice_model?: string;
+          tts_model?: string;
+          created_at?: string;
+        };
+      };
     };
   };
 };

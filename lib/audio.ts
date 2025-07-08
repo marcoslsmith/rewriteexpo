@@ -1,4 +1,8 @@
 import { supabase } from './supabase';
+import type { Database } from './supabase';
+
+type AudioSession = Database['public']['Tables']['audio_sessions']['Row'];
+type AudioFile = Database['public']['Tables']['audio_files']['Row'];
 
 interface GenerateAudioParams {
   manifestationTexts: string[];
@@ -12,24 +16,34 @@ interface AudioCache {
 
 export const audioService = {
   // Cache for storing generated audio URLs
-  audioCache: {} as AudioCache,
+  audioCache: {} as AudioCache, // In-memory cache as fallback
 
   async generatePersonalizedAudio(params: GenerateAudioParams): Promise<string> {
     const { manifestationTexts, duration, musicStyle } = params;
     
     try {
+      // Create audio session record
+      const sessionId = await this.createAudioSession(params);
+      
       // Step 1: Check cache and generate TTS for each manifestation
       const audioUrls: string[] = [];
       
       for (const text of manifestationTexts) {
-        const cacheKey = this.getCacheKey(text);
+        // Check database cache first
+        const cachedAudio = await this.getCachedAudioFile(text);
         
-        if (this.audioCache[cacheKey]) {
-          console.log('Using cached audio for:', text.substring(0, 50) + '...');
-          audioUrls.push(this.audioCache[cacheKey]);
+        if (cachedAudio) {
+          console.log('Using cached audio from database for:', text.substring(0, 50) + '...');
+          audioUrls.push(cachedAudio);
         } else {
           console.log('Generating new audio for:', text.substring(0, 50) + '...');
           const audioUrl = await this.generateTTSAudio(text);
+          
+          // Save to database cache
+          await this.saveAudioFileCache(text, audioUrl);
+          
+          // Also save to in-memory cache as fallback
+          const cacheKey = this.getCacheKey(text);
           this.audioCache[cacheKey] = audioUrl;
           audioUrls.push(audioUrl);
         }
@@ -41,10 +55,102 @@ export const audioService = {
       // Step 3: Add background music
       const finalAudioUrl = await this.addBackgroundMusic(combinedAudioUrl, musicStyle);
 
+      // Update session with final audio URL
+      await this.updateAudioSession(sessionId, 'completed', finalAudioUrl);
+
       return finalAudioUrl;
     } catch (error) {
       console.error('Error generating personalized audio:', error);
+      
+      // If we have a session ID, mark it as failed
+      // Note: sessionId might not be available if creation failed
+      
       throw new Error('Failed to generate personalized audio');
+    }
+  },
+
+  async createAudioSession(params: GenerateAudioParams): Promise<string> {
+    try {
+      const { data, error } = await supabase.rpc('create_audio_session', {
+        session_title: `Audio Session - ${new Date().toLocaleDateString()}`,
+        manifestation_ids: [], // We'll need manifestation IDs for this
+        duration_minutes: params.duration,
+        music_style: params.musicStyle
+      });
+
+      if (error) {
+        console.error('Error creating audio session:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to create audio session:', error);
+      // Return a temporary ID so the process can continue
+      return `temp_${Date.now()}`;
+    }
+  },
+
+  async updateAudioSession(sessionId: string, status: string, audioUrl?: string): Promise<void> {
+    try {
+      if (sessionId.startsWith('temp_')) {
+        console.log('Skipping update for temporary session ID');
+        return;
+      }
+
+      const { error } = await supabase.rpc('update_audio_session_status', {
+        session_id: sessionId,
+        new_status: status,
+        audio_url: audioUrl || null
+      });
+
+      if (error) {
+        console.error('Error updating audio session:', error);
+      }
+    } catch (error) {
+      console.error('Failed to update audio session:', error);
+    }
+  },
+
+  async getCachedAudioFile(text: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase.rpc('get_cached_audio_file', {
+        manifestation_text: text,
+        voice_model: 'nova',
+        tts_model: 'tts-1'
+      });
+
+      if (error) {
+        console.error('Error checking audio cache:', error);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        return data[0].audio_url;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to check audio cache:', error);
+      return null;
+    }
+  },
+
+  async saveAudioFileCache(text: string, audioUrl: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('save_audio_file_cache', {
+        manifestation_id: null, // We'll need to get this from the manifestation
+        manifestation_text: text,
+        audio_url: audioUrl,
+        voice_model: 'nova',
+        tts_model: 'tts-1'
+      });
+
+      if (error) {
+        console.error('Error saving audio to cache:', error);
+      }
+    } catch (error) {
+      console.error('Failed to save audio to cache:', error);
     }
   },
 
@@ -76,9 +182,18 @@ export const audioService = {
         throw new Error(`Failed to generate speech audio: ${error.message}`);
       }
 
-      if (data?.audioUrl) {
-        console.log('TTS generation successful, audio URL received');
-        return data.audioUrl;
+      if (data?.audioUrl || data?.audioData) {
+        console.log('TTS generation successful, audio received');
+        
+        // If we have audioUrl, use it directly
+        if (data.audioUrl) {
+          return data.audioUrl;
+        }
+        
+        // If we have audioData, it's base64 encoded
+        if (data.audioData) {
+          return `data:audio/mpeg;base64,${data.audioData}`;
+        }
       }
 
       console.error('No audio URL in response:', data);
@@ -180,5 +295,56 @@ export const audioService = {
       totalCached: cacheKeys.length,
       cacheKeys
     };
+  },
+
+  // Get user's audio session history
+  async getAudioSessions(limit: number = 10): Promise<AudioSession[]> {
+    try {
+      const { data, error } = await supabase.rpc('get_user_audio_sessions', {
+        limit_count: limit
+      });
+
+      if (error) {
+        console.error('Error fetching audio sessions:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Failed to fetch audio sessions:', error);
+      return [];
+    }
+  },
+
+  // Upload audio file to Supabase Storage
+  async uploadAudioFile(audioBlob: Blob, filename: string): Promise<string> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const filePath = `${user.id}/${filename}`;
+      
+      const { data, error } = await supabase.storage
+        .from('audio-files')
+        .upload(filePath, audioBlob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio-files')
+        .getPublicUrl(data.path);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading audio file:', error);
+      throw new Error('Failed to upload audio file');
+    }
   }
 };
