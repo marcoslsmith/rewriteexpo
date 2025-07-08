@@ -18,7 +18,6 @@ import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
-import FloatingActionButton from '../../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
 
@@ -245,8 +244,6 @@ export default function Challenges() {
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
       <View style={styles.container}>
-        <FloatingActionButton visible={showFAB} />
-        
         {/* Hero Header */}
         <Animated.View 
           style={[

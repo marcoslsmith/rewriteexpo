@@ -19,7 +19,6 @@ import { getGreeting, getMotivationalGreeting } from '../../lib/greetings';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import LoadingShimmer from '../../components/LoadingShimmer';
-import FloatingActionButton from '../../components/FloatingActionButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -179,8 +178,6 @@ export default function Journal() {
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <View style={styles.container}>
-        <FloatingActionButton visible={showFAB} />
-        
         <Animated.ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -397,7 +394,6 @@ export default function Journal() {
           </View>
           
           {/* Bottom padding for FAB */}
-          <View style={styles.bottomPadding} />
         </Animated.ScrollView>
       </View>
     </GradientBackground>
@@ -767,6 +763,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   bottomPadding: {
-    height: 40,
+    height: 20,
   },
 });

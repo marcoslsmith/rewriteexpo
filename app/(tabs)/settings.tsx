@@ -16,7 +16,6 @@ import {
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import GradientBackground from '@/components/GradientBackground';
-import FloatingActionButton from '@/components/FloatingActionButton';
 import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages } from '@/lib/notifications';
@@ -427,8 +426,6 @@ export default function Settings() {
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <View style={styles.container}>
-        <FloatingActionButton visible={showFAB} />
-        
         {/* Compact Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Your account</Text>

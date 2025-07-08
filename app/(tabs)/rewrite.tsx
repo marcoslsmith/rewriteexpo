@@ -20,7 +20,6 @@ import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
 import EmptyState from '../../components/EmptyState';
 import AnimatedButton from '../../components/AnimatedButton';
-import FloatingActionButton from '../../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
 
@@ -224,8 +223,6 @@ export default function Library() {
   return (
     <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
       <View style={styles.container}>
-        <FloatingActionButton visible={showFAB} />
-        
         {/* Hero Header */}
         <Animated.View 
           style={[
