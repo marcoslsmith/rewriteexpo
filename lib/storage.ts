@@ -435,30 +435,40 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
       console.log('Completing challenge with progress ID:', progressId);
       
       // First get the current progress to check its state
-      const currentProgress = await this.getChallengeProgress();
-      const progress = currentProgress.find(p => p.id === progressId);
+      const isAuth = await this.isAuthenticated();
+      let progress: ChallengeProgress | null = null;
+      
+      if (isAuth) {
+        // Get from Supabase
+        const { data, error } = await supabase
+          .from('challenge_progress')
+          .select('*, challenges(*)')
+          .eq('id', progressId)
+          .single();
+        
+        if (error || !data) {
+          throw new Error('Challenge progress not found in database');
+        }
+        progress = data;
+      } else {
+        // Get from local storage
+        const currentProgress = await this.getChallengeProgress();
+        progress = currentProgress.find(p => p.id === progressId) || null;
+      }
       
       if (!progress) {
         throw new Error('Challenge progress not found');
       }
       
-      if (progress.status === 'completed') {
+      if (progress.status === 'completed' && progress.ai_summary) {
         console.log('Challenge already completed, returning existing summary');
-        return progress.ai_summary || 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
+        return progress.ai_summary;
       }
-      
-      const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
         console.log('Updating challenge status to completed in Supabase and generating AI summary');
         
-        // First update the status to completed
-        await this.updateChallengeProgressWithCompletion(progressId, {
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        });
-        
-        // Then generate AI summary
+        // Generate AI summary
         let aiSummary: string;
         try {
           aiSummary = await this.generateAISummary(progressId);
@@ -466,9 +476,12 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         } catch (summaryError) {
           console.error('Error generating AI summary, using fallback:', summaryError);
           aiSummary = 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
-          // Still update with fallback summary
-          await this.updateChallengeProgressWithCompletion(progressId, { ai_summary: aiSummary });
         }
+        
+        // Update with AI summary
+        await this.updateChallengeProgressWithCompletion(progressId, { 
+          ai_summary: aiSummary 
+        });
         
         return aiSummary;
       } else {
@@ -480,8 +493,6 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
           const fallbackSummary = 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
           allProgress[index] = { 
             ...allProgress[index], 
-            status: 'completed',
-            completed_at: new Date().toISOString(),
             ai_summary: fallbackSummary
           };
           await this.saveChallengeProgress(allProgress);
@@ -512,7 +523,7 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         
         if (error) {
           console.error('Supabase update challenge progress error:', error);
-          throw updateError;
+          throw error;
         }
         console.log('Challenge progress updated in Supabase successfully');
       } else {

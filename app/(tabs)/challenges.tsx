@@ -230,10 +230,14 @@ export default function Challenges() {
     }
 
     try {
+      // Calculate points for this day
+      const dayPoints = 10;
+      const newTotalPoints = currentProgress.points + dayPoints;
+      
       let updatedProgress: Partial<ChallengeProgress> = {
         completed_days: [...currentProgress.completed_days, currentDay],
         responses: { ...currentProgress.responses, [currentDay]: dayResponse },
-        points: currentProgress.points + 10,
+        points: newTotalPoints,
         streak: currentProgress.streak + 1,
       };
 
@@ -242,23 +246,33 @@ export default function Challenges() {
 
       if (isCompleting) {
         console.log('Challenge is being completed, adding completion bonus');
-        updatedProgress.points = updatedProgress.points! + 50; // Completion bonus
+        const completionBonus = 50;
+        const finalPoints = newTotalPoints + completionBonus;
+        
+        updatedProgress.points = finalPoints;
         updatedProgress.status = 'completed';
         updatedProgress.completed_at = new Date().toISOString();
         
-        // First update the progress with completion data
-        await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
+        console.log('Final challenge completion data:', {
+          dayPoints,
+          completionBonus,
+          finalPoints,
+          status: 'completed'
+        });
         
-        // Then generate AI summary
+        // Update progress with completion data first
+        await storageService.updateChallengeProgressWithCompletion(currentProgress.id, updatedProgress);
+        
+        // Generate AI summary
         try {
           console.log('Generating AI summary for completed challenge...');
           const aiSummary = await storageService.completeChallenge(currentProgress.id);
           console.log('AI Summary generated successfully:', aiSummary);
-          setSuccess(`🎉 Challenge completed! Your journey summary has been saved. You earned ${updatedProgress.points} points total!`);
+          setSuccess(`🎉 Challenge completed! Your journey summary has been saved. You earned ${finalPoints} points total!`);
         } catch (summaryError) {
           console.error('Error generating AI summary:', summaryError);
           // Even if AI summary fails, the challenge is still completed
-          setSuccess(`🎉 Challenge completed! You earned ${updatedProgress.points} points total! (Summary will be generated shortly)`);
+          setSuccess(`🎉 Challenge completed! You earned ${finalPoints} points total! (Summary will be generated shortly)`);
         }
         
         // Close modal and refresh data
@@ -268,7 +282,7 @@ export default function Challenges() {
         setTimeout(() => setSuccess(null), 5000);
         return;
       } else {
-        setSuccess('✨ Day completed! Great work!');
+        setSuccess(`✨ Day completed! Great work! (+${dayPoints} points)`);
         // Update progress for non-completing day
         await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
         setTimeout(() => setSuccess(null), 3000);
@@ -734,12 +748,48 @@ function CompletedChallengeCard({ challenge, progress }: CompletedChallengeCardP
             <TouchableOpacity 
               style={styles.summaryToggle}
               onPress={() => setShowSummary(!showSummary)}
+              activeOpacity={0.7}
             >
               <BookOpen size={16} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
               <Text style={styles.summaryToggleText}>
                 {showSummary ? 'Hide' : 'View'} Journey Summary
               </Text>
-              <ChevronDown 
+              <View style={{ transform: [{ rotate: showSummary ? '180deg' : '0deg' }] }}>
+                <ChevronDown 
+                  size={16} 
+                  color="rgba(255, 255, 255, 0.8)" 
+                  strokeWidth={1.5}
+                />
+              </View>
+            </TouchableOpacity>
+            
+            {showSummary && (
+              <Animated.View 
+                style={[
+                  styles.summaryContainer,
+                  {
+                    opacity: showSummary ? 1 : 0,
+                  }
+                ]}
+              >
+                <Text style={styles.summaryText}>{progress.ai_summary}</Text>
+              </Animated.View>
+            )}
+          </>
+        )}
+        
+        {!progress.ai_summary && progress.status === 'completed' && (
+          <View style={styles.summaryPlaceholder}>
+            <BookOpen size={16} color="rgba(255, 255, 255, 0.6)" strokeWidth={1.5} />
+            <Text style={styles.summaryPlaceholderText}>
+              Journey summary is being generated...
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
+    </View>
+  );
+}
                 size={16} 
                 color="rgba(255, 255, 255, 0.8)" 
                 strokeWidth={1.5}
@@ -1257,6 +1307,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   summaryToggleText: {
     fontSize: 14,
@@ -1276,6 +1328,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  summaryPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  summaryPlaceholderText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.6)',
     fontStyle: 'italic',
   },
   challengeCard: {
