@@ -204,7 +204,7 @@ export default function Challenges() {
     setSelectedChallenge(challenge);
     setCurrentProgress(progress);
     
-    const nextDay = progress.completed_days.length + 1;
+    const nextDay = Math.max(1, progress.completed_days.length + 1);
     if (nextDay <= challenge.duration) {
       setCurrentDay(nextDay);
       setShowDayModal(true);
@@ -222,6 +222,13 @@ export default function Challenges() {
       return;
     }
 
+    // Validate that we're not trying to submit beyond the challenge duration
+    if (currentDay > selectedChallenge.duration) {
+      setError('This challenge has already been completed.');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     try {
       const updatedProgress: Partial<ChallengeProgress> = {
         completed_days: [...currentProgress.completed_days, currentDay],
@@ -230,6 +237,9 @@ export default function Challenges() {
         streak: currentProgress.streak + 1,
       };
 
+      // Check if this completes the challenge
+      const isCompleting = updatedProgress.completed_days!.length === selectedChallenge.duration;
+
       if (updatedProgress.completed_days!.length === selectedChallenge.duration) {
         updatedProgress.status = 'completed';
         updatedProgress.points = updatedProgress.points! + 50;
@@ -237,6 +247,7 @@ export default function Challenges() {
         // Complete the challenge and generate AI summary
         try {
           const aiSummary = await storageService.completeChallenge(currentProgress.id);
+          updatedProgress.ai_summary = aiSummary;
           console.log('AI Summary generated:', aiSummary);
           setSuccess(`🎉 Challenge completed! Your journey summary has been saved. You earned ${updatedProgress.points} points total!`);
         } catch (summaryError) {
@@ -249,6 +260,14 @@ export default function Challenges() {
       }
 
       await storageService.updateChallengeProgress(currentProgress.id, updatedProgress);
+      
+      // If we just completed the challenge, close the modal immediately
+      if (isCompleting) {
+        setShowDayModal(false);
+        setDayResponse('');
+        await loadData();
+        return;
+      }
 
       setShowDayModal(false);
       setDayResponse('');
@@ -260,6 +279,20 @@ export default function Challenges() {
       setError('Failed to submit response. Please try again.');
       setTimeout(() => setError(null), 3000);
     }
+  };
+
+  // Helper function to check if a day can be submitted
+  const canSubmitDay = () => {
+    if (!currentProgress || !selectedChallenge || !dayResponse.trim()) {
+      return false;
+    }
+    
+    // Check if this day has already been completed
+    if (currentProgress.completed_days.includes(currentDay)) {
+      return false;
+    }
+    
+    return currentDay <= selectedChallenge.duration;
   };
 
   const getProgressForChallenge = (challengeId: string) => {
@@ -500,18 +533,20 @@ export default function Challenges() {
                 <AnimatedButton
                   style={[
                     styles.submitButton,
-                    !dayResponse.trim() && styles.submitButtonDisabled
+                    !canSubmitDay() && styles.submitButtonDisabled
                   ]}
                   onPress={submitDayResponse}
-                  disabled={!dayResponse.trim()}
+                  disabled={!canSubmitDay()}
                 >
                   <LinearGradient
-                    colors={dayResponse.trim() ? ['#10b981', '#059669'] : ['#6b7280', '#4b5563']}
+                    colors={canSubmitDay() ? ['#10b981', '#059669'] : ['#6b7280', '#4b5563']}
                     style={styles.submitButtonGradient}
                   >
                     <View style={styles.submitButtonContent}>
                       <Check size={18} color="#ffffff" strokeWidth={1.5} />
-                      <Text style={styles.submitButtonText}>Complete Day {currentDay}</Text>
+                      <Text style={styles.submitButtonText}>
+                        {currentDay === selectedChallenge?.duration ? 'Complete Challenge' : `Complete Day ${currentDay}`}
+                      </Text>
                     </View>
                   </LinearGradient>
                 </AnimatedButton>

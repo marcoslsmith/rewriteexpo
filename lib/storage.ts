@@ -399,9 +399,25 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
   // Complete a challenge and generate AI summary
   async completeChallenge(progressId: string): Promise<string> {
     try {
+      console.log('Completing challenge with progress ID:', progressId);
+      
+      // First get the current progress to check its state
+      const currentProgress = await this.getChallengeProgress();
+      const progress = currentProgress.find(p => p.id === progressId);
+      
+      if (!progress) {
+        throw new Error('Challenge progress not found');
+      }
+      
+      if (progress.status === 'completed') {
+        console.log('Challenge already completed, returning existing summary');
+        return progress.ai_summary || 'Your journey through this challenge shows dedication and growth. Each day brought new insights and progress toward your goals.';
+      }
+      
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
+        console.log('Updating challenge status to completed in Supabase');
         // Update status to completed
         const { error: updateError } = await supabase
           .from('challenge_progress')
@@ -412,13 +428,17 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
           .eq('id', progressId);
         
         if (updateError) {
+          console.error('Error updating challenge status:', updateError);
           throw updateError;
         }
         
+        console.log('Generating AI summary...');
         // Generate AI summary
         const aiSummary = await this.generateAISummary(progressId);
+        console.log('AI summary generated successfully');
         return aiSummary;
       } else {
+        console.log('Not authenticated, updating local storage');
         // Local storage fallback
         const allProgress = await this.getChallengeProgress();
         const index = allProgress.findIndex(p => p.id === progressId);
@@ -432,6 +452,7 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
           await this.saveChallengeProgress(allProgress);
           return allProgress[index].ai_summary!;
         }
+        console.error('Challenge progress not found in local storage');
         throw new Error('Challenge progress not found');
       }
     } catch (error) {
@@ -445,10 +466,13 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
       console.log('Updating challenge progress:', id, 'with updates:', updates);
       const isAuth = await this.isAuthenticated();
       
+      // Ensure we don't accidentally overwrite important fields
+      const safeUpdates = { ...updates };
+      
       if (isAuth) {
         const { error } = await supabase
           .from('challenge_progress')
-          .update(updates)
+          .update(safeUpdates)
           .eq('id', id);
         
         if (error) {
@@ -461,7 +485,7 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         const allProgress = await this.getChallengeProgress();
         const index = allProgress.findIndex(p => p.id === id);
         if (index !== -1) {
-          allProgress[index] = { ...allProgress[index], ...updates };
+          allProgress[index] = { ...allProgress[index], ...safeUpdates };
           await this.saveChallengeProgress(allProgress);
           console.log('Challenge progress updated in local storage');
         }
