@@ -114,10 +114,31 @@ export default function Library() {
     try {
       const manifestation = manifestations.find(m => m.id === id);
       if (manifestation) {
+        // Optimistic update - update UI immediately
+        const updatedManifestations = manifestations.map(m => 
+          m.id === id ? { ...m, is_favorite: !m.is_favorite } : m
+        );
+        setManifestations(updatedManifestations);
+        
+        // Update the database in the background
         await storageService.updateManifestation(id, { is_favorite: !manifestation.is_favorite });
-        await loadManifestations();
+        
+        // Only reload if the optimistic update might have failed
+        // We'll do a silent background refresh without changing loading states
+        storageService.getManifestations().then(data => {
+          const sortedData = data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setManifestations(sortedData);
+        }).catch(error => {
+          console.error('Background refresh failed:', error);
+          // Revert optimistic update on error
+          setManifestations(manifestations);
+          setError('Failed to update favorite status.');
+          setTimeout(() => setError(null), 3000);
+        });
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setManifestations(manifestations);
       setError('Failed to update favorite status.');
       setTimeout(() => setError(null), 3000);
     }
