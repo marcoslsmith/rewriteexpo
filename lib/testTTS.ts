@@ -48,12 +48,6 @@ export async function testTTSFunction() {
       console.log('✅ TTS Function Test Successful!');
       console.log('🎵 Audio URL generated (first 100 chars):', data.audioUrl.substring(0, 100) + '...');
       
-      // Optionally play the audio to test it
-      if (typeof window !== 'undefined') {
-        console.log('🔊 Creating audio element for testing...');
-        const audio = new Audio(data.audioUrl);
-        audio.volume = 0.5;
-        
       // Test audio playback using expo-av
       if (Platform.OS !== 'web') {
         try {
@@ -70,7 +64,7 @@ export async function testTTSFunction() {
           
           // Create and test the sound
           const { sound } = await Audio.Sound.createAsync(
-            { uri: audioUrl },
+            { uri: data.audioUrl },
             { shouldPlay: false, volume: 0.5 }
           );
           
@@ -78,7 +72,7 @@ export async function testTTSFunction() {
           
           return {
             success: true,
-            audioUrl: audioUrl,
+            audioUrl: data.audioUrl,
             audioSize: data.size,
             playAudio: async () => {
               console.log('▶️ Playing test audio...');
@@ -104,26 +98,22 @@ export async function testTTSFunction() {
           };
         } catch (audioError) {
           console.error('❌ expo-av audio test failed:', audioError);
-          // Fall back to web audio test
+          return {
+            success: false,
+            error: 'expo-av audio test failed',
+            details: audioError
+          };
         }
-      }
-      
+      } else {
+        // For web platform, just return success without playing
+        console.log('🌐 Web platform detected - skipping audio playback test');
         return {
           success: true,
-          audioUrl: audioUrl,
+          audioUrl: data.audioUrl,
           audioSize: data.size,
-          playAudio: () => {
-            console.log('▶️ Playing test audio...');
-            audio.play().catch(e => console.error('Audio play error:', e));
-          }
+          note: 'Audio playback test skipped on web platform'
         };
       }
-      
-      return {
-        success: true,
-        audioUrl: audioUrl,
-        audioSize: data.size
-      };
     } else {
       console.error('❌ Invalid response from TTS function:', data);
       return {

@@ -181,6 +181,51 @@ export const audioService = {
     return btoa(text).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
   },
 
+  // Upload TTS audio to Supabase Storage and return public URL
+  async uploadTTSAudioToStorage(base64Audio: string, textHash: string): Promise<string> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Convert base64 to blob
+      const base64Data = base64Audio.replace(/^data:audio\/[^;]+;base64,/, '');
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+
+      // Upload to tts/ subfolder with user ID
+      const filename = `tts/${user.id}/${textHash}.mp3`;
+      
+      const { data, error } = await supabase.storage
+        .from('audio-files')
+        .upload(filename, audioBlob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Error uploading TTS audio to storage:', error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio-files')
+        .getPublicUrl(data.path);
+
+      console.log('TTS audio uploaded successfully:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('Failed to upload TTS audio to storage:', error);
+      throw new Error('Failed to upload TTS audio to storage');
+    }
+  },
+
   async generateTTSAudio(text: string): Promise<string> {
     try {
       // Call OpenAI TTS API via Supabase Edge Function
@@ -228,23 +273,23 @@ export const audioService = {
       if (data?.success && (data?.audioUrl || data?.audioData)) {
         console.log('TTS generation successful, audio received');
         
-        // If we have audioUrl, use it directly
-        if (data.audioUrl) {
-          // Validate that the audio URL is properly formatted
-          if (data.audioUrl.startsWith('data:audio/')) {
-            console.log('Received base64 audio data URL');
-            return data.audioUrl;
-          } else {
-            console.log('Received HTTP audio URL');
-            return data.audioUrl;
-          }
+        let base64AudioData: string;
+        
+        // Get base64 audio data
+        if (data.audioUrl && data.audioUrl.startsWith('data:audio/')) {
+          base64AudioData = data.audioUrl;
+        } else if (data.audioData) {
+          base64AudioData = `data:audio/mpeg;base64,${data.audioData}`;
+        } else {
+          throw new Error('No valid audio data received from TTS service');
         }
         
-        // If we have audioData, it's base64 encoded
-        if (data.audioData) {
-          console.log('Converting base64 audio data to data URL');
-          return `data:audio/mpeg;base64,${data.audioData}`;
-        }
+        // Upload to Supabase Storage and return public URL
+        console.log('Uploading TTS audio to Supabase Storage...');
+        const textHash = this.generateTextHash(text);
+        const publicUrl = await this.uploadTTSAudioToStorage(base64AudioData, textHash);
+        
+        return publicUrl;
       }
 
       console.error('Invalid response from TTS service:', {
@@ -401,7 +446,7 @@ export const audioService = {
   },
 
   getBackgroundMusicUrl(musicStyle: string): string {
-    // Get the public URL for background music files from Supabase Storage
+    // Get the public URL for background music files from Supabase Storage root
     const musicFiles = {
       'nature': 'nature_sounds.mp3',
       'meditation': 'meditation_bells.mp3',
@@ -410,11 +455,12 @@ export const audioService = {
 
     const filename = musicFiles[musicStyle as keyof typeof musicFiles] || musicFiles.meditation;
     
-    // Get public URL from Supabase Storage
+    // Get public URL from Supabase Storage (files are in root of bucket)
     const { data } = supabase.storage
       .from('audio-files')
       .getPublicUrl(filename);
 
+    console.log(`Background music URL for ${musicStyle}:`, data.publicUrl);
     return data.publicUrl;
   },
 
