@@ -34,18 +34,15 @@ export default function AudioPlayer({
   const [error, setError] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Configure audio mode for playback
   useEffect(() => {
     configureAudio();
     return () => {
-      // Cleanup on unmount
       if (sound) {
         sound.unloadAsync();
       }
     };
   }, []);
 
-  // Load audio when URL changes
   useEffect(() => {
     if (audioUrl) {
       loadAudio();
@@ -77,8 +74,7 @@ export default function AudioPlayer({
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Unload previous sound if exists
+
       if (sound) {
         await sound.unloadAsync();
         setSound(null);
@@ -86,13 +82,12 @@ export default function AudioPlayer({
       }
 
       console.log('Loading audio from URL:', audioUrl);
-      
-      // Validate audio URL
+      console.log('[AudioPlayer] Attempting to load:', audioUrl);
+
       if (!audioUrl || typeof audioUrl !== 'string') {
         throw new Error('Invalid audio URL provided');
       }
 
-      // For data URLs (base64), we need to handle them differently
       let audioSource: any;
       if (audioUrl.startsWith('data:audio/')) {
         console.log('Loading base64 audio data...');
@@ -104,7 +99,6 @@ export default function AudioPlayer({
         throw new Error('Unsupported audio URL format');
       }
 
-      // Create and load the sound
       const { sound: newSound } = await Audio.Sound.createAsync(
         audioSource,
         {
@@ -118,14 +112,11 @@ export default function AudioPlayer({
       setSound(newSound);
       setIsLoaded(true);
       console.log('Audio loaded successfully');
-      
+
     } catch (error) {
       console.error('Error loading audio:', error);
       setError(error instanceof Error ? error.message : 'Failed to load audio');
-      Alert.alert(
-        'Audio Error', 
-        `Failed to load audio: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      Alert.alert('Audio Error', `Failed to load audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -136,8 +127,6 @@ export default function AudioPlayer({
       setDuration(status.durationMillis || 0);
       setPosition(status.positionMillis || 0);
       setIsPlaying(status.isPlaying);
-      
-      // Handle playback completion
       if (status.didJustFinish && !isLooping) {
         setIsPlaying(false);
         setPosition(0);
@@ -156,7 +145,6 @@ export default function AudioPlayer({
         await loadAudio();
         return;
       }
-
       if (isPlaying) {
         console.log('Pausing audio...');
         await sound.pauseAsync();
@@ -211,10 +199,8 @@ export default function AudioPlayer({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Title */}
       <Text style={styles.title}>{title}</Text>
-      
-      {/* Error Display */}
+
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -224,7 +210,6 @@ export default function AudioPlayer({
         </View>
       )}
 
-      {/* Audio URL Debug Info */}
       {__DEV__ && (
         <View style={styles.debugContainer}>
           <Text style={styles.debugText}>
@@ -239,7 +224,6 @@ export default function AudioPlayer({
         </View>
       )}
 
-      {/* Progress Bar */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
           <View 
@@ -257,7 +241,6 @@ export default function AudioPlayer({
         </View>
       </View>
 
-      {/* Player Controls */}
       <View style={styles.controls}>
         <TouchableOpacity
           style={styles.controlButton}
@@ -305,7 +288,6 @@ export default function AudioPlayer({
         </TouchableOpacity>
       </View>
 
-      {/* Test Audio Button (Development only) */}
       {__DEV__ && (
         <TouchableOpacity onPress={loadAudio} style={styles.testButton}>
           <Text style={styles.testButtonText}>Reload Audio</Text>
