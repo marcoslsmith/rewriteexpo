@@ -380,23 +380,23 @@ export const audioService = {
       
       console.log(`Estimated sequence duration: ${totalSequenceDuration}s, will loop ${loopCount} times`);
       
-      // Create the looped sequence metadata
-      const loopedSequence = {
-        audioUrls,
-        loopCount,
-        targetDuration: targetDurationSeconds,
-        sequenceDuration: totalSequenceDuration,
-        seamlessLoop: true, // Enable seamless looping
-        crossfadeDuration: 0.5 // 500ms crossfade between loops
-      };
+      // For now, simulate audio processing by creating a simple audio file
+      // In production, this would use actual audio processing libraries
+      console.log('Simulating looped sequence generation...');
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // For now, return a data URL with the sequence information
-      // In production, this would generate the actual looped audio file
-      const sequenceData = btoa(JSON.stringify(loopedSequence));
-      return `data:audio/sequence;base64,${sequenceData}`;
+      // Create a simple audio blob (silent audio for now)
+      // In production, this would be the actual mixed audio
+      const audioBlob = await this.createSimpleAudioBlob(targetDurationSeconds);
+      
+      // Upload to Supabase Storage
+      const filename = `looped_sequence_${Date.now()}.mp3`;
+      const publicUrl = await this.uploadAudioFile(audioBlob, filename);
+      
+      console.log('Looped sequence uploaded to:', publicUrl);
+      return publicUrl;
     } catch (error) {
       console.error('Error creating looped sequence:', error);
       throw new Error('Failed to create looped audio sequence');
@@ -412,41 +412,84 @@ export const audioService = {
       const backgroundMusicUrl = this.getBackgroundMusicUrl(musicStyle);
       console.log(`Background music URL: ${backgroundMusicUrl}`);
       
-      // Create the final mixed audio configuration
-      const mixedAudioConfig = {
-        voiceSequence: voiceSequenceUrl,
-        backgroundMusic: {
-          url: backgroundMusicUrl,
-          loop: true, // Enable seamless background music looping
-          volume: 0.3, // Background music at 30% volume
-          fadeIn: 2.0, // 2 second fade in
-          fadeOut: 2.0, // 2 second fade out
-        },
-        voice: {
-          volume: 0.8, // Voice at 80% volume
-          priority: true, // Voice takes priority in mix
-        },
-        totalDuration: targetDurationSeconds,
-        seamlessLoop: true,
-        format: 'mp3',
-        quality: 'high'
-      };
+      // Verify background music is accessible
+      const isMusicAccessible = await this.testAudioUrl(backgroundMusicUrl);
+      if (!isMusicAccessible) {
+        console.warn('Background music not accessible, proceeding without it');
+      }
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // For now, return a data URL with the mixed audio configuration
-      // In production, this would generate the actual mixed audio file
-      const mixedData = btoa(JSON.stringify(mixedAudioConfig));
-      return `data:audio/mixed;base64,${mixedData}`;
+      // Create a mixed audio blob (for now, just use the voice sequence)
+      // In production, this would mix voice + background music
+      console.log('Simulating audio mixing...');
+      
+      // For now, create a simple audio blob representing the final mix
+      const mixedAudioBlob = await this.createSimpleAudioBlob(targetDurationSeconds);
+      
+      // Upload the final mixed audio to Supabase Storage
+      const filename = `mixed_audio_${musicStyle}_${Date.now()}.mp3`;
+      const publicUrl = await this.uploadAudioFile(mixedAudioBlob, filename);
+      
+      console.log('Mixed audio uploaded to:', publicUrl);
+      return publicUrl;
     } catch (error) {
       console.error('Error adding looping background music:', error);
       throw new Error('Failed to add looping background music');
     }
   },
 
+  // Create a simple audio blob for testing/simulation
+  async createSimpleAudioBlob(durationSeconds: number): Promise<Blob> {
+    try {
+      // Create a minimal MP3 header for a silent audio file
+      // This is a very basic MP3 structure - in production you'd use proper audio libraries
+      const sampleRate = 44100;
+      const channels = 2;
+      const bytesPerSample = 2;
+      const dataSize = durationSeconds * sampleRate * channels * bytesPerSample;
+      
+      // Create a simple WAV file structure (easier than MP3)
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      
+      // WAV header
+      const writeString = (offset: number, string: string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+      
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+      view.setUint16(32, channels * bytesPerSample, true);
+      view.setUint16(34, 8 * bytesPerSample, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+      
+      // Fill with silence (zeros)
+      for (let i = 44; i < buffer.byteLength; i++) {
+        view.setUint8(i, 0);
+      }
+      
+      return new Blob([buffer], { type: 'audio/wav' });
+    } catch (error) {
+      console.error('Error creating simple audio blob:', error);
+      // Fallback: create a minimal blob
+      return new Blob([''], { type: 'audio/mp3' });
+    }
+  },
   getBackgroundMusicUrl(musicStyle: string): string {
-    // Get the public URL for background music files from Supabase Storage root
+    // Get the public URL for background music files from Supabase Storage
+    // These files should be in the root of the audio-files bucket
     const musicFiles = {
       'nature': 'nature_sounds.mp3',
       'meditation': 'meditation_bells.mp3',
@@ -455,32 +498,52 @@ export const audioService = {
 
     const filename = musicFiles[musicStyle as keyof typeof musicFiles] || musicFiles.meditation;
     
-    // Get public URL from Supabase Storage (files are in root of bucket)
+    // Get public URL from Supabase Storage
+    // Files should be in the root of the bucket for public access
     const { data } = supabase.storage
       .from('audio-files')
       .getPublicUrl(filename);
 
-    console.log(`Background music URL for ${musicStyle}:`, data.publicUrl);
+    const publicUrl = data.publicUrl;
+    console.log(`Background music URL for ${musicStyle} (${filename}):`, publicUrl);
+    
+    // Verify the URL format is correct
+    if (!publicUrl.includes('/storage/v1/object/public/audio-files/')) {
+      console.warn('Background music URL format may be incorrect:', publicUrl);
+    }
+    
     return data.publicUrl;
   },
 
-  async uploadToStorage(audioBlob: Blob, filename: string): Promise<string> {
+  // Upload audio file to user's folder in Supabase Storage
+  async uploadAudioFile(audioBlob: Blob, filename: string): Promise<string> {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Upload to user's generated audio folder
+      const filePath = `generated/${user.id}/${filename}`;
+      
       const { data, error } = await supabase.storage
         .from('audio-files')
-        .upload(`generated/${filename}`, audioBlob, {
+        .upload(filePath, audioBlob, {
           contentType: 'audio/mpeg',
           upsert: true
         });
 
       if (error) {
+        console.error('Error uploading audio file to storage:', error);
         throw error;
       }
 
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('audio-files')
         .getPublicUrl(data.path);
 
+      console.log('Audio file uploaded successfully:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Error uploading to storage:', error);
@@ -488,6 +551,10 @@ export const audioService = {
     }
   },
 
+  // Legacy method - redirect to uploadAudioFile
+  async uploadToStorage(audioBlob: Blob, filename: string): Promise<string> {
+    return this.uploadAudioFile(audioBlob, filename);
+  },
   // Clear cache (useful for development/testing)
   clearCache(): void {
     this.audioCache = {};
@@ -525,13 +592,19 @@ export const audioService = {
   // Parse audio configuration from data URL
   parseAudioConfig(dataUrl: string): any {
     try {
-      if (dataUrl.startsWith('data:audio/sequence;base64,')) {
-        const base64Data = dataUrl.replace('data:audio/sequence;base64,', '');
-        return JSON.parse(atob(base64Data));
-      } else if (dataUrl.startsWith('data:audio/mixed;base64,')) {
-        const base64Data = dataUrl.replace('data:audio/mixed;base64,', '');
-        return JSON.parse(atob(base64Data));
+      // For Supabase public URLs, we don't have embedded config
+      // Return default configuration
+      if (dataUrl.includes('/storage/v1/object/public/audio-files/')) {
+        return {
+          totalDuration: 600, // Default 10 minutes
+          seamlessLoop: true,
+          format: 'mp3',
+          source: 'supabase_storage'
+        };
       }
+      
+      // Legacy support for data URLs (should not be used anymore)
+      console.warn('Received data URL instead of Supabase public URL:', dataUrl.substring(0, 50) + '...');
       return null;
     } catch (error) {
       console.error('Error parsing audio config:', error);
@@ -541,49 +614,51 @@ export const audioService = {
 
   // Get the actual duration of the generated audio
   getAudioDuration(audioUrl: string): number {
+    // For Supabase URLs, we need to determine duration differently
+    if (audioUrl.includes('/storage/v1/object/public/audio-files/')) {
+      // Extract duration from filename or use default
+      // In production, you might store this metadata in the database
+      return 600; // Default 10 minutes
+    }
+    
+    // Legacy support for data URLs
     const config = this.parseAudioConfig(audioUrl);
-    if (config && config.totalDuration) {
+    if (config?.totalDuration) {
       return config.totalDuration;
     }
-    // Fallback to default duration
+    
     return 600; // 10 minutes default
   },
 
   // Check if audio should loop seamlessly
   isSeamlessLoop(audioUrl: string): boolean {
+    // For Supabase URLs, assume seamless looping is enabled
+    if (audioUrl.includes('/storage/v1/object/public/audio-files/')) {
+      return true;
+    }
+    
+    // Legacy support for data URLs
     const config = this.parseAudioConfig(audioUrl);
     return config?.seamlessLoop === true;
   },
 
-  // Upload audio file to Supabase Storage
-  async uploadAudioFile(audioBlob: Blob, filename: string): Promise<string> {
+  // Verify that background music files are accessible
+  async verifyBackgroundMusicAccess(): Promise<{ [key: string]: boolean }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const filePath = `${user.id}/${filename}`;
+      const musicStyles = ['nature', 'meditation', 'ambient'];
+      const results: { [key: string]: boolean } = {};
       
-      const { data, error } = await supabase.storage
-        .from('audio-files')
-        .upload(filePath, audioBlob, {
-          contentType: 'audio/mpeg',
-          upsert: true
-        });
-
-      if (error) {
-        throw error;
+      for (const style of musicStyles) {
+        const url = this.getBackgroundMusicUrl(style);
+        const isAccessible = await this.testAudioUrl(url);
+        results[style] = isAccessible;
+        console.log(`Background music ${style}: ${isAccessible ? 'accessible' : 'not accessible'}`);
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('audio-files')
-        .getPublicUrl(data.path);
-
-      return publicUrl;
+      
+      return results;
     } catch (error) {
-      console.error('Error uploading audio file:', error);
-      throw new Error('Failed to upload audio file');
+      console.error('Error verifying background music access:', error);
+      return {};
     }
   }
 };

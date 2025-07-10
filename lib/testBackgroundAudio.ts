@@ -79,6 +79,8 @@ export async function testBackgroundAudioAccess() {
     console.log('✅ All background audio files are accessible!');
   } else {
     console.log('❌ Some background audio files are not accessible. Check Supabase Storage policies.');
+    console.log('💡 Make sure the files are uploaded to the root of the audio-files bucket');
+    console.log('💡 Verify the storage policies allow public read access for these files');
   }
   
   return {
@@ -89,6 +91,73 @@ export async function testBackgroundAudioAccess() {
   };
 }
 
+/**
+ * Test the audio generation flow end-to-end
+ */
+export async function testAudioGenerationFlow() {
+  console.log('🧪 Testing complete audio generation flow...');
+  
+  try {
+    // Import audio service
+    const { audioService } = await import('./audio');
+    
+    // Test background music access first
+    console.log('1. Testing background music access...');
+    const musicResults = await audioService.verifyBackgroundMusicAccess();
+    console.log('Background music results:', musicResults);
+    
+    // Test TTS generation
+    console.log('2. Testing TTS generation...');
+    const testText = "This is a test manifestation for audio generation.";
+    
+    try {
+      const ttsUrl = await audioService.generateTTSAudio(testText);
+      console.log('✅ TTS generation successful:', ttsUrl);
+      
+      // Test if the TTS URL is accessible
+      const isTTSAccessible = await audioService.testAudioUrl(ttsUrl);
+      console.log('TTS URL accessible:', isTTSAccessible);
+      
+      // Test full audio generation
+      console.log('3. Testing full audio generation...');
+      const fullAudioUrl = await audioService.generatePersonalizedAudio({
+        manifestationTexts: [testText],
+        duration: 1, // 1 minute for testing
+        musicStyle: 'nature'
+      });
+      
+      console.log('✅ Full audio generation successful:', fullAudioUrl);
+      
+      // Verify the final URL is accessible
+      const isFinalAccessible = await audioService.testAudioUrl(fullAudioUrl);
+      console.log('Final audio URL accessible:', isFinalAccessible);
+      
+      return {
+        success: true,
+        ttsUrl,
+        finalAudioUrl: fullAudioUrl,
+        musicResults,
+        allAccessible: isTTSAccessible && isFinalAccessible
+      };
+      
+    } catch (ttsError) {
+      console.error('❌ TTS generation failed:', ttsError);
+      return {
+        success: false,
+        error: 'TTS generation failed',
+        details: ttsError
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ Audio generation flow test failed:', error);
+    return {
+      success: false,
+      error: 'Test setup failed',
+      details: error
+    };
+  }
+}
 /**
  * Test a specific background audio URL
  */
@@ -133,7 +202,9 @@ export async function testSpecificAudioUrl(url: string) {
 if (typeof window !== 'undefined') {
   (window as any).testBackgroundAudio = testBackgroundAudioAccess;
   (window as any).testAudioUrl = testSpecificAudioUrl;
+  (window as any).testAudioFlow = testAudioGenerationFlow;
   console.log('🛠️ Background audio test functions available in console:');
   console.log('  - testBackgroundAudio() - Test all background audio files');
   console.log('  - testAudioUrl(url) - Test a specific audio URL');
+  console.log('  - testAudioFlow() - Test complete audio generation flow');
 }
