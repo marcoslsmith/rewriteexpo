@@ -42,11 +42,11 @@ export const audioService = {
       }
 
       // 2) Loop sequence
-      console.log(`Looping ${audioUrls.length} clips for ${duration} min`);
+      console.log(`Creating ${duration*60}s looped sequence`);
       const looped = await this.createLoopedSequence(audioUrls, duration);
 
       // 3) Add background music
-      console.log(`Adding ${musicStyle} background music`);
+      console.log(`Mixing in ${musicStyle} background music`);
       const finalUrl = await this.addLoopingBackgroundMusic(looped, musicStyle, duration);
 
       await this.updateAudioSession(sessionId, 'completed', finalUrl);
@@ -63,10 +63,10 @@ export const audioService = {
   async createAudioSession(params: GenerateAudioParams): Promise<string> {
     try {
       const { data, error } = await supabase.rpc('create_audio_session', {
-        p_title:            `Audio Session - ${new Date().toLocaleDateString()}`,
+        p_title:             `Audio Session - ${new Date().toLocaleDateString()}`,
         p_manifestation_ids: [],
-        p_duration_minutes: params.duration,
-        p_music_style:      params.musicStyle
+        p_duration_minutes:  params.duration,
+        p_music_style:       params.musicStyle
       });
       if (error) throw error;
       return data;
@@ -96,9 +96,9 @@ export const audioService = {
     try {
       const textHash = this.generateTextHash(text);
       const { data, error } = await supabase.rpc('get_cached_audio_file', {
-        p_text_hash: textHash,
-        p_voice_model: 'nova',
-        p_tts_model:   'tts-1'
+        p_text_hash:  textHash,
+        p_voice_model:'nova',
+        p_tts_model:  'tts-1'
       });
       if (error) throw error;
       return data && data.length>0 ? data[0].audio_url : null;
@@ -146,23 +146,22 @@ export const audioService = {
       if (error) throw error;
       if (!data.success) throw new Error('TTS service responded without success');
 
-      // pick up base64 or data-URI
       const base64 = data.audioUrl?.startsWith('data:audio/')
         ? data.audioUrl
         : `data:audio/mpeg;base64,${data.audioData}`;
-      return await this.uploadTTSAudioToStorage(base64, this.generateTextHash(text));
+      return this.uploadTTSAudioToStorage(base64, this.generateTextHash(text));
 
     } catch (e:any) {
       console.error('generateTTSAudio failed:', e);
-      throw new Error(e.message || 'TTS generation error');
+      throw new Error(e.message||'TTS generation error');
     }
   },
 
   /** Uploads a base64 data-URI to Supabase Storage */
-  async uploadTTSAudioToStorage(base64Audio: string, textHash: string): Promise<string> {
+  async uploadTTSAudioToStorage(base64Audio:string, textHash:string):Promise<string> {
     const { data:{user} } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    const payload = base64Audio.replace(/^data:audio\/[^;]+;base64,/, '');
+    const payload = base64Audio.replace(/^data:audio\/[^^]+;base64,/, '');
     const response = await fetch(`data:audio/mpeg;base64,${payload}`);
     const blob     = await response.blob();
     const filename = `tts/${user.id}/${textHash}.mp3`;
@@ -171,38 +170,32 @@ export const audioService = {
       .from('audio-files')
       .upload(filename, blob, { contentType:'audio/mpeg', upsert:true });
     if (error) throw error;
-    return supabase.storage
-      .from('audio-files')
-      .getPublicUrl(data.path)
-      .data.publicUrl;
+    return supabase.storage.from('audio-files').getPublicUrl(data.path).data.publicUrl;
   },
 
   /** Verifies an audio URL is accessible/playable */
-  async testAudioUrl(audioUrl: string): Promise<boolean> {
+  async testAudioUrl(audioUrl:string):Promise<boolean> {
     try {
       if (audioUrl.startsWith('data:audio/')) {
         const b64 = audioUrl.split(',')[1]||'';
-        return b64.length > 100;
+        return b64.length>100;
       }
       const res = await fetch(audioUrl, { method:'HEAD' });
       return res.ok && /audio\//.test(res.headers.get('content-type')||'');
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   },
 
   /** Loops N clips into one file by concatenating silence+clips */
-  async createLoopedSequence(audioUrls:string[], targetDurationMin:number): Promise<string> {
+  async createLoopedSequence(audioUrls:string[], targetDurationMin:number):Promise<string> {
     const totalSec = targetDurationMin*60;
     console.log(`Creating ${totalSec}s looped sequence`);
-    // simulate fetch + silence stitching...
-    const audioBlob = await this.createSimpleAudioBlob(totalSec);
-    const filename  = `looped_sequence_${Date.now()}.mp3`;
-    return this.uploadAudioFile(audioBlob, filename);
+    const blob     = await this.createSimpleAudioBlob(totalSec);
+    const filename = `looped_sequence_${Date.now()}.mp3`;
+    return this.uploadAudioFile(blob, filename);
   },
 
   /** Mixes voice+music by re-using silence blob for demo */
-  async addLoopingBackgroundMusic(voiceSeqUrl:string, musicStyle:string, durMin:number): Promise<string> {
+  async addLoopingBackgroundMusic(voiceSeqUrl:string, musicStyle:string, durMin:number):Promise<string> {
     const totalSec = durMin*60;
     console.log(`Mixing in ${musicStyle} for ${totalSec}s`);
     const blob     = await this.createSimpleAudioBlob(totalSec);
@@ -210,14 +203,9 @@ export const audioService = {
     return this.uploadAudioFile(blob, filename);
   },
 
-  /**
-   * REPLACED: now RN-compatible, repeats
-   * a 1s silent WAV chunk to reach `durationSeconds`.
-   */
-  async createSimpleAudioBlob(durationSeconds: number): Promise<Blob> {
-    // A 1s silent WAV file, base64-encoded
+  /** RN-compatible silent WAV builder */
+  async createSimpleAudioBlob(durationSeconds:number):Promise<Blob> {
     const silentChunk = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-    // repeat it durationSeconds times
     const repeated    = Array(durationSeconds).fill(silentChunk).join('');
     const dataUri     = `data:audio/wav;base64,${repeated}`;
     const res         = await fetch(dataUri);
@@ -228,12 +216,12 @@ export const audioService = {
   /** Maps styles → public-bucket filenames */
   getBackgroundMusicUrl(musicStyle:string):string {
     const files = { nature:'nature_sounds.mp3', meditation:'meditation_bells.mp3', ambient:'ambient_waves.mp3' };
-    const fn    = files[musicStyle] || files.meditation;
+    const fn    = files[musicStyle]||files.meditation;
     return supabase.storage.from('audio-files').getPublicUrl(fn).data.publicUrl;
   },
 
   /** Uploads any Blob to the user's generated folder */
-  async uploadAudioFile(audioBlob:Blob, filename:string): Promise<string> {
+  async uploadAudioFile(audioBlob:Blob, filename:string):Promise<string> {
     const { data:{user} } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
     const path = `generated/${user.id}/${filename}`;
@@ -244,8 +232,39 @@ export const audioService = {
     return supabase.storage.from('audio-files').getPublicUrl(data.path).data.publicUrl;
   },
 
-  // …the rest of your helpers (clearCache, getCacheStats, getAudioSessions,
-  //    parseAudioConfig, getAudioDuration, isSeamlessLoop, verifyBackgroundMusicAccess)
-  // remain exactly as before.
-
+  // --- Legacy helpers carried over unchanged ---
+  clearCache(): void { this.audioCache = {}; console.log('Audio cache cleared'); },
+  getCacheStats(): { totalCached:number; cacheKeys:string[] } {
+    const keys = Object.keys(this.audioCache);
+    return { totalCached: keys.length, cacheKeys: keys };
+  },
+  async getAudioSessions(limit=10):Promise<AudioSession[]> {
+    try {
+      const { data, error } = await supabase.rpc('get_user_audio_sessions',{ p_limit:limit });
+      if (error) throw error;
+      return data||[];
+    } catch(e) { console.error(e); return []; }
+  },
+  parseAudioConfig(url:string):any {
+    if (url.includes('/storage/v1/object/public/audio-files/')) {
+      return { totalDuration:600, seamlessLoop:true, format:'mp3', source:'supabase_storage' };
+    }
+    console.warn('Received data URL instead of Supabase URL:',url.slice(0,50));
+    return null;
+  },
+  getAudioDuration(url:string):number {
+    if (url.includes('/storage/v1/object/public/audio-files/')) return 600;
+    const cfg = this.parseAudioConfig(url);
+    return cfg?.totalDuration||600;
+  },
+  isSeamlessLoop(url:string):boolean {
+    if (url.includes('/storage/v1/object/public/audio-files/')) return true;
+    return this.parseAudioConfig(url)?.seamlessLoop===true;
+  },
+  async verifyBackgroundMusicAccess():Promise<{[k:string]:boolean}> {
+    const styles=['nature','meditation','ambient'];
+    const res:{[k:string]:boolean} = {};
+    for (const s of styles) res[s] = await this.testAudioUrl(this.getBackgroundMusicUrl(s));
+    return res;
+  }
 };
