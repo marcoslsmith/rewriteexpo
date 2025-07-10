@@ -164,7 +164,7 @@ export default function PersonalizedAudio() {
       const result = await testTTSFunction();
       if (result.success) {
         setSuccess('✅ TTS test successful! The Edge Function is working.');
-        setDebugInfo(Audio generated successfully. Size: ${result.audioSize} bytes);
+        setDebugInfo(`Audio generated successfully. Size: ${result.audioSize} bytes)`;
         
         // Play the test audio if available
         if (result.playAudio) {
