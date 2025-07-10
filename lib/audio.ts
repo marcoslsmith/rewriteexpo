@@ -28,7 +28,7 @@ export const audioService = {
     // 2) Extract base64
     const base64 =
       data.audioUrl?.startsWith('data:') ? data.audioUrl :
-      data.audioData ? data:audio/mpeg;base64,${data.audioData} :
+      data.audioData ? `data:audio/mpeg;base64,${data.audioData}` :
       null;
     if (!base64) throw new Error('No audio returned');
 
@@ -44,7 +44,7 @@ export const audioService = {
     if (!user) throw new Error('Not authenticated');
 
     const blob = await fetch(base64).then(r => r.blob());
-    const path = tts/${user.id}/${key}.mp3;
+    const path = `tts/${user.id}/${key}.mp3`;
 
     const { data, error } = await supabase.storage
       .from('audio-files')
