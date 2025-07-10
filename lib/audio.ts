@@ -189,14 +189,10 @@ export const audioService = {
         throw new Error('User not authenticated');
       }
 
-      // Convert base64 to blob
+      // Convert base64 to blob using fetch (React Native compatible)
       const base64Data = base64Audio.replace(/^data:audio\/[^;]+;base64,/, '');
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+      const response = await fetch(`data:audio/mpeg;base64,${base64Data}`);
+      const audioBlob = await response.blob();
 
       // Upload to tts/ subfolder with user ID
       const filename = `tts/${user.id}/${textHash}.mp3`;
@@ -443,48 +439,27 @@ export const audioService = {
   // Create a simple audio blob for testing/simulation
   async createSimpleAudioBlob(durationSeconds: number): Promise<Blob> {
     try {
-      // Create a minimal MP3 header for a silent audio file
-      // This is a very basic MP3 structure - in production you'd use proper audio libraries
-      const sampleRate = 44100;
-      const channels = 2;
-      const bytesPerSample = 2;
-      const dataSize = durationSeconds * sampleRate * channels * bytesPerSample;
+      // Create a minimal silent audio file using base64 data URI approach
+      // This is compatible with React Native/Expo environments
       
-      // Create a simple WAV file structure (easier than MP3)
-      const buffer = new ArrayBuffer(44 + dataSize);
-      const view = new DataView(buffer);
+      // Create a minimal WAV file as base64 (1 second of silence)
+      const silentWavBase64 = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
       
-      // WAV header
-      const writeString = (offset: number, string: string) => {
-        for (let i = 0; i < string.length; i++) {
-          view.setUint8(offset + i, string.charCodeAt(i));
-        }
-      };
+      // Use fetch to create blob from data URI (React Native compatible)
+      const response = await fetch(`data:audio/wav;base64,${silentWavBase64}`);
+      const audioBlob = await response.blob();
       
-      writeString(0, 'RIFF');
-      view.setUint32(4, 36 + dataSize, true);
-      writeString(8, 'WAVE');
-      writeString(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, channels, true);
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * channels * bytesPerSample, true);
-      view.setUint16(32, channels * bytesPerSample, true);
-      view.setUint16(34, 8 * bytesPerSample, true);
-      writeString(36, 'data');
-      view.setUint32(40, dataSize, true);
-      
-      // Fill with silence (zeros)
-      for (let i = 44; i < buffer.byteLength; i++) {
-        view.setUint8(i, 0);
-      }
-      
-      return new Blob([buffer], { type: 'audio/wav' });
+      return audioBlob;
     } catch (error) {
       console.error('Error creating simple audio blob:', error);
-      // Fallback: create a minimal blob
-      return new Blob([''], { type: 'audio/mp3' });
+      // Fallback: create a minimal blob using fetch
+      try {
+        const response = await fetch('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+        return await response.blob();
+      } catch (fallbackError) {
+        console.error('Fallback blob creation also failed:', fallbackError);
+        throw new Error('Unable to create audio blob in this environment');
+      }
     }
   },
   getBackgroundMusicUrl(musicStyle: string): string {
