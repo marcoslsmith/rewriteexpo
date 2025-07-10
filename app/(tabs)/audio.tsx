@@ -228,14 +228,12 @@ export default function PersonalizedAudio() {
         .filter(m => selectedManifestations.has(m.id))
         .map(m => m.transformed_text);
 
-      console.log('Starting audio generation for texts:', selectedTexts.length);
       const audioUrl = await audioService.generatePersonalizedAudio({
         manifestationTexts: selectedTexts,
         duration: selectedDuration,
         musicStyle: selectedMusicStyle,
       });
 
-      console.log('Audio generation completed, URL:', audioUrl);
       setGeneratedAudioUrl(audioUrl);
       
       // Get the actual duration and configuration from the audio service
@@ -251,7 +249,7 @@ export default function PersonalizedAudio() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error('Error generating audio:', error);
-      setError(`Failed to generate audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setError('Failed to generate audio. Please try again.');
       setTimeout(() => setError(null), 5000);
     } finally {
       setIsGenerating(false);
