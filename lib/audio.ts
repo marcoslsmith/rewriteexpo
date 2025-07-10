@@ -18,6 +18,7 @@ export const audioService = {
     return this._generateAndUploadTTS(text);
   },
 
+  /** Call Edge Function, extract base64, and return base64 URL directly */
   async _generateAndUploadTTS(text: string): Promise<string> {
     // 1) Call Edge Function
     const { data, error } = await supabase.functions.invoke('openai-tts', {
@@ -25,36 +26,14 @@ export const audioService = {
     });
     if (error) throw new Error(error.message);
 
-    // 2) Extract base64
+    // 2) Extract base64 and return directly (no upload to storage)
     const base64 =
       data.audioUrl?.startsWith('data:') ? data.audioUrl :
       data.audioData ? `data:audio/mpeg;base64,${data.audioData}` :
       null;
     if (!base64) throw new Error('No audio returned');
 
-    // 3) Upload it
-    const key = this._hashText(text);
-    return this._uploadBase64ToStorage(base64, key);
-  },
-
-  async _uploadBase64ToStorage(base64: string, key: string): Promise<string> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const blob = await fetch(base64).then(r => r.blob());
-    const path = `tts/${user.id}/${key}.mp3`;
-
-    const { data, error } = await supabase.storage
-      .from('audio-files')
-      .upload(path, blob, { contentType: 'audio/mpeg', upsert: true });
-    if (error) throw error;
-
-    const { data: urlData } = supabase.storage
-      .from('audio-files')
-      .getPublicUrl(data.path);
-    return urlData.publicUrl;
+    return base64;
   },
 
   _hashText(text: string): string {
@@ -79,7 +58,7 @@ export const audioService = {
       totalDuration: this.getAudioDuration(),
       seamlessLoop: true,
       format: 'mp3',
-      source: url.includes('/storage/v1/object/public/') ? 'supabase' : 'edge-tts'
+      source: url.startsWith('data:') ? 'edge-tts' : 'supabase'
     };
   },
 };

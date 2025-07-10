@@ -164,7 +164,7 @@ export default function PersonalizedAudio() {
       const result = await testTTSFunction();
       if (result.success) {
         setSuccess('✅ TTS test successful! The Edge Function is working.');
-        setDebugInfo(`Audio generated successfully. Size: ${result.audioSize} bytes)`;
+        setDebugInfo(`Audio generated successfully. Size: ${result.audioSize} bytes`);
         
         // Play the test audio if available
         if (result.playAudio) {
@@ -173,11 +173,11 @@ export default function PersonalizedAudio() {
           }, 1000);
         }
       } else {
-        setError(❌ TTS test failed: ${result.error});
-        setDebugInfo(Error details: ${JSON.stringify(result.details, null, 2)});
+        setError(`❌ TTS test failed: ${result.error}`);
+        setDebugInfo(`Error details: ${JSON.stringify(result.details, null, 2)}`);
       }
     } catch (error) {
-      setError(❌ TTS test exception: ${error instanceof Error ? error.message : 'Unknown error'});
+      setError(`❌ TTS test exception: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setDebugInfo(null);
     }
     
@@ -198,11 +198,11 @@ export default function PersonalizedAudio() {
         setSuccess('✅ Edge Function is deployed and accessible');
         setDebugInfo('The openai-tts function is properly deployed');
       } else {
-        setError(❌ Edge Function deployment issue: Status ${result.status || 'unknown'});
+        setError(`❌ Edge Function deployment issue: Status ${result.status || 'unknown'}`);
         setDebugInfo('The openai-tts function may not be deployed or configured correctly');
       }
     } catch (error) {
-      setError(❌ Deployment check failed: ${error instanceof Error ? error.message : 'Unknown error'});
+      setError(`❌ Deployment check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setDebugInfo(null);
     }
     
@@ -316,7 +316,7 @@ export default function PersonalizedAudio() {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return ${mins}:${secs.toString().padStart(2, '0')};
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getProgressPercentage = () => {
