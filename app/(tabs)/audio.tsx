@@ -142,18 +142,18 @@ async function generateAudio() {
 
   setIsGenerating(true);
   try {
-    // 1) collect the texts
+    // 1) build texts array
     const texts = favorites
       .filter(m => selectedIds.has(m.id))
       .map(m => m.transformed_text);
 
-    // 2) generate one TTS clip per text
+    // 2) generate one TTS clip per text and store URLs
     const urls = await Promise.all(
       texts.map(text => audioService._generateBase64TTS(text))
     );
     setClipUrls(urls);
 
-    // 3) now build & upload the full mix (with 2s pauses & loops)
+    // 3) build & upload the final mix (with pauses & loops)
     const finalUrl = await audioService.generatePersonalizedAudio({
       manifestationTexts: texts,
       duration: durationMins,
@@ -161,7 +161,7 @@ async function generateAudio() {
     });
     setGeneratedUrl(finalUrl);
 
-    // 4) grab your background track
+    // 4) fetch background track
     const styleObj = MUSIC_STYLES.find(s => s.id === musicStyle)!;
     const { data: bgData, error: bgError } = await supabase
       .storage
@@ -170,7 +170,7 @@ async function generateAudio() {
     if (bgError) throw bgError;
     setBackgroundUrl(bgData.publicUrl);
 
-    // 5) player config
+    // 5) configure player
     const secs = audioService.getAudioDuration();
     setTotalSeconds(secs);
     setIsLooping(audioService.isSeamlessLoop());
@@ -186,6 +186,7 @@ async function generateAudio() {
     setIsGenerating(false);
   }
 }
+
 
 
   const getTotalManifestations = () => manifestations.length;
