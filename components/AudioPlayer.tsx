@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface AudioPlayerProps {
   /** URL of the mixed TTS + music file */
   audioUrl: string;
-  /** (optional) separate background track URL if you ever want to swap it */
+  /** URL of the background music file */
   backgroundUrl?: string;
   title?: string;
   isLooping?: boolean;
@@ -31,7 +31,7 @@ interface AudioPlayerProps {
 
 export default function AudioPlayer({
   audioUrl,
-  backgroundUrl,
+  backgroundUrl: backgroundTrackUrl,
   title = 'Audio',
   isLooping = true,
   voiceRate = 0.9,
@@ -45,7 +45,6 @@ export default function AudioPlayer({
   const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
 
   // cleanup on unmount
   useEffect(() => {
@@ -59,7 +58,7 @@ export default function AudioPlayer({
   useEffect(() => {
     if (!audioUrl) return;
     loadBoth();
-  }, [audioUrl, backgroundUrl]);
+  }, [audioUrl, backgroundTrackUrl]);
 
   const loadBoth = async () => {
     setIsLoading(true);
@@ -98,9 +97,9 @@ export default function AudioPlayer({
       await v.setRateAsync(voiceRate, true);
 
       // 2) load background loop (if provided)
-      if (backgroundUrl) {
+      if (backgroundTrackUrl) {
         const { sound: b } = await Audio.Sound.createAsync(
-          { uri: backgroundUrl },
+          { uri: backgroundTrackUrl },
           {
             shouldPlay: false,
             isLooping,
