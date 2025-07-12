@@ -45,6 +45,7 @@ export default function AudioPlayer({
   const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
 
   // cleanup on unmount
   useEffect(() => {
