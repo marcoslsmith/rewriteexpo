@@ -139,14 +139,23 @@ export default function AudioTab() {
       return;
     }
     setIsGenerating(true);
-    try {
-      const texts = favorites.filter(m => selectedIds.has(m.id)).map(m => m.transformed_text);
-      const ttsUrl = await audioService.generatePersonalizedAudio({
-        manifestationTexts: texts,
-        duration: durationMins,
-        musicStyle,
-      });
-      setGeneratedUrl(ttsUrl);
+   try {
+  const texts = favorites
+    .filter(m => selectedIds.has(m.id))
+    .map(m => m.transformed_text);
+
+  // ─── 1) generate one TTS clip per manifestation ───
+  const clipUrls = await Promise.all(
+    texts.map(text => audioService._generateAndUploadTTS(text))
+  );
+  setTtsUrls(clipUrls);
+
+  // ─── 2) mix clips + 2s pauses into a single track ───
+  const mixUrl = await audioService.createLoopedSequence(
+    clipUrls,
+    durationMins
+  );
+  setGeneratedUrl(mixUrl);
 
       // grab background track URL
       const styleObj = MUSIC_STYLES.find(s => s.id === musicStyle)!;
