@@ -421,15 +421,15 @@ async function generateAudio() {
                 </TouchableOpacity>
               </View>
               
-              {generatedUrl && (
-                <AudioPlayer
-                  audioUrl={generatedUrl}
-                  backgroundUrl={backgroundUrl!}
-                  isLooping={isLooping}
-                  title="Your Personalized Audio Session"
-                  style={styles.audioPlayer}
-                />
-              )}
+{clipUrls.length > 0 && (
+  <AudioPlayer
+    clipUrls={clipUrls}
+    backgroundUrl={backgroundUrl!}
+    isLooping={isLooping}
+    title="Your Personalized Audio Session"
+    style={styles.audioPlayer}
+  />
+)}
             </View>
           </GradientBackground>
         </Modal>
