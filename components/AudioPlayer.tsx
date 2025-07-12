@@ -1,3 +1,4 @@
+// components/AudioPlayer.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -8,54 +9,69 @@ import {
   Platform,
 } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
-import { Play, Pause, Square, Volume2, RotateCcw } from 'lucide-react-native';
+import {
+  Play,
+  Pause,
+  Square,
+  RotateCcw,
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface AudioPlayerProps {
+  /** URL of the mixed TTS + music file */
   audioUrl: string;
+  /** (optional) separate background track URL if you ever want to swap it */
+  backgroundUrl?: string;
   title?: string;
-  onClose?: () => void;
   isLooping?: boolean;
   style?: any;
+  /** control voice speed: 1.0 is normal, <1.0 is slower */
+  voiceRate?: number;
 }
 
-export default function AudioPlayer({ 
-  audioUrl, 
-  title = 'Audio', 
-  onClose, 
+export default function AudioPlayer({
+  audioUrl,
+  backgroundUrl,
+  title = 'Audio',
   isLooping = true,
-  style 
+  voiceRate = 0.9,
+  style,
 }: AudioPlayerProps) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const voiceSound = useRef<Audio.Sound | null>(null);
+  const bgSound = useRef<Audio.Sound | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
+  // cleanup on unmount
   useEffect(() => {
-    configureAudio();
     return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
+      voiceSound.current?.unloadAsync();
+      bgSound.current?.unloadAsync();
     };
   }, []);
 
+  // whenever URLs change, reload both
   useEffect(() => {
-    if (audioUrl) {
-      loadAudio();
-    }
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [audioUrl]);
+    if (!audioUrl) return;
+    loadBoth();
+  }, [audioUrl, backgroundUrl]);
 
-  const configureAudio = async () => {
+  const loadBoth = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
+      // unload existing
+      await voiceSound.current?.unloadAsync();
+      await bgSound.current?.unloadAsync();
+      voiceSound.current = null;
+      bgSound.current = null;
+      setIsLoaded(false);
+
+      // configure audio mode
       if (Platform.OS !== 'web') {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -65,58 +81,39 @@ export default function AudioPlayer({
           playThroughEarpieceAndroid: false,
         });
       }
-    } catch (error) {
-      console.error('Error configuring audio:', error);
-    }
-  };
 
-  const loadAudio = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-        setIsLoaded(false);
-      }
-
-      console.log('Loading audio from URL:', audioUrl);
-      console.log('[AudioPlayer] Attempting to load:', audioUrl);
-
-      if (!audioUrl || typeof audioUrl !== 'string') {
-        throw new Error('Invalid audio URL provided');
-      }
-
-      let audioSource: any;
-      if (audioUrl.startsWith('data:audio/')) {
-        console.log('Loading base64 audio data...');
-        audioSource = { uri: audioUrl };
-      } else if (audioUrl.startsWith('http')) {
-        console.log('Loading audio from HTTP URL...');
-        audioSource = { uri: audioUrl };
-      } else {
-        throw new Error('Unsupported audio URL format');
-      }
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        audioSource,
+      // 1) load TTS voice
+      const { sound: v } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
         {
           shouldPlay: false,
-          isLooping: isLooping,
+          isLooping,
           volume: 1.0,
         },
         onPlaybackStatusUpdate
       );
+      voiceSound.current = v;
+      // slow it down a bit
+      await v.setRateAsync(voiceRate, true);
 
-      setSound(newSound);
+      // 2) load background loop (if provided)
+      if (backgroundUrl) {
+        const { sound: b } = await Audio.Sound.createAsync(
+          { uri: backgroundUrl },
+          {
+            shouldPlay: false,
+            isLooping,
+            volume: 0.5,
+          }
+        );
+        bgSound.current = b;
+      }
+
       setIsLoaded(true);
-      console.log('Audio loaded successfully');
-
-    } catch (error) {
-      console.error('Error loading audio:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load audio');
-      Alert.alert('Audio Error', `Failed to load audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (e: any) {
+      console.error('Error loading audio:', e);
+      setError(e.message || 'Failed to load audio');
+      Alert.alert('Audio Error', e.message || 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -133,69 +130,63 @@ export default function AudioPlayer({
       }
     } else if (status.error) {
       console.error('Playback error:', status.error);
-      setError(`Playback error: ${status.error}`);
+      setError(status.error);
       setIsPlaying(false);
     }
   };
 
   const togglePlayback = async () => {
     try {
-      if (!sound || !isLoaded) {
-        console.log('Sound not loaded, attempting to reload...');
-        await loadAudio();
+      if (!isLoaded) {
+        await loadBoth();
         return;
       }
       if (isPlaying) {
-        console.log('Pausing audio...');
-        await sound.pauseAsync();
+        await voiceSound.current?.pauseAsync();
+        await bgSound.current?.pauseAsync();
       } else {
-        console.log('Playing audio...');
-        await sound.playAsync();
+        await voiceSound.current?.playAsync();
+        await bgSound.current?.playAsync();
       }
-    } catch (error) {
-      console.error('Error toggling playback:', error);
-      setError(error instanceof Error ? error.message : 'Playback error');
-      Alert.alert('Playback Error', 'Failed to play/pause audio');
+    } catch (e: any) {
+      console.error('Error toggling playback:', e);
+      setError(e.message || 'Playback error');
+      Alert.alert('Playback Error', e.message || 'Failed to play/pause');
     }
   };
 
   const stopPlayback = async () => {
     try {
-      if (sound && isLoaded) {
-        console.log('Stopping audio...');
-        await sound.stopAsync();
-        await sound.setPositionAsync(0);
-        setPosition(0);
-        setIsPlaying(false);
-      }
-    } catch (error) {
-      console.error('Error stopping playback:', error);
+      await voiceSound.current?.stopAsync();
+      await bgSound.current?.stopAsync();
+      await voiceSound.current?.setPositionAsync(0);
+      await bgSound.current?.setPositionAsync(0);
+      setPosition(0);
+      setIsPlaying(false);
+    } catch (e) {
+      console.error('Error stopping playback:', e);
     }
   };
 
   const restartPlayback = async () => {
     try {
-      if (sound && isLoaded) {
-        console.log('Restarting audio...');
-        await sound.setPositionAsync(0);
-        await sound.playAsync();
-      }
-    } catch (error) {
-      console.error('Error restarting playback:', error);
+      await voiceSound.current?.setPositionAsync(0);
+      await bgSound.current?.setPositionAsync(0);
+      await voiceSound.current?.playAsync();
+      await bgSound.current?.playAsync();
+    } catch (e) {
+      console.error('Error restarting playback:', e);
     }
   };
 
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const formatTime = (ms: number) => {
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const getProgressPercentage = () => {
-    if (duration === 0) return 0;
-    return (position / duration) * 100;
-  };
+  const progress = duration ? (position / duration) * 100 : 0;
 
   return (
     <View style={[styles.container, style]}>
@@ -204,36 +195,17 @@ export default function AudioPlayer({
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={loadAudio} style={styles.retryButton}>
+          <TouchableOpacity onPress={loadBoth} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {__DEV__ && (
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>
-            Audio URL: {audioUrl ? audioUrl.substring(0, 50) + '...' : 'None'}
-          </Text>
-          <Text style={styles.debugText}>
-            Status: {isLoaded ? 'Loaded' : isLoading ? 'Loading' : 'Not Loaded'}
-          </Text>
-          <Text style={styles.debugText}>
-            Format: {audioUrl?.startsWith('data:') ? 'Base64' : 'URL'}
-          </Text>
-        </View>
-      )}
-
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${getProgressPercentage()}%` }
-            ]} 
-          />
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
-        <View style={styles.timeContainer}>
+        <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(position)}</Text>
           <Text style={styles.timeText}>
             {formatTime(duration)} {isLooping ? '(Loop)' : ''}
@@ -243,56 +215,35 @@ export default function AudioPlayer({
 
       <View style={styles.controls}>
         <TouchableOpacity
-          style={styles.controlButton}
           onPress={restartPlayback}
           disabled={!isLoaded}
-        >
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
-            style={styles.controlGradient}
-          >
-            <RotateCcw size={20} color="#ffffff" strokeWidth={1.5} />
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, styles.playButton]}
-          onPress={togglePlayback}
-          disabled={isLoading || !!error}
-        >
-          <LinearGradient
-            colors={isLoading ? ['#6b7280', '#4b5563'] : ['#10b981', '#059669']}
-            style={styles.playGradient}
-          >
-            {isLoading ? (
-              <Text style={styles.loadingText}>...</Text>
-            ) : isPlaying ? (
-              <Pause size={32} color="#ffffff" strokeWidth={1.5} />
-            ) : (
-              <Play size={32} color="#ffffff" strokeWidth={1.5} />
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={styles.controlButton}
+        >
+          <RotateCcw size={20} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={togglePlayback}
+          disabled={isLoading}
+          style={[styles.controlButton, styles.playButton]}
+        >
+          {isLoading ? (
+            <Text style={styles.loading}>…</Text>
+          ) : isPlaying ? (
+            <Pause size={32} color="#fff" />
+          ) : (
+            <Play size={32} color="#fff" />
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={stopPlayback}
           disabled={!isLoaded}
+          style={styles.controlButton}
         >
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
-            style={styles.controlGradient}
-          >
-            <Square size={20} color="#ffffff" strokeWidth={1.5} />
-          </LinearGradient>
+          <Square size={20} color="#fff" />
         </TouchableOpacity>
       </View>
-
-      {__DEV__ && (
-        <TouchableOpacity onPress={loadAudio} style={styles.testButton}>
-          <Text style={styles.testButtonText}>Reload Audio</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -300,127 +251,64 @@ export default function AudioPlayer({
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
     margin: 20,
   },
   title: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    padding: 12,
+    backgroundColor: 'rgba(239,68,68,0.2)',
+    padding: 10,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 12,
     alignItems: 'center',
   },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
+  errorText: { color: '#f66', marginBottom: 6 },
   retryButton: {
     backgroundColor: '#ef4444',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    padding: 6,
+    borderRadius: 6,
   },
-  retryText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-  },
-  debugContainer: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  debugText: {
-    color: '#60a5fa',
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    marginBottom: 4,
-  },
-  progressContainer: {
-    marginBottom: 24,
-  },
+  retryText: { color: '#fff' },
+  progressContainer: { marginVertical: 16 },
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
-    marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 2,
   },
-  timeContainer: {
+  timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 4,
   },
-  timeText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
+  timeText: { color: 'rgba(255,255,255,0.8)' },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 20,
+    marginTop: 12,
   },
   controlButton: {
-    width: 56,
-    height: 56,
+    marginHorizontal: 12,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 28,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  controlGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    backgroundColor: 'rgba(16,185,129,1)',
   },
-  playGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
-  testButton: {
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 16,
-    alignSelf: 'center',
-  },
-  testButtonText: {
-    color: '#60a5fa',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+  loading: {
+    color: '#fff',
+    fontSize: 24,
   },
 });
