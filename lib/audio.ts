@@ -1,68 +1,66 @@
-// audioService.ts
+// lib/audio.ts
 import { supabase } from './supabase'
 import type { Database } from './supabase'
 
 interface GenerateAudioParams {
   manifestationTexts: string[]
-  duration: number // in minutes
-  musicStyle: string
+  duration: number      // in minutes
+  musicStyle: string    // not used here; UI layer handles music selection
 }
 
 export const audioService = {
+  /** Remember last duration (for player) */
   _lastDurationMinutes: 0 as number,
 
-  /** Top-level: generate, stitch, loop & upload */
+  /** 
+   * Generate a separate TTS clip for each manifestation, then build a
+   * looped sequence with 2s pauses and return the final URL.
+   */
   async generatePersonalizedAudio(params: GenerateAudioParams): Promise<string> {
     const { manifestationTexts, duration } = params
     this._lastDurationMinutes = duration
 
-    // 1) Generate TTS for each text
-    const ttsUrls: string[] = []
-    for (const text of manifestationTexts) {
-      const url = await this._generateAndUploadTTS(text)
-      ttsUrls.push(url)
-    }
+    // 1) Generate one base64 TTS clip per text
+    const ttsUrls = await Promise.all(
+      manifestationTexts.map((text) => this._generateBase64TTS(text))
+    )
 
-    // 2) Create a looped sequence with 2s pauses
-    const finalUrl = await this.createLoopedSequence(ttsUrls, duration)
-    return finalUrl
+    // 2) Build & upload the final mix
+    return await this.createLoopedSequence(ttsUrls, duration)
   },
 
   /** Call your Edge Function and return a base64 data URL */
-  async _generateAndUploadTTS(text: string): Promise<string> {
+  async _generateBase64TTS(text: string): Promise<string> {
     const { data, error } = await supabase.functions.invoke('openai-tts', {
       body: { text, voice: 'nova', model: 'tts-1', response_format: 'mp3' },
     })
     if (error) throw new Error(error.message)
 
-    // extract base64
     const base64 =
       data.audioUrl?.startsWith('data:')
         ? data.audioUrl
         : data.audioData
         ? `data:audio/mpeg;base64,${data.audioData}`
         : null
-    if (!base64) throw new Error('No audio returned')
 
+    if (!base64) throw new Error('No audio returned from TTS')
     return base64
   },
 
-  /** Create a silent WAV blob of given length (seconds) */
+  /** Create a silent WAV Blob of given length (seconds) for pauses or final mix */
   async createSimpleAudioBlob(durationSeconds: number): Promise<Blob> {
-    // 1s of silence WAV base64; we’ll loop it client-side
+    // 1s of silence WAV base64; will repeat in code
     const oneSecBase64 = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-    // build repeated base64 for `durationSeconds` by concatenation
     const chunks: string[] = []
     for (let i = 0; i < durationSeconds; i++) {
       chunks.push(oneSecBase64)
     }
-    const combined = chunks.join('')
-    const uri = `data:audio/wav;base64,${combined}`
+    const uri = `data:audio/wav;base64,${chunks.join('')}`
     const res = await fetch(uri)
     return res.blob()
   },
 
-  /** Upload a Blob to your Supabase audio-files bucket */
+  /** Upload a Blob to your Supabase storage and return its public URL */
   async uploadAudioFile(audioBlob: Blob, filename: string): Promise<string> {
     const {
       data: { user },
@@ -82,48 +80,47 @@ export const audioService = {
   },
 
   /**
-   * Stitch together voice clips + 2s pauses,
-   * loop the full sequence to meet target duration,
-   * then upload and return the mix.
+   * Stitch voice-clips + 2s pauses, estimate loop count to fill `duration`,
+   * then (for now) simulate the final mix by uploading a silent blob of full length.
    */
   async createLoopedSequence(
     audioUrls: string[],
     targetDurationMinutes: number
   ): Promise<string> {
     const targetSeconds = targetDurationMinutes * 60
-    console.log(`Building looped sequence for ${targetSeconds}s`)
 
-    // 1) Generate & upload a 2s silent clip
+    // 1) Upload a 2s “pause” clip
     const pauseBlob = await this.createSimpleAudioBlob(2)
-    const pauseFile = `pause_${Date.now()}.mp3`
-    const pauseUrl = await this.uploadAudioFile(pauseBlob, pauseFile)
+    const pauseName = `pause_${Date.now()}.mp3`
+    const pauseUrl = await this.uploadAudioFile(pauseBlob, pauseName)
 
-    // 2) Interleave pause after each clip
+    // 2) Build sequence [clip, pause, clip, pause...]
     const sequence = audioUrls.flatMap((u) => [u, pauseUrl])
 
-    // 3) Estimate sequence length in seconds
-    const estimatePerClip = 12 /* avg TTS */ + 2 /* pause */
-    const seqDuration = sequence.length * estimatePerClip
-    const loops = Math.ceil(targetSeconds / seqDuration)
-    console.log(`Seq ~${seqDuration}s, looping ${loops} times`)
+    // 3) Rough estimate for one run
+    const avgClip = 12  // avg TTS length
+    const seqLenSec = sequence.length * (avgClip + 2)
+    const loops = Math.ceil(targetSeconds / seqLenSec)
 
-    // 4) In a real setup you'd fetch + concat binary buffers.
-    //    Here we simulate by making a final silent blob of full length.
+    console.log(`Seq ~${seqLenSec}s; looping ${loops}× to fill ${targetSeconds}s`)
+
+    // 4) **SIMULATION**: upload silent blob of full length (replace with real concat later)
     const finalBlob = await this.createSimpleAudioBlob(targetSeconds)
-    const finalFile = `looped_${Date.now()}.mp3`
-    const finalUrl = await this.uploadAudioFile(finalBlob, finalFile)
-
-    console.log('Uploaded mixed audio:', finalUrl)
-    return finalUrl
+    const finalName = `mix_${Date.now()}.mp3`
+    return await this.uploadAudioFile(finalBlob, finalName)
   },
 
-  /** Helpers for your player */
+  /** For your player: total duration in seconds */
   getAudioDuration(): number {
     return this._lastDurationMinutes * 60
   },
+
+  /** For your player: seamless looping */
   isSeamlessLoop(): boolean {
     return true
   },
+
+  /** Extra info for debugging/UI */
   parseAudioConfig(url: string) {
     return {
       totalDuration: this.getAudioDuration(),
