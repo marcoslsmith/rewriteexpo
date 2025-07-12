@@ -419,13 +419,13 @@ export default function PersonalizedAudio() {
               </View>
 
               {/* ← UPDATED: pass both audio and background */}
-              {generatedAudioUrl && (
-                <AudioPlayer
-                  audioUrl={generatedAudioUrl}
-                  backgroundUrl={backgroundUrl}
-                  title="Your Personalized Audio"
-                  isLooping={isLooping}
-                  style={styles.audioPlayerContainer}
+             {generatedAudioUrl && backgroundUrl && (
+  <AudioPlayer
+    audioUrl={generatedAudioUrl}
+    backgroundUrl={backgroundUrl}
+    title="Your Personalized Audio"
+    isLooping={isLooping}
+    style={styles.audioPlayerContainer}
                 />
               )}
             </View>
