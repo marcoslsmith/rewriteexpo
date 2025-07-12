@@ -20,6 +20,7 @@ import type { Database } from '../../lib/supabase';
 import GradientBackground from '../../components/GradientBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import AudioPlayer from '../../components/AudioPlayer';
+import { supabase } from '../../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
 
