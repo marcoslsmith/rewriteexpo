@@ -63,6 +63,9 @@ export default function AudioTab() {
   const [showPlayer, setShowPlayer] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+    // ─── NEW: store each clip’s URL before building the final mix ───
+  const [clipUrls, setClipUrls] = useState<string[]>([]);
+  // ───────────────────────────────────────────────────────────────
     // ─── NEW: store each TTS clip URL ───
   const [ttsUrls, setTtsUrls] = useState<string[]>([]) 
   const [totalSeconds, setTotalSeconds] = useState(0);
