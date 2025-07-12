@@ -66,8 +66,6 @@ export default function AudioTab() {
     // ─── NEW: store each clip’s URL before building the final mix ───
   const [clipUrls, setClipUrls] = useState<string[]>([]);
   // ───────────────────────────────────────────────────────────────
-    // ─── NEW: store each TTS clip URL ───
-  const [ttsUrls, setTtsUrls] = useState<string[]>([]) 
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
