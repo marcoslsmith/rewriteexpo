@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface AudioPlayerProps {
   /** URL of the mixed TTS + music file */
-  audioUrl: string;
+  clipUrls: string;
   /** URL of the background music file */
   backgroundUrl?: string;
   title?: string;
@@ -30,7 +30,7 @@ interface AudioPlayerProps {
 }
 
 export default function AudioPlayer({
-  audioUrl,
+  clipUrls,
   backgroundUrl: backgroundTrackUrl,
   title = 'Audio',
   isLooping = true,
