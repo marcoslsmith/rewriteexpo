@@ -45,7 +45,34 @@ export default function AudioPlayer({
   const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
-
+  // Preloaded Expo.Sound instances for each clip
+  const [voiceSounds, setVoiceSounds] = useState<Audio.Sound[]>([]);
+  
+// Index of the clip that’s currently playing
+  const [currentClip, setCurrentClip] = useState(0);
+useEffect(() => {
+  let isCancelled = false;
+  (async () => {
+    // Unload old
+    await Promise.all(voiceSounds.map(s => s.unloadAsync()));
+    setVoiceSounds([]);
+    // Preload new
+    const loaded = await Promise.all(
+      clipUrls.map(async uri => {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: false, isLooping: false, volume: 1.0 },
+          onPlaybackStatusUpdate
+        );
+        await sound.setRateAsync(voiceRate, true);
+        return sound;
+      })
+    );
+    if (!isCancelled) setVoiceSounds(loaded);
+  })();
+  return () => { isCancelled = true; };
+}, [clipUrls]);
+  
   // cleanup on unmount
   useEffect(() => {
     return () => {
@@ -119,41 +146,32 @@ export default function AudioPlayer({
     }
   };
 
-  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (status.isLoaded) {
-      setDuration(status.durationMillis || 0);
-      setPosition(status.positionMillis || 0);
-      setIsPlaying(status.isPlaying);
-      if (status.didJustFinish && !isLooping) {
-        setIsPlaying(false);
-        setPosition(0);
-      }
-    } else if (status.error) {
-      console.error('Playback error:', status.error);
-      setError(status.error);
-      setIsPlaying(false);
-    }
-  };
-
   const togglePlayback = async () => {
-    try {
-      if (!isLoaded) {
-        await loadBoth();
-        return;
-      }
-      if (isPlaying) {
-        await voiceSound.current?.pauseAsync();
-        await bgSound.current?.pauseAsync();
-      } else {
-        await voiceSound.current?.playAsync();
-        await bgSound.current?.playAsync();
-      }
-    } catch (e: any) {
-      console.error('Error toggling playback:', e);
-      setError(e.message || 'Playback error');
-      Alert.alert('Playback Error', e.message || 'Failed to play/pause');
-    }
-  };
+  if (!voiceSounds.length) return;
+  if (isPlaying) {
+    // stop all
+    await Promise.all(voiceSounds.map(s => s.pauseAsync()));
+    setIsPlaying(false);
+  } else {
+    setIsPlaying(true);
+    setCurrentClip(0);
+    await voiceSounds[0].playAsync();
+  }
+};
+
+// This runs every time play status updates
+const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+  if (status.didJustFinish && isPlaying) {
+    // move to next clip after 2s
+    setTimeout(async () => {
+      const next = (currentClip + 1) % voiceSounds.length;
+      setCurrentClip(next);
+      await voiceSounds[next].setPositionAsync(0);
+      await voiceSounds[next].playAsync();
+    }, 2000);
+  }
+  // ...and update position/duration UI as before
+};
 
   const stopPlayback = async () => {
     try {
