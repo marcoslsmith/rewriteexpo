@@ -177,6 +177,18 @@ export default function AudioPlayer({
     setCurrentClip(0);
   };
 
+  // ─── CLEAN UP WHEN COMPONENT UNMOUNTS ───
++  useEffect(() => {
++    return () => {
++      // stop any playing audio
++      stopPlayback().catch(console.error);
++      // unload all preloaded TTS clips
++      voiceSoundsRef.current.forEach(s => s.unloadAsync().catch(console.error));
++      // unload background track
++      if (bgSound.current) bgSound.current.unloadAsync().catch(console.error);
++    };
++  }, []);
+
   // restart sequence
   const restartPlayback = async () => {
     await stopPlayback();
