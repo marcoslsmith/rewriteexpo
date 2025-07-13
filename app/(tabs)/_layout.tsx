@@ -83,7 +83,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
         tabBarStyle: {
           position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 0 : 0, // Flush to bottom
+          bottom: Platform.OS === 'ios' ? 16 : 16,   // lifted off bottom
           left: 0,
           right: 0,
           height: 90,
@@ -91,18 +91,16 @@ export default function TabLayout() {
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Account for safe area
+          paddingBottom: Platform.OS === 'ios' ? 30 : 20, // extra safe‐area padding
         },
         tabBarBackground: () => (
-          <Animated.View 
+          <Animated.View
             style={[
               styles.tabBarBackground,
               {
                 opacity: opacity,
-                transform: [
-                  { translateY: Animated.add(translateY, floatAnim) }
-                ],
-              }
+                transform: [{ translateY: Animated.add(translateY, floatAnim) }],
+              },
             ]}
           >
             <View style={styles.solidBackground}>
@@ -123,33 +121,29 @@ export default function TabLayout() {
           paddingVertical: 8,
           height: 90,
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Journal',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Edit3} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#667eea', '#764ba2']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={Edit3} color={color} focused={focused} gradientColors={['#667eea', '#764ba2']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -161,28 +155,23 @@ export default function TabLayout() {
         name="rewrite"
         options={{
           title: 'Library',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Heart} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#f093fb', '#f5576c']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={Heart} color={color} focused={focused} gradientColors={['#f093fb', '#f5576c']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -194,28 +183,23 @@ export default function TabLayout() {
         name="breathwork"
         options={{
           title: 'Breathe',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Wind} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#4facfe', '#00f2fe']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={Wind} color={color} focused={focused} gradientColors={['#4facfe', '#00f2fe']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -227,28 +211,23 @@ export default function TabLayout() {
         name="challenges"
         options={{
           title: 'Growth',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Target} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#43e97b', '#38f9d7']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={Target} color={color} focused={focused} gradientColors={['#43e97b', '#38f9d7']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -260,28 +239,23 @@ export default function TabLayout() {
         name="audio"
         options={{
           title: 'Audio',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Headphones} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#a855f7', '#7c3aed']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={Headphones} color={color} focused={focused} gradientColors={['#a855f7', '#7c3aed']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -293,28 +267,23 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={User} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#fa709a', '#fee140']}
-              />
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View style={{ opacity }}>
+              <TabIcon Icon={User} color={color} focused={focused} gradientColors={['#fa709a', '#fee140']} />
             </Animated.View>
           ),
           tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
+            <Animated.Text
               style={[
                 {
                   fontSize: 12,
                   fontFamily: 'Inter-SemiBold',
                   marginTop: 6,
                   marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                  color,
+                  display: focused ? 'none' : 'flex',
                 },
-                { opacity: opacity }
+                { opacity },
               ]}
             >
               {children}
@@ -355,24 +324,21 @@ function TabIcon({ Icon, color, focused, gradientColors }: TabIconProps) {
 
   if (focused) {
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.activeIconContainer,
           {
             transform: [{ scale: scaleAnim }],
-          }
+          },
         ]}
       >
-        <LinearGradient
-          colors={gradientColors}
-          style={styles.activeIconGradient}
-        >
-          <Animated.View 
+        <LinearGradient colors={gradientColors} style={styles.activeIconGradient}>
+          <Animated.View
             style={[
               styles.iconGlow,
               {
                 opacity: glowAnim,
-              }
+              },
             ]}
           />
           <Icon size={24} color="#ffffff" strokeWidth={2} />
@@ -382,12 +348,12 @@ function TabIcon({ Icon, color, focused, gradientColors }: TabIconProps) {
   }
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.inactiveIconContainer,
         {
           transform: [{ scale: scaleAnim }],
-        }
+        },
       ]}
     >
       <Icon size={22} color={color} strokeWidth={1.5} />
@@ -404,14 +370,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 15,
@@ -420,9 +381,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    backgroundColor: 'rgba(139, 92, 246, 0.95)', // Purple with less transparency
+    backgroundColor: 'rgba(139, 92, 246, 0.95)',
   },
   glassOverlay: {
     position: 'absolute',
@@ -430,15 +389,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Reduced overlay for less transparency
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)', // More subtle border
     borderBottomWidth: 0,
-    backdropFilter: 'blur(10px)', // Add blur effect for glass appearance
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
   },
   activeIconContainer: {
     width: 48,
@@ -446,10 +403,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -470,10 +424,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 34,
     shadowColor: '#ffffff',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 15,
     elevation: 10,
