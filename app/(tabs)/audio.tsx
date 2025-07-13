@@ -420,6 +420,7 @@ async function generateAudio() {
     title="Your Personalized Audio Session"
     style={styles.audioPlayer}
   />
+  
 )}
             </View>
           </GradientBackground>
