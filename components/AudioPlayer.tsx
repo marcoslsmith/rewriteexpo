@@ -84,11 +84,10 @@ export default function AudioPlayer({
             return sound;
           })
         );
-        if (cancelled) return;
-        setVoiceSounds(loaded);
+        if (!cancelled) setVoiceSounds(loaded);
 
         // load background music
-        if (backgroundUrl) {
+        if (backgroundUrl && !cancelled) {
           const { sound } = await Audio.Sound.createAsync(
             { uri: backgroundUrl },
             { shouldPlay: false, isLooping, volume: 0.5 }
@@ -96,7 +95,7 @@ export default function AudioPlayer({
           bgSound.current = sound;
         }
 
-        setIsLoaded(true);
+        if (!cancelled) setIsLoaded(true);
       } catch (e: any) {
         console.error('Audio preload error', e);
         setError(e.message || 'Failed to load audio');
@@ -116,17 +115,16 @@ export default function AudioPlayer({
     setDuration(status.durationMillis || 1);
 
     if (status.didJustFinish && isPlaying) {
-      setTimeout(async () => {
-        const next = currentClip + 1;
-        if (next < voiceSounds.length) {
-          setCurrentClip(next);
-          await voiceSounds[next].playAsync();
-        } else if (isLooping) {
-          setCurrentClip(0);
-          await voiceSounds[0].playAsync();
-        } else {
-          setIsPlaying(false);
-        }
+      // after 2s gap, advance to next clip (or loop)
+      setTimeout(() => {
+        setCurrentClip(prev => {
+          const next = prev + 1 < voiceSounds.length ? prev + 1 : 0;
+          // play the next clip
+          voiceSounds[next]
+            .setPositionAsync(0)
+            .then(() => voiceSounds[next].playAsync());
+          return next;
+        });
       }, 2000);
     }
   };
@@ -292,3 +290,4 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
 });
+
