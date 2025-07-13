@@ -18,15 +18,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface AudioPlayerProps {
-  /** One TTS URL per manifestation, in playback order */
-  clipUrls: string[];
-  /** Background‐music URL */
-  backgroundUrl?: string;
+  clipUrls: string[];            // one URL per manifestation
+  backgroundUrl?: string;        // optional looping music
   title?: string;
   isLooping?: boolean;
+  voiceRate?: number;            // 1.0 normal, <1.0 slower
   style?: any;
-  /** 1.0 = normal, <1.0 = slower */
-  voiceRate?: number;
 }
 
 export default function AudioPlayer({
@@ -36,165 +33,133 @@ export default function AudioPlayer({
   isLooping = true,
   voiceRate = 0.9,
   style,
-}: AudioPlayerProps)  {
-  const voiceSound = useRef<Audio.Sound | null>(null);
+}: AudioPlayerProps) {
+  const [voiceSounds, setVoiceSounds] = useState<Audio.Sound[]>([]);
   const bgSound = useRef<Audio.Sound | null>(null);
+  const [currentClip, setCurrentClip] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
-  // Preloaded Expo.Sound instances for each clip
-  const [voiceSounds, setVoiceSounds] = useState<Audio.Sound[]>([]);
-  
-// Index of the clip that’s currently playing
-  const [currentClip, setCurrentClip] = useState(0);
-useEffect(() => {
-  let isCancelled = false;
-  (async () => {
-    // Unload old
-    await Promise.all(voiceSounds.map(s => s.unloadAsync()));
-    setVoiceSounds([]);
-    // Preload new
-    const loaded = await Promise.all(
-      clipUrls.map(async uri => {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri },
-          { shouldPlay: false, isLooping: false, volume: 1.0 },
-          onPlaybackStatusUpdate
-        );
-        await sound.setRateAsync(voiceRate, true);
-        return sound;
-      })
-    );
-    if (!isCancelled) setVoiceSounds(loaded);
-  })();
-  return () => { isCancelled = true; };
-}, [clipUrls]);
-  
-  // cleanup on unmount
+  const [duration, setDuration] = useState(1);
+
+  // preload all clips + optional background
   useEffect(() => {
-    return () => {
-      voiceSound.current?.unloadAsync();
-      bgSound.current?.unloadAsync();
-    };
-  }, []);
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setError(null);
 
-  // whenever URLs change, reload both
-  useEffect(() => {
-    if (!audioUrl) return;
-    loadBoth();
-  }, [audioUrl, backgroundTrackUrl]);
-
-  const loadBoth = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // unload existing
-      await voiceSound.current?.unloadAsync();
-      await bgSound.current?.unloadAsync();
-      voiceSound.current = null;
-      bgSound.current = null;
-      setIsLoaded(false);
-
-      // configure audio mode
-      if (Platform.OS !== 'web') {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
+      // unload old
+      await Promise.all(voiceSounds.map(s => s.unloadAsync()));
+      if (bgSound.current) {
+        await bgSound.current.unloadAsync();
+        bgSound.current = null;
       }
+      setVoiceSounds([]);
+      setCurrentClip(0);
 
-      // 1) load TTS voice
-      const { sound: v } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        {
-          shouldPlay: false,
-          isLooping,
-          volume: 1.0,
-        },
-        onPlaybackStatusUpdate
-      );
-      voiceSound.current = v;
-      // slow it down a bit
-      await v.setRateAsync(voiceRate, true);
+      try {
+        // configure audio mode
+        if (Platform.OS !== 'web') {
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+          });
+        }
 
-      // 2) load background loop (if provided)
-      if (backgroundTrackUrl) {
-        const { sound: b } = await Audio.Sound.createAsync(
-          { uri: backgroundTrackUrl },
-          {
-            shouldPlay: false,
-            isLooping,
-            volume: 0.5,
-          }
+        // load TTS clips
+        const loaded = await Promise.all(
+          clipUrls.map(async uri => {
+            const { sound } = await Audio.Sound.createAsync(
+              { uri },
+              { shouldPlay: false, isLooping: false, volume: 1.0 },
+              onPlaybackStatusUpdate
+            );
+            await sound.setRateAsync(voiceRate, true);
+            return sound;
+          })
         );
-        bgSound.current = b;
-      }
+        if (cancelled) return;
+        setVoiceSounds(loaded);
 
-      setIsLoaded(true);
-    } catch (e: any) {
-      console.error('Error loading audio:', e);
-      setError(e.message || 'Failed to load audio');
-      Alert.alert('Audio Error', e.message || 'Unknown error');
-    } finally {
-      setIsLoading(false);
+        // load background music
+        if (backgroundUrl) {
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: backgroundUrl },
+            { shouldPlay: false, isLooping, volume: 0.5 }
+          );
+          bgSound.current = sound;
+        }
+
+        setIsLoaded(true);
+      } catch (e: any) {
+        console.error('Audio preload error', e);
+        setError(e.message || 'Failed to load audio');
+        Alert.alert('Audio Error', e.message || 'Unknown error');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [clipUrls, backgroundUrl]);
+
+  // handle each clip finishing
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+    // update UI time
+    setPosition(status.positionMillis);
+    setDuration(status.durationMillis || 1);
+
+    if (status.didJustFinish && isPlaying) {
+      setTimeout(async () => {
+        const next = currentClip + 1;
+        if (next < voiceSounds.length) {
+          setCurrentClip(next);
+          await voiceSounds[next].playAsync();
+        } else if (isLooping) {
+          setCurrentClip(0);
+          await voiceSounds[0].playAsync();
+        } else {
+          setIsPlaying(false);
+        }
+      }, 2000);
     }
   };
 
-  const togglePlayback = async () => {
-  if (!voiceSounds.length) return;
-  if (isPlaying) {
-    // stop all
-    await Promise.all(voiceSounds.map(s => s.pauseAsync()));
-    setIsPlaying(false);
-  } else {
-    setIsPlaying(true);
-    setCurrentClip(0);
-    await voiceSounds[0].playAsync();
-  }
-};
-
-// This runs every time play status updates
-const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-  if (status.didJustFinish && isPlaying) {
-    // move to next clip after 2s
-    setTimeout(async () => {
-      const next = (currentClip + 1) % voiceSounds.length;
-      setCurrentClip(next);
-      await voiceSounds[next].setPositionAsync(0);
-      await voiceSounds[next].playAsync();
-    }, 2000);
-  }
-  // ...and update position/duration UI as before
-};
-
-  const stopPlayback = async () => {
-    try {
-      await voiceSound.current?.stopAsync();
-      await bgSound.current?.stopAsync();
-      await voiceSound.current?.setPositionAsync(0);
-      await bgSound.current?.setPositionAsync(0);
-      setPosition(0);
+  // play / pause toggle
+  const togglePlay = async () => {
+    if (!isLoaded) return;
+    if (isPlaying) {
+      // pause all
+      await Promise.all(voiceSounds.map(s => s.pauseAsync()));
+      if (bgSound.current) await bgSound.current.pauseAsync();
       setIsPlaying(false);
-    } catch (e) {
-      console.error('Error stopping playback:', e);
+    } else {
+      setIsPlaying(true);
+      setCurrentClip(0);
+      await voiceSounds[0].playAsync();
+      if (bgSound.current) await bgSound.current.playAsync();
     }
   };
 
+  // stop everything
+  const stopPlayback = async () => {
+    await Promise.all(voiceSounds.map(s => s.stopAsync()));
+    if (bgSound.current) await bgSound.current.stopAsync();
+    setIsPlaying(false);
+    setPosition(0);
+    setCurrentClip(0);
+  };
+
+  // restart the sequence
   const restartPlayback = async () => {
-    try {
-      await voiceSound.current?.setPositionAsync(0);
-      await bgSound.current?.setPositionAsync(0);
-      await voiceSound.current?.playAsync();
-      await bgSound.current?.playAsync();
-    } catch (e) {
-      console.error('Error restarting playback:', e);
-    }
+    await stopPlayback();
+    await togglePlay();
   };
 
   const formatTime = (ms: number) => {
@@ -213,7 +178,7 @@ const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={loadBoth} style={styles.retryButton}>
+          <TouchableOpacity onPress={restartPlayback} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -232,19 +197,11 @@ const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
       </View>
 
       <View style={styles.controls}>
-        <TouchableOpacity
-          onPress={restartPlayback}
-          disabled={!isLoaded}
-          style={styles.controlButton}
-        >
+        <TouchableOpacity onPress={restartPlayback} disabled={!isLoaded} style={styles.controlButton}>
           <RotateCcw size={20} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={togglePlayback}
-          disabled={isLoading}
-          style={[styles.controlButton, styles.playButton]}
-        >
+        <TouchableOpacity onPress={togglePlay} disabled={isLoading} style={[styles.controlButton, styles.playButton]}>
           {isLoading ? (
             <Text style={styles.loading}>…</Text>
           ) : isPlaying ? (
@@ -254,11 +211,7 @@ const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={stopPlayback}
-          disabled={!isLoaded}
-          style={styles.controlButton}
-        >
+        <TouchableOpacity onPress={stopPlayback} disabled={!isLoaded} style={styles.controlButton}>
           <Square size={20} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -286,14 +239,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
   },
-  errorText: { color: '#f66', marginBottom: 6 },
+  errorText: {
+    color: '#f66',
+    marginBottom: 6,
+  },
   retryButton: {
     backgroundColor: '#ef4444',
     padding: 6,
     borderRadius: 6,
   },
-  retryText: { color: '#fff' },
-  progressContainer: { marginVertical: 16 },
+  retryText: {
+    color: '#fff',
+  },
+  progressContainer: {
+    marginVertical: 16,
+  },
   progressBar: {
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.3)',
@@ -309,7 +269,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  timeText: { color: 'rgba(255,255,255,0.8)' },
+  timeText: {
+    color: 'rgba(255,255,255,0.8)',
+  },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
