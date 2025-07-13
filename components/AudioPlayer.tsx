@@ -18,25 +18,25 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface AudioPlayerProps {
-  /** URL of the mixed TTS + music file */
-  clipUrls: string;
-  /** URL of the background music file */
+  /** One TTS URL per manifestation, in playback order */
+  clipUrls: string[];
+  /** Background‐music URL */
   backgroundUrl?: string;
   title?: string;
   isLooping?: boolean;
   style?: any;
-  /** control voice speed: 1.0 is normal, <1.0 is slower */
+  /** 1.0 = normal, <1.0 = slower */
   voiceRate?: number;
 }
 
 export default function AudioPlayer({
   clipUrls,
-  backgroundUrl: backgroundTrackUrl,
+  backgroundUrl,
   title = 'Audio',
   isLooping = true,
   voiceRate = 0.9,
   style,
-}: AudioPlayerProps) {
+}: AudioPlayerProps)  {
   const voiceSound = useRef<Audio.Sound | null>(null);
   const bgSound = useRef<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
