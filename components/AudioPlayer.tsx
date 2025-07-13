@@ -96,7 +96,7 @@ export default function AudioPlayer({
         if (backgroundUrl && !cancelled) {
           const { sound } = await Audio.Sound.createAsync(
             { uri: backgroundUrl },
-            { shouldPlay: false, isLooping, volume: 0.5 }
+            { shouldPlay: false, isLooping, volume: 0.2 }
           );
           bgSound.current = sound;
         }
