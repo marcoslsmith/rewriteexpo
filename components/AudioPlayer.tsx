@@ -34,8 +34,10 @@ export default function AudioPlayer({
   voiceRate = 0.9,
   style,
 }: AudioPlayerProps) {
-  const [voiceSounds, setVoiceSounds] = useState<Audio.Sound[]>([]);
+  // we keep the array of Expo.Sound instances in a ref so callbacks always see the current list
+  const voiceSoundsRef = useRef<Audio.Sound[]>([]);
   const bgSound = useRef<Audio.Sound | null>(null);
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,10 +45,8 @@ export default function AudioPlayer({
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(1);
 
-  // ref to always know if we're playing
+  // refs to track play state & current clip index
   const isPlayingRef = useRef(false);
-
-  // ref & state for the current clip index
   const currentClipRef = useRef(0);
   const [currentClip, setCurrentClip] = useState(0);
 
@@ -57,18 +57,17 @@ export default function AudioPlayer({
       setIsLoading(true);
       setError(null);
 
-      // unload old
-      await Promise.all(voiceSounds.map(s => s.unloadAsync()));
+      // unload existing
+      await Promise.all(voiceSoundsRef.current.map(s => s.unloadAsync()));
+      voiceSoundsRef.current = [];
       if (bgSound.current) {
         await bgSound.current.unloadAsync();
         bgSound.current = null;
       }
-      setVoiceSounds([]);
       currentClipRef.current = 0;
       setCurrentClip(0);
 
       try {
-        // config
         if (Platform.OS !== 'web') {
           await Audio.setAudioModeAsync({
             allowsRecordingIOS: false,
@@ -79,7 +78,7 @@ export default function AudioPlayer({
           });
         }
 
-        // load each clip
+        // load each TTS clip
         const loaded = await Promise.all(
           clipUrls.map(async uri => {
             const { sound } = await Audio.Sound.createAsync(
@@ -91,9 +90,9 @@ export default function AudioPlayer({
             return sound;
           })
         );
-        if (!cancelled) setVoiceSounds(loaded);
+        if (!cancelled) voiceSoundsRef.current = loaded;
 
-        // background music
+        // load background music
         if (backgroundUrl && !cancelled) {
           const { sound } = await Audio.Sound.createAsync(
             { uri: backgroundUrl },
@@ -114,7 +113,7 @@ export default function AudioPlayer({
     return () => { cancelled = true; };
   }, [clipUrls, backgroundUrl]);
 
-  // when a clip finishes
+  // playback‐status callback for each clip
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     setPosition(status.positionMillis);
@@ -122,8 +121,10 @@ export default function AudioPlayer({
 
     if (status.didJustFinish && isPlayingRef.current) {
       setTimeout(() => {
+        const arr = voiceSoundsRef.current;
         let next = currentClipRef.current + 1;
-        if (next >= voiceSounds.length) {
+
+        if (next >= arr.length) {
           if (!isLooping) {
             setIsPlaying(false);
             isPlayingRef.current = false;
@@ -131,21 +132,26 @@ export default function AudioPlayer({
           }
           next = 0;
         }
+
         currentClipRef.current = next;
         setCurrentClip(next);
-        voiceSounds[next]
+
+        // reset position then play
+        arr[next]
           .setPositionAsync(0)
-          .then(() => voiceSounds[next].playAsync());
+          .then(() => arr[next].playAsync())
+          .catch(console.error);
       }, 2000);
     }
   };
 
-  // play / pause toggle
+  // toggle play/pause
   const togglePlay = async () => {
     if (!isLoaded) return;
+    const arr = voiceSoundsRef.current;
+
     if (isPlaying) {
-      // pause all
-      await Promise.all(voiceSounds.map(s => s.pauseAsync()));
+      await Promise.all(arr.map(s => s.pauseAsync()));
       if (bgSound.current) await bgSound.current.pauseAsync();
       setIsPlaying(false);
       isPlayingRef.current = false;
@@ -154,14 +160,15 @@ export default function AudioPlayer({
       isPlayingRef.current = true;
       currentClipRef.current = 0;
       setCurrentClip(0);
-      await voiceSounds[0].playAsync();
+      await arr[0].playAsync();
       if (bgSound.current) await bgSound.current.playAsync();
     }
   };
 
   // stop everything
   const stopPlayback = async () => {
-    await Promise.all(voiceSounds.map(s => s.stopAsync()));
+    const arr = voiceSoundsRef.current;
+    await Promise.all(arr.map(s => s.stopAsync()));
     if (bgSound.current) await bgSound.current.stopAsync();
     setIsPlaying(false);
     isPlayingRef.current = false;
@@ -170,7 +177,7 @@ export default function AudioPlayer({
     setCurrentClip(0);
   };
 
-  // restart from beginning
+  // restart sequence
   const restartPlayback = async () => {
     await stopPlayback();
     await togglePlay();
@@ -215,7 +222,11 @@ export default function AudioPlayer({
           <RotateCcw size={20} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={togglePlay} disabled={isLoading} style={[styles.controlButton, styles.playButton]}>
+        <TouchableOpacity
+          onPress={togglePlay}
+          disabled={isLoading}
+          style={[styles.controlButton, styles.playButton]}
+        >
           {isLoading ? (
             <Text style={styles.loading}>…</Text>
           ) : isPlaying ? (
@@ -253,21 +264,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
   },
-  errorText: {
-    color: '#f66',
-    marginBottom: 6,
-  },
+  errorText: { color: '#f66', marginBottom: 6 },
   retryButton: {
     backgroundColor: '#ef4444',
     padding: 6,
     borderRadius: 6,
   },
-  retryText: {
-    color: '#fff',
-  },
-  progressContainer: {
-    marginVertical: 16,
-  },
+  retryText: { color: '#fff' },
+  progressContainer: { marginVertical: 16 },
   progressBar: {
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.3)',
@@ -283,9 +287,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  timeText: {
-    color: 'rgba(255,255,255,0.8)',
-  },
+  timeText: { color: 'rgba(255,255,255,0.8)' },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -301,8 +303,5 @@ const styles = StyleSheet.create({
   playButton: {
     backgroundColor: 'rgba(16,185,129,1)',
   },
-  loading: {
-    color: '#fff',
-    fontSize: 24,
-  },
+  loading: { color: '#fff', fontSize: 24 },
 });
