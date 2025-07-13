@@ -43,7 +43,10 @@ export default function AudioPlayer({
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(1);
 
-  // useRef to always hold the latest clip index
+  // ref to always know if we're playing
+  const isPlayingRef = useRef(false);
+
+  // ref & state for the current clip index
   const currentClipRef = useRef(0);
   const [currentClip, setCurrentClip] = useState(0);
 
@@ -54,7 +57,7 @@ export default function AudioPlayer({
       setIsLoading(true);
       setError(null);
 
-      // unload old clips
+      // unload old
       await Promise.all(voiceSounds.map(s => s.unloadAsync()));
       if (bgSound.current) {
         await bgSound.current.unloadAsync();
@@ -65,7 +68,7 @@ export default function AudioPlayer({
       setCurrentClip(0);
 
       try {
-        // configure audio mode
+        // config
         if (Platform.OS !== 'web') {
           await Audio.setAudioModeAsync({
             allowsRecordingIOS: false,
@@ -76,7 +79,7 @@ export default function AudioPlayer({
           });
         }
 
-        // load each TTS clip
+        // load each clip
         const loaded = await Promise.all(
           clipUrls.map(async uri => {
             const { sound } = await Audio.Sound.createAsync(
@@ -90,7 +93,7 @@ export default function AudioPlayer({
         );
         if (!cancelled) setVoiceSounds(loaded);
 
-        // load background music if provided
+        // background music
         if (backgroundUrl && !cancelled) {
           const { sound } = await Audio.Sound.createAsync(
             { uri: backgroundUrl },
@@ -111,23 +114,25 @@ export default function AudioPlayer({
     return () => { cancelled = true; };
   }, [clipUrls, backgroundUrl]);
 
-  // handle each clip finishing and advance (with 2s pause)
+  // when a clip finishes
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     setPosition(status.positionMillis);
     setDuration(status.durationMillis || 1);
 
-    if (status.didJustFinish && isPlaying) {
+    if (status.didJustFinish && isPlayingRef.current) {
       setTimeout(() => {
-        // compute next index
         let next = currentClipRef.current + 1;
         if (next >= voiceSounds.length) {
-          if (isLooping) next = 0;
-          else return setIsPlaying(false);
+          if (!isLooping) {
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            return;
+          }
+          next = 0;
         }
         currentClipRef.current = next;
         setCurrentClip(next);
-        // play next clip
         voiceSounds[next]
           .setPositionAsync(0)
           .then(() => voiceSounds[next].playAsync());
@@ -135,7 +140,7 @@ export default function AudioPlayer({
     }
   };
 
-  // toggle play / pause
+  // play / pause toggle
   const togglePlay = async () => {
     if (!isLoaded) return;
     if (isPlaying) {
@@ -143,8 +148,10 @@ export default function AudioPlayer({
       await Promise.all(voiceSounds.map(s => s.pauseAsync()));
       if (bgSound.current) await bgSound.current.pauseAsync();
       setIsPlaying(false);
+      isPlayingRef.current = false;
     } else {
       setIsPlaying(true);
+      isPlayingRef.current = true;
       currentClipRef.current = 0;
       setCurrentClip(0);
       await voiceSounds[0].playAsync();
@@ -157,12 +164,13 @@ export default function AudioPlayer({
     await Promise.all(voiceSounds.map(s => s.stopAsync()));
     if (bgSound.current) await bgSound.current.stopAsync();
     setIsPlaying(false);
+    isPlayingRef.current = false;
     setPosition(0);
     currentClipRef.current = 0;
     setCurrentClip(0);
   };
 
-  // restart the sequence
+  // restart from beginning
   const restartPlayback = async () => {
     await stopPlayback();
     await togglePlay();
