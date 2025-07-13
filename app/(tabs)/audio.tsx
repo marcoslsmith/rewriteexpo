@@ -141,50 +141,40 @@ async function generateAudio() {
   }
 
   setIsGenerating(true);
-  try {
-    // 1) build texts array
-    const texts = favorites
-      .filter(m => selectedIds.has(m.id))
-      .map(m => m.transformed_text);
+ try {
+  // 1) Gather your selected texts
+  const texts = favorites
+    .filter(m => selectedIds.has(m.id))
+    .map(m => m.transformed_text);
 
-    // 2) generate one TTS clip per text and store URLs
-    const urls = await Promise.all(
-      texts.map(text => audioService._generateBase64TTS(text))
-    );
-    setClipUrls(urls);
+  // 2) Generate one base64 TTS clip per text
+  const clipUrls = await Promise.all(
+    texts.map(text => audioService._generateBase64TTS(text))
+  );
+  setClipUrls(clipUrls);
 
-    // 3) build & upload the final mix (with pauses & loops)
-    const finalUrl = await audioService.generatePersonalizedAudio({
-      manifestationTexts: texts,
-      duration: durationMins,
-      musicStyle,
-    });
-    setGeneratedUrl(finalUrl);
+  // 3) Grab the background track URL
+  const styleObj = MUSIC_STYLES.find(s => s.id === musicStyle)!;
+  const { data: bgData, error: bgError } = supabase
+    .storage
+    .from('audio-files')
+    .getPublicUrl(styleObj.filename);
+  if (bgError) throw bgError;
+  setBackgroundUrl(bgData.publicUrl);
 
-    // 4) fetch background track
-    const styleObj = MUSIC_STYLES.find(s => s.id === musicStyle)!;
-    const { data: bgData, error: bgError } = await supabase
-      .storage
-      .from('audio-files')
-      .getPublicUrl(styleObj.filename);
-    if (bgError) throw bgError;
-    setBackgroundUrl(bgData.publicUrl);
-
-    // 5) configure player
-    const secs = audioService.getAudioDuration();
-    setTotalSeconds(secs);
-    setIsLooping(audioService.isSeamlessLoop());
-    setSuccessMsg('Your personalized audio is ready!');
-    setTimeout(() => setSuccessMsg(null), 3000);
-    setShowPlayer(true);
-
-  } catch (e) {
-    console.error(e);
-    setErrorMsg('Failed to generate audio');
-    setTimeout(() => setErrorMsg(null), 5000);
-  } finally {
-    setIsGenerating(false);
-  }
+  // 4) Prepare player
+  setTotalSeconds(audioService.getAudioDuration());
+  setIsLooping(audioService.isSeamlessLoop());
+  setSuccessMsg('Your personalized audio is ready!');
+  setTimeout(() => setSuccessMsg(null), 3000);
+  setShowPlayer(true);
+} catch (e) {
+  console.error(e);
+  setErrorMsg('Failed to generate audio');
+  setTimeout(() => setErrorMsg(null), 5000);
+} finally {
+  setIsGenerating(false);
+}
 }
 
 
