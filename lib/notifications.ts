@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { storageService } from './storage';
+import { supabase } from './supabase';
 import type { Database } from './supabase';
 
 type NotificationSchedule = Database['public']['Tables']['notification_schedules']['Row'];
@@ -11,6 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -109,7 +112,7 @@ export const notificationService = {
           hour: hours,
           minute: minutes,
           repeats: true,
-        },
+        } as any,
       });
 
       notificationIds.push(notificationId);
@@ -145,7 +148,7 @@ export const notificationService = {
       },
       trigger: {
         seconds: 1,
-      },
+      } as any,
     });
   },
 
@@ -188,6 +191,97 @@ export const notificationService = {
       } catch (error) {
         console.error('Error creating default schedule:', error);
       }
+    }
+  },
+
+  // Schedule all active notifications for the current user
+  async scheduleAllActiveNotifications(): Promise<void> {
+    if (Platform.OS === 'web') {
+      console.log('Notifications not supported on web');
+      return;
+    }
+
+    try {
+      const hasPermission = await this.requestPermissions();
+      if (!hasPermission) {
+        console.log('Notification permissions not granted');
+        return;
+      }
+
+      // Cancel all existing notifications first
+      await this.cancelAllNotifications();
+
+      // Get all active schedules
+      const schedules = await storageService.getNotificationSchedules();
+      const activeSchedules = schedules.filter(schedule => schedule.is_active);
+
+      console.log(`Scheduling ${activeSchedules.length} active notifications`);
+
+      // Schedule each active notification
+      for (const schedule of activeSchedules) {
+        try {
+          await this.scheduleNotification(schedule);
+        } catch (error) {
+          console.error(`Error scheduling notification ${schedule.id}:`, error);
+        }
+      }
+
+      console.log('All active notifications scheduled successfully');
+    } catch (error) {
+      console.error('Error scheduling all notifications:', error);
+    }
+  },
+
+  // Check and create default schedules for new users
+  async ensureDefaultSchedulesExist(): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No authenticated user, skipping default schedule check');
+        return;
+      }
+
+      const schedules = await storageService.getNotificationSchedules();
+      
+      if (schedules.length === 0) {
+        console.log('No schedules found for user, creating defaults...');
+        await this.createDefaultSchedules(user.id);
+      } else {
+        console.log(`User has ${schedules.length} existing schedules`);
+      }
+    } catch (error) {
+      console.error('Error ensuring default schedules exist:', error);
+    }
+  },
+
+  // Debug function to test notifications
+  async debugNotifications(): Promise<void> {
+    if (Platform.OS === 'web') {
+      console.log('Notifications not supported on web');
+      return;
+    }
+
+    try {
+      console.log('=== DEBUG: Testing Notifications ===');
+      
+      // Check permissions
+      const hasPermission = await this.requestPermissions();
+      console.log('Notification permissions:', hasPermission);
+      
+      // Get all scheduled notifications
+      const scheduled = await this.getAllScheduledNotifications();
+      console.log('Currently scheduled notifications:', scheduled.length);
+      
+      // Get all schedules from storage
+      const schedules = await storageService.getNotificationSchedules();
+      console.log('Schedules in storage:', schedules.length);
+      
+      // Send a test notification
+      await this.sendTestNotification('Debug Test', 'This is a test notification from the debug function');
+      console.log('Test notification sent');
+      
+    } catch (error) {
+      console.error('Debug notification error:', error);
     }
   },
 };

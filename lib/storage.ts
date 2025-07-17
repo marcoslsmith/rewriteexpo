@@ -614,12 +614,14 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
           return;
         }
         
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('notification_schedules')
           .insert({
             ...schedule,
             user_id: user?.id!,
-          });
+          })
+          .select()
+          .single();
         
         if (error) {
           console.error('Supabase insert notification schedule error:', error);
@@ -632,6 +634,17 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
         
         // Also save to local storage as backup
         await this.saveNotificationScheduleLocally(schedule);
+        
+        // Schedule the notification with the device
+        if (data && data.is_active) {
+          try {
+            const { notificationService } = await import('./notifications');
+            await notificationService.scheduleNotification(data);
+            console.log('Notification scheduled with device successfully');
+          } catch (scheduleError) {
+            console.error('Error scheduling notification with device:', scheduleError);
+          }
+        }
       } else {
         console.log('Not authenticated, saving notification schedule to local storage...');
         await this.saveNotificationScheduleLocally(schedule);
@@ -782,10 +795,20 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
       
       if (isAuth) {
         console.log('Updating notification schedule in Supabase:', id);
-        const { error } = await supabase
+        
+        // Get the current schedule first
+        const { data: currentSchedule } = await supabase
+          .from('notification_schedules')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        const { data, error } = await supabase
           .from('notification_schedules')
           .update(updates)
-          .eq('id', id);
+          .eq('id', id)
+          .select()
+          .single();
         
         if (error) {
           console.error('Supabase update notification schedule error:', error);
@@ -801,6 +824,27 @@ Create a 2-3 paragraph summary that highlights their growth, insights, and key t
           return;
         }
         console.log('Notification schedule updated in Supabase successfully');
+        
+        // Handle notification scheduling
+        if (data) {
+          try {
+            const { notificationService } = await import('./notifications');
+            
+            // Cancel existing notifications for this schedule
+            if (currentSchedule) {
+              // We need to track notification IDs - for now, we'll cancel all and reschedule
+              await notificationService.cancelAllNotifications();
+            }
+            
+            // Schedule new notification if active
+            if (data.is_active) {
+              await notificationService.scheduleNotification(data);
+              console.log('Updated notification scheduled with device successfully');
+            }
+          } catch (scheduleError) {
+            console.error('Error updating notification with device:', scheduleError);
+          }
+        }
       } else {
         console.log('Not authenticated, updating notification schedule in local storage...');
         // Fallback to local storage

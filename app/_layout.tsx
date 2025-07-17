@@ -6,6 +6,7 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_7
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import GradientBackground from '@/components/GradientBackground';
+import { notificationService } from '@/lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +23,21 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
+      
+      // Initialize notifications
+      const initializeNotifications = async () => {
+        try {
+          // Ensure default schedules exist for new users
+          await notificationService.ensureDefaultSchedulesExist();
+          
+          // Schedule all active notifications
+          await notificationService.scheduleAllActiveNotifications();
+        } catch (error) {
+          console.error('Error initializing notifications:', error);
+        }
+      };
+      
+      initializeNotifications();
     }
   }, [fontsLoaded]);
 

@@ -18,7 +18,7 @@ import { User } from '@supabase/supabase-js';
 import GradientBackground from '@/components/GradientBackground';
 import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
-import { defaultReminderMessages } from '@/lib/notifications';
+import { defaultReminderMessages, notificationService } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
 import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck } from 'lucide-react-native';
 
@@ -86,6 +86,18 @@ export default function Settings() {
       fetchProfile();
       fetchSchedules();
       fetchManifestations();
+      
+      // Initialize notifications for the user
+      const initializeUserNotifications = async () => {
+        try {
+          await notificationService.ensureDefaultSchedulesExist();
+          await notificationService.scheduleAllActiveNotifications();
+        } catch (error) {
+          console.error('Error initializing user notifications:', error);
+        }
+      };
+      
+      initializeUserNotifications();
     }
   }, [user]);
 
@@ -338,6 +350,14 @@ export default function Settings() {
       setShowScheduleModal(false);
       resetScheduleForm();
       fetchSchedules();
+      
+      // Reschedule all notifications after changes
+      try {
+        await notificationService.scheduleAllActiveNotifications();
+      } catch (error) {
+        console.error('Error rescheduling notifications:', error);
+      }
+      
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
       setError(error.message);
@@ -508,12 +528,28 @@ export default function Settings() {
                 <View style={styles.sectionHeader}>
                   <Bell size={20} color="#ffffff" />
                   <Text style={styles.sectionTitle}>Notification Schedules</Text>
-                  <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => setShowScheduleModal(true)}
-                  >
-                    <Plus size={16} color="#ffffff" />
-                  </TouchableOpacity>
+                  <View style={styles.sectionHeaderButtons}>
+                    <TouchableOpacity
+                      style={styles.debugButton}
+                      onPress={async () => {
+                        try {
+                          await notificationService.debugNotifications();
+                          setSuccess('Debug test completed - check console');
+                        } catch (error) {
+                          setError('Debug test failed');
+                        }
+                        setTimeout(() => setSuccess(null), 3000);
+                      }}
+                    >
+                      <Text style={styles.debugButtonText}>Debug</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={() => setShowScheduleModal(true)}
+                    >
+                      <Plus size={16} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 
                 {schedules.length > 0 ? (
@@ -1561,7 +1597,22 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+  },
+  sectionHeaderButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  debugButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  debugButtonText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
   },
 });
