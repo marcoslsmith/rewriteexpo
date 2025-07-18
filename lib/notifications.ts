@@ -83,16 +83,16 @@ export const notificationService = {
 
     const notificationIds: string[] = [];
     const [hours, minutes] = schedule.time.split(':').map(Number);
+    const now = new Date();
 
-    // Schedule notification for each selected day
     for (const dayOfWeek of schedule.days) {
       let message = schedule.message;
-      
+
       // If using random manifestation, get a random one
       if (schedule.use_random_manifestation) {
         const manifestations = await storageService.getManifestations();
         const favoriteManifestations = manifestations.filter(m => m.is_favorite);
-        
+
         if (favoriteManifestations.length > 0) {
           const randomManifestation = favoriteManifestations[Math.floor(Math.random() * favoriteManifestations.length)];
           message = randomManifestation.transformed_text;
@@ -104,19 +104,44 @@ export const notificationService = {
         }
       }
 
+      // Calculate the next trigger date for this day
+      const today = now.getDay(); // 0 (Sun) - 6 (Sat)
+      let daysUntilNext = (dayOfWeek - today + 7) % 7;
+
+      // If today is the scheduled day, check if the time has already passed
+      if (daysUntilNext === 0) {
+        if (
+          now.getHours() > hours ||
+          (now.getHours() === hours && now.getMinutes() >= minutes)
+        ) {
+          daysUntilNext = 7; // Schedule for next week
+        }
+      }
+
+      // Schedule the notification
+      const trigger = {
+        weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // Expo uses 1-7, Sunday=1
+        hour: hours,
+        minute: minutes,
+        second: 0,
+        repeats: true,
+      } as any;
+
+      // If daysUntilNext > 0, set a startDate in the future
+      if (daysUntilNext > 0) {
+        const nextDate = new Date(now);
+        nextDate.setDate(now.getDate() + daysUntilNext);
+        nextDate.setHours(hours, minutes, 0, 0);
+        trigger.startDate = nextDate;
+      }
+
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: schedule.title,
           body: message,
           sound: true,
         },
-        trigger: {
-          weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // Expo uses 1-7, Sunday=1
-          hour: hours,
-          minute: minutes,
-          second: 0, // <-- this helps prevent instant firing
-          repeats: true,
-        } as any,
+        trigger,
       });
 
       notificationIds.push(notificationId);

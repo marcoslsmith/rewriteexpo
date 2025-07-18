@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet } from 'react-native';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import GradientBackground from '@/components/GradientBackground';
-import { notificationService } from '@/lib/notifications';
+import { AuthProvider } from '@/hooks/useAuth';
+import AppNavigator from '@/components/AppNavigator';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,21 +23,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
-      
-      // Initialize notifications
-      const initializeNotifications = async () => {
-        try {
-          // Ensure default schedules exist for new users
-          await notificationService.ensureDefaultSchedulesExist();
-          
-          // Don't auto-schedule on app startup to prevent spam
-          // Users can manually schedule via the debug button or when creating schedules
-        } catch (error) {
-          console.error('Error initializing notifications:', error);
-        }
-      };
-      
-      initializeNotifications();
+      // No notification logic here
     }
   }, [fontsLoaded]);
 
@@ -53,13 +39,10 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+    <AuthProvider>
+      <AppNavigator />
       <StatusBar style="dark" />
-    </>
+    </AuthProvider>
   );
 }
 
