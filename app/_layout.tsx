@@ -30,8 +30,8 @@ export default function RootLayout() {
           // Ensure default schedules exist for new users
           await notificationService.ensureDefaultSchedulesExist();
           
-          // Schedule all active notifications
-          await notificationService.scheduleAllActiveNotifications();
+          // Don't auto-schedule on app startup to prevent spam
+          // Users can manually schedule via the debug button or when creating schedules
         } catch (error) {
           console.error('Error initializing notifications:', error);
         }

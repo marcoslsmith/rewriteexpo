@@ -87,13 +87,12 @@ export default function Settings() {
       fetchSchedules();
       fetchManifestations();
       
-      // Initialize notifications for the user
+      // Only ensure default schedules exist, don't auto-schedule
       const initializeUserNotifications = async () => {
         try {
           await notificationService.ensureDefaultSchedulesExist();
-          await notificationService.scheduleAllActiveNotifications();
         } catch (error) {
-          console.error('Error initializing user notifications:', error);
+          console.error('Error ensuring default schedules exist:', error);
         }
       };
       
@@ -351,12 +350,8 @@ export default function Settings() {
       resetScheduleForm();
       fetchSchedules();
       
-      // Reschedule all notifications after changes
-      try {
-        await notificationService.scheduleAllActiveNotifications();
-      } catch (error) {
-        console.error('Error rescheduling notifications:', error);
-      }
+      // Don't auto-reschedule to prevent notification spam
+      // Users can manually schedule via the debug button
       
       setTimeout(() => setSuccess(null), 3000);
     } catch (error: any) {
@@ -541,7 +536,21 @@ export default function Settings() {
                         setTimeout(() => setSuccess(null), 3000);
                       }}
                     >
-                      <Text style={styles.debugButtonText}>Debug</Text>
+                      <Text style={styles.debugButtonText}>Test</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.debugButton}
+                      onPress={async () => {
+                        try {
+                          await notificationService.scheduleAllActiveNotifications();
+                          setSuccess('All notifications scheduled successfully');
+                        } catch (error) {
+                          setError('Failed to schedule notifications');
+                        }
+                        setTimeout(() => setSuccess(null), 3000);
+                      }}
+                    >
+                      <Text style={styles.debugButtonText}>Schedule</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.addButton}

@@ -49,6 +49,9 @@ export const defaultReminderMessages = {
   ]
 };
 
+// Flag to prevent multiple scheduling
+let isSchedulingNotifications = false;
+
 export const notificationService = {
   async requestPermissions(): Promise<boolean> {
     if (Platform.OS === 'web') {
@@ -111,6 +114,7 @@ export const notificationService = {
           weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // Expo uses 1-7, Sunday=1
           hour: hours,
           minute: minutes,
+          second: 0, // <-- this helps prevent instant firing
           repeats: true,
         } as any,
       });
@@ -201,6 +205,14 @@ export const notificationService = {
       return;
     }
 
+    // Prevent multiple simultaneous scheduling
+    if (isSchedulingNotifications) {
+      console.log('Already scheduling notifications, skipping...');
+      return;
+    }
+
+    isSchedulingNotifications = true;
+
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
@@ -229,6 +241,8 @@ export const notificationService = {
       console.log('All active notifications scheduled successfully');
     } catch (error) {
       console.error('Error scheduling all notifications:', error);
+    } finally {
+      isSchedulingNotifications = false;
     }
   },
 
