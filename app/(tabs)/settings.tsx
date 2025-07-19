@@ -20,7 +20,8 @@ import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages, notificationService } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck } from 'lucide-react-native';
+import { useAuth } from '@/hooks/useAuth';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck, Bug } from 'lucide-react-native';
 
 const { height, width } = Dimensions.get('window');
 
@@ -39,7 +40,7 @@ const reminderCategories = [
 ];
 
 export default function Settings() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +103,7 @@ export default function Settings() {
 
   const checkUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      // User state is now managed by useAuth hook
     } catch (error) {
       console.error('Error checking user:', error);
     } finally {
@@ -191,9 +191,7 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
+      await signOut();
       setProfile(null);
       setSchedules([]);
       setSuccess('Signed out successfully!');
@@ -592,6 +590,47 @@ export default function Settings() {
                 <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
                   <LogOut size={20} color="#ff6b6b" />
                   <Text style={[styles.settingText, { color: '#ff6b6b' }]}>Sign Out</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Debug Section */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Bug size={20} color="#ffffff" />
+                  <Text style={styles.sectionTitle}>Debug</Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.settingItem} 
+                  onPress={async () => {
+                    try {
+                      await signOut();
+                      setSuccess('Signed out - check if login screen appears');
+                    } catch (error) {
+                      setError('Failed to sign out');
+                    }
+                    setTimeout(() => setSuccess(null), 3000);
+                  }}
+                >
+                  <Bug size={20} color="#ff9500" />
+                  <Text style={[styles.settingText, { color: '#ff9500' }]}>Force Sign Out (Debug)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.settingItem} 
+                  onPress={async () => {
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      console.log('🔍 Current user:', user);
+                      setSuccess(`User: ${user ? user.email : 'null'}`);
+                    } catch (error) {
+                      setError('Failed to check user');
+                    }
+                    setTimeout(() => setSuccess(null), 3000);
+                  }}
+                >
+                  <Bug size={20} color="#ff9500" />
+                  <Text style={[styles.settingText, { color: '#ff9500' }]}>Check Current User</Text>
                 </TouchableOpacity>
               </View>
             </>

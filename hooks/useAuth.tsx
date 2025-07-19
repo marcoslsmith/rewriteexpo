@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -17,9 +18,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check auth state on mount
     const getUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+        console.log('🔍 Checking auth state...');
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.log('❌ Auth error:', error.message);
+          setUser(null);
+        } else {
+          console.log('👤 User found:', user ? user.email : 'null');
+          setUser(user);
+        }
       } catch (e) {
+        console.log('❌ Auth exception:', e);
         setUser(null);
       } finally {
         setLoading(false);
@@ -28,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getUser();
 
     // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state changed:', event, session?.user?.email || 'null');
       setUser(session?.user ?? null);
     });
 
@@ -37,8 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const signOut = async () => {
+    try {
+      console.log('🚪 Signing out...');
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.log('❌ Sign out error:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
