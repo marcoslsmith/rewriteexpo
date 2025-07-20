@@ -21,7 +21,8 @@ import { storageService } from '@/lib/storage';
 import { defaultReminderMessages, notificationService } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck, Bug } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 const { height, width } = Dimensions.get('window');
 
@@ -40,7 +41,7 @@ const reminderCategories = [
 ];
 
 export default function Settings() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, clearAllAuthData } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +196,11 @@ export default function Settings() {
       setProfile(null);
       setSchedules([]);
       setSuccess('Signed out successfully!');
+      
+      // Small delay to ensure sign out completes before redirect
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 500);
     } catch (error: any) {
       setError(error.message);
     }
@@ -523,34 +529,6 @@ export default function Settings() {
                   <Text style={styles.sectionTitle}>Notification Schedules</Text>
                   <View style={styles.sectionHeaderButtons}>
                     <TouchableOpacity
-                      style={styles.debugButton}
-                      onPress={async () => {
-                        try {
-                          await notificationService.debugNotifications();
-                          setSuccess('Debug test completed - check console');
-                        } catch (error) {
-                          setError('Debug test failed');
-                        }
-                        setTimeout(() => setSuccess(null), 3000);
-                      }}
-                    >
-                      <Text style={styles.debugButtonText}>Test</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.debugButton}
-                      onPress={async () => {
-                        try {
-                          await notificationService.scheduleAllActiveNotifications();
-                          setSuccess('All notifications scheduled successfully');
-                        } catch (error) {
-                          setError('Failed to schedule notifications');
-                        }
-                        setTimeout(() => setSuccess(null), 3000);
-                      }}
-                    >
-                      <Text style={styles.debugButtonText}>Schedule</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
                       style={styles.addButton}
                       onPress={() => setShowScheduleModal(true)}
                     >
@@ -593,46 +571,7 @@ export default function Settings() {
                 </TouchableOpacity>
               </View>
 
-              {/* Debug Section */}
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Bug size={20} color="#ffffff" />
-                  <Text style={styles.sectionTitle}>Debug</Text>
-                </View>
-                
-                <TouchableOpacity 
-                  style={styles.settingItem} 
-                  onPress={async () => {
-                    try {
-                      await signOut();
-                      setSuccess('Signed out - check if login screen appears');
-                    } catch (error) {
-                      setError('Failed to sign out');
-                    }
-                    setTimeout(() => setSuccess(null), 3000);
-                  }}
-                >
-                  <Bug size={20} color="#ff9500" />
-                  <Text style={[styles.settingText, { color: '#ff9500' }]}>Force Sign Out (Debug)</Text>
-                </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={styles.settingItem} 
-                  onPress={async () => {
-                    try {
-                      const { data: { user } } = await supabase.auth.getUser();
-                      console.log('🔍 Current user:', user);
-                      setSuccess(`User: ${user ? user.email : 'null'}`);
-                    } catch (error) {
-                      setError('Failed to check user');
-                    }
-                    setTimeout(() => setSuccess(null), 3000);
-                  }}
-                >
-                  <Bug size={20} color="#ff9500" />
-                  <Text style={[styles.settingText, { color: '#ff9500' }]}>Check Current User</Text>
-                </TouchableOpacity>
-              </View>
             </>
           ) : (
             <View style={styles.signInPrompt}>
@@ -1650,17 +1589,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  debugButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  debugButtonText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-  },
+
 });

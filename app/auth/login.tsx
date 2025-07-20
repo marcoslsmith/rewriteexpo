@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import GradientBackground from '@/components/GradientBackground';
-import { X } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,24 +18,38 @@ export default function LoginScreen() {
       setLoading(true);
 
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
-        setSuccess('Account created successfully!');
+        
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+          setSuccess('Account created! Please check your email to confirm your account.');
+        } else if (data.session) {
+          setSuccess('Account created and signed in successfully! Redirecting...');
+          // Force navigation after successful signup
+          setTimeout(() => {
+            router.replace('/(tabs)');
+          }, 1500);
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        setSuccess('Signed in successfully!');
+        
+        setSuccess('Signed in successfully! Redirecting...');
+        // Force navigation after successful signin
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 1500);
       }
 
       setEmail('');
       setPassword('');
-      // Navigation will switch to main app automatically on auth state change
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -49,6 +63,7 @@ export default function LoginScreen() {
         <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
         {error && <Text style={styles.error}>{error}</Text>}
         {success && <Text style={styles.success}>{success}</Text>}
+        
         <TextInput
           style={styles.input}
           placeholder="Email"

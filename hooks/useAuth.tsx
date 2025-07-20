@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  clearAllAuthData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -18,18 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check auth state on mount
     const getUser = async () => {
       try {
-        console.log('🔍 Checking auth state...');
         const { data: { user }, error } = await supabase.auth.getUser();
         
         if (error) {
-          console.log('❌ Auth error:', error.message);
           setUser(null);
         } else {
-          console.log('👤 User found:', user ? user.email : 'null');
           setUser(user);
         }
       } catch (e) {
-        console.log('❌ Auth exception:', e);
         setUser(null);
       } finally {
         setLoading(false);
@@ -39,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔄 Auth state changed:', event, session?.user?.email || 'null');
       setUser(session?.user ?? null);
     });
 
@@ -50,7 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 Signing out...');
       await supabase.auth.signOut();
       setUser(null);
     } catch (error) {
@@ -58,8 +54,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearAllAuthData = async () => {
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear all AsyncStorage keys that might contain auth data
+      const keys = await AsyncStorage.getAllKeys();
+      const authKeys = keys.filter(key => 
+        key.includes('supabase') || 
+        key.includes('auth') || 
+        key.includes('session') ||
+        key.includes('token')
+      );
+      
+      if (authKeys.length > 0) {
+        await AsyncStorage.multiRemove(authKeys);
+      }
+      
+      setUser(null);
+    } catch (error) {
+      // Handle error silently in production
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, clearAllAuthData }}>
       {children}
     </AuthContext.Provider>
   );

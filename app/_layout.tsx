@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import GradientBackground from '@/components/GradientBackground';
 import { AuthProvider } from '@/hooks/useAuth';
-import AppNavigator from '@/components/AppNavigator';
+import { Stack } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,7 +40,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <AppNavigator />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="auth/login" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
       <StatusBar style="dark" />
     </AuthProvider>
   );
