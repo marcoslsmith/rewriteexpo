@@ -675,7 +675,7 @@ export default function Settings() {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your display name"
-                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                  placeholderTextColor="#94a3b8"
                   value={editingProfile.display_name}
                   onChangeText={(text) => setEditingProfile(prev => ({ ...prev, display_name: text }))}
                 />
@@ -684,7 +684,7 @@ export default function Settings() {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your username"
-                  placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                  placeholderTextColor="#94a3b8"
                   value={editingProfile.username}
                   onChangeText={(text) => setEditingProfile(prev => ({ ...prev, username: text }))}
                   autoCapitalize="none"
@@ -1356,7 +1356,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    color: 'white',
+    color: '#647696',
     fontFamily: 'Inter-Regular',
   },
   textArea: {
@@ -1366,13 +1366,13 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'white',
+    color: '#647696',
     marginBottom: 8,
     fontFamily: 'Inter-Medium',
   },
   inputHint: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#647696',
     marginBottom: 20,
     fontFamily: 'Inter-Regular',
   },
