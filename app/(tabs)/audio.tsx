@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -27,14 +28,17 @@ import {
   Volume2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
 import { storageService } from '../../lib/storage';
 import { audioService } from '../../lib/audio';
 import { testTTSFunction, testEdgeFunctionDeployment } from '../../lib/testTTS';
 import type { Database } from '../../lib/supabase';
-import GradientBackground from '../../components/GradientBackground';
+import PurpleSkyBackground from '../../components/PurpleSkyBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import AudioPlayer from '../../components/AudioPlayer';
 import { supabase } from '../../lib/supabase';
+import { useCallback } from 'react';
+import { useManifestationRefresh } from '../../hooks/ManifestationContext';
 
 const { width } = Dimensions.get('window');
 
@@ -72,19 +76,68 @@ export default function AudioTab() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [debugMsg, setDebugMsg] = useState<string | null>(null);
   const [showFAB, setShowFAB] = useState(true);
+  const [avallonFontLoaded, setAvallonFontLoaded] = useState(false);
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(50)).current;
+  const headerFadeAnim = useRef(new Animated.Value(1)).current;
+  const headerSlideAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const { refreshKey } = useManifestationRefresh();
 
+  // Load custom Shrikhand font
+  useEffect(() => {
+    async function loadShrikhandFont() {
+      try {
+        await Font.loadAsync({
+          'Shrikhand': require('../../assets/fonts/Shrikhand-Regular.ttf'),
+        });
+        setAvallonFontLoaded(true);
+      } catch (error) {
+        console.log('Error loading Shrikhand font:', error);
+      }
+    }
+    loadShrikhandFont();
+  }, []);
+
+  // Animation only (keep this if you want the fade/slide effect)
   React.useEffect(() => {
     Animated.parallel([
       Animated.timing(fade, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.timing(slide, { toValue: 0, duration: 800, useNativeDriver: true }),
     ]).start();
-    loadManifestations();
   }, []);
+
+  // This is the important part for refreshing data:
+  useFocusEffect(
+    useCallback(() => {
+      loadManifestations();
+    }, [refreshKey])
+  );
+
+  // Animate header when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      // Reset header animations
+      headerFadeAnim.setValue(0);
+      headerSlideAnim.setValue(-30);
+      
+      // Animate header in
+      Animated.parallel([
+        Animated.timing(headerFadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [])
+  );
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -184,7 +237,7 @@ async function generateAudio() {
   const getSelectedCount = () => selectedIds.size;
 
   return (
-    <GradientBackground colors={['#a855f7', '#7c3aed', '#6366f1']}>
+    <PurpleSkyBackground overlayOpacity={0.4}>
       <View style={styles.container}>
         {/* Hero Header */}
         <Animated.View 
@@ -196,22 +249,25 @@ async function generateAudio() {
             }
           ]}
         >
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#ffffff', '#f8fafc']}
-              style={styles.logoBackground}
-            >
-              <Headphones size={32} color="#a855f7" strokeWidth={2} />
-            </LinearGradient>
-            <Text style={styles.logoText}>Personalized Audio</Text>
+          <Animated.View style={[
+            styles.logoContainer,
+            {
+              opacity: headerFadeAnim,
+              transform: [{ translateY: headerSlideAnim }],
+            }
+          ]}>
+            <Text style={[
+              styles.logoText,
+              { fontFamily: avallonFontLoaded ? 'Shrikhand' : 'Inter-Bold' }
+            ]}>Audio</Text>
             <Text style={styles.logoSubtext}>Transform manifestations into immersive soundscapes</Text>
-          </View>
+          </Animated.View>
 
           {/* Stats Cards */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.statGradient}
               >
                 <Text style={styles.statNumber}>{getTotalManifestations()}</Text>
@@ -221,7 +277,7 @@ async function generateAudio() {
             
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.statGradient}
               >
                 <Text style={styles.statNumber}>{getFavoriteCount()}</Text>
@@ -231,7 +287,7 @@ async function generateAudio() {
             
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.statGradient}
               >
                 <Text style={styles.statNumber}>{getSelectedCount()}</Text>
@@ -352,21 +408,21 @@ async function generateAudio() {
                 colors={
                   isGenerating || selectedIds.size === 0 
                     ? ['#6b7280', '#4b5563'] 
-                    : ['#10b981', '#059669']
+                    : ['#ffffff', '#f8fafc']
                 }
                 style={styles.generateButtonGradient}
               >
                 <View style={styles.generateButtonContent}>
                   {isGenerating ? (
                     <>
-                      <Volume2 size={20} color="#ffffff" strokeWidth={1.5} />
+                      <Volume2 size={20} color="#496FB5" strokeWidth={1.5} />
                       <Text style={styles.generateButtonText}>Generating Audio...</Text>
                     </>
                   ) : (
                     <>
-                      <Sparkles size={20} color="#ffffff" strokeWidth={1.5} />
+                      <Sparkles size={20} color="#496FB5" strokeWidth={1.5} />
                       <Text style={styles.generateButtonText}>Generate Personalized Audio</Text>
-                      <ChevronRight size={20} color="#ffffff" strokeWidth={1.5} />
+                      <ChevronRight size={20} color="#496FB5" strokeWidth={1.5} />
                     </>
                   )}
                 </View>
@@ -380,7 +436,7 @@ async function generateAudio() {
 
         {/* Audio Player Modal */}
         <Modal visible={showPlayer} animationType="slide" presentationStyle="pageSheet">
-          <GradientBackground colors={['#a855f7', '#7c3aed']}>
+          <PurpleSkyBackground overlayOpacity={0.4}>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity 
@@ -388,7 +444,7 @@ async function generateAudio() {
                   onPress={() => setShowPlayer(false)}
                 >
                   <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                    colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                     style={styles.modalBackButtonGradient}
                   >
                     <ArrowLeft size={24} color="#ffffff" strokeWidth={1.5} />
@@ -404,7 +460,7 @@ async function generateAudio() {
 
                 <TouchableOpacity style={styles.modalActionButton}>
                   <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                    colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                     style={styles.modalActionButtonGradient}
                   >
                     <Download size={20} color="#ffffff" strokeWidth={1.5} />
@@ -423,10 +479,10 @@ async function generateAudio() {
   
 )}
             </View>
-          </GradientBackground>
+          </PurpleSkyBackground>
         </Modal>
       </View>
-    </GradientBackground>
+    </PurpleSkyBackground>
   );
 }
 
@@ -475,8 +531,8 @@ function ManifestationCard({ manifestation, isSelected, onToggle, index }: Manif
         <LinearGradient
           colors={
             isSelected 
-              ? ['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']
-              : ['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']
+              ? ['rgba(107, 159, 255, 0.3)', 'rgba(107, 159, 255, 0.2)']
+              : ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']
           }
           style={styles.manifestationCardGradient}
         >
@@ -490,7 +546,7 @@ function ManifestationCard({ manifestation, isSelected, onToggle, index }: Manif
               </Text>
               {isSelected && (
                 <View style={styles.selectedIndicator}>
-                  <Check size={16} color="#10b981" strokeWidth={2} />
+                  <Check size={16} color="#6B9FFF" strokeWidth={2} />
                 </View>
               )}
             </View>
@@ -519,13 +575,13 @@ function DurationCard({ option, isSelected, onSelect }: DurationCardProps) {
       <LinearGradient
         colors={
           isSelected 
-            ? ['rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.2)']
-            : ['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']
+            ? ['rgba(107, 159, 255, 0.3)', 'rgba(107, 159, 255, 0.2)']
+            : ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']
         }
         style={styles.durationCardGradient}
       >
         <View style={[styles.durationIconContainer, isSelected && styles.durationIconSelected]}>
-          <IconComponent size={20} color={isSelected ? "#a855f7" : "rgba(255, 255, 255, 0.8)"} strokeWidth={1.5} />
+          <IconComponent size={20} color={isSelected ? "#6B9FFF" : "rgba(255, 255, 255, 0.8)"} strokeWidth={1.5} />
         </View>
         <Text style={[styles.durationLabel, isSelected && styles.durationLabelSelected]}>
           {option.label}
@@ -552,13 +608,13 @@ function MusicStyleCard({ style, isSelected, onSelect }: MusicStyleCardProps) {
       <LinearGradient
         colors={
           isSelected 
-            ? ['rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.2)']
-            : ['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']
+            ? ['rgba(107, 159, 255, 0.3)', 'rgba(107, 159, 255, 0.2)']
+            : ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']
         }
         style={styles.musicCardGradient}
       >
         <View style={[styles.musicIconContainer, isSelected && styles.musicIconSelected]}>
-          <Music size={24} color={isSelected ? "#a855f7" : "rgba(255, 255, 255, 0.8)"} strokeWidth={1.5} />
+          <Music size={24} color={isSelected ? "#6B9FFF" : "rgba(255, 255, 255, 0.8)"} strokeWidth={1.5} />
         </View>
         <Text style={[styles.musicName, isSelected && styles.musicNameSelected]}>
           {style.name}
@@ -597,9 +653,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 56,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
+    marginTop: 20,
     marginBottom: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
@@ -608,7 +665,7 @@ const styles = StyleSheet.create({
   logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     textAlign: 'center',
   },
   statsContainer: {
@@ -633,16 +690,13 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -723,14 +777,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -757,7 +811,7 @@ const styles = StyleSheet.create({
   manifestationText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    color: '#496FB5',
     lineHeight: 24,
   },
   manifestationCardFooter: {
@@ -768,13 +822,13 @@ const styles = StyleSheet.create({
   manifestationDate: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
   },
   selectedIndicator: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(107, 159, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -794,7 +848,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   durationCardSelected: {
-    shadowColor: '#a855f7',
+    shadowColor: '#6B9FFF',
     shadowOpacity: 0.3,
   },
   durationCardGradient: {
@@ -812,12 +866,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   durationIconSelected: {
-    backgroundColor: 'rgba(168, 85, 247, 0.3)',
+    backgroundColor: 'rgba(107, 159, 255, 0.3)',
   },
   durationLabel: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     textAlign: 'center',
   },
   durationLabelSelected: {
@@ -826,7 +880,7 @@ const styles = StyleSheet.create({
   durationDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
     textAlign: 'center',
   },
   musicGrid: {
@@ -842,7 +896,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   musicCardSelected: {
-    shadowColor: '#a855f7',
+    shadowColor: '#6B9FFF',
     shadowOpacity: 0.3,
   },
   musicCardGradient: {
@@ -860,12 +914,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   musicIconSelected: {
-    backgroundColor: 'rgba(168, 85, 247, 0.3)',
+    backgroundColor: 'rgba(107, 159, 255, 0.3)',
   },
   musicName: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     flex: 1,
   },
   musicNameSelected: {
@@ -874,7 +928,7 @@ const styles = StyleSheet.create({
   musicDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
     flex: 1,
   },
   generateSection: {
@@ -905,7 +959,7 @@ const styles = StyleSheet.create({
   generateButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
   },
   bottomPadding: {
     height: 40,
@@ -952,7 +1006,7 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   modalActionButton: {
     width: 48,

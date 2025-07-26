@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -13,10 +14,11 @@ import {
 } from 'react-native';
 import { Target, Play, Calendar, Award, Check, ArrowLeft, X, Trophy, Star, Zap, Heart, BookOpen, Clock, ChevronRight, Users, TrendingUp, ChevronDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
 import { challengeService, challengePrompts } from '../../lib/challenges';
 import { storageService } from '../../lib/storage';
 import type { Database } from '../../lib/supabase';
-import GradientBackground from '../../components/GradientBackground';
+import PurpleSkyBackground from '../../components/PurpleSkyBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 
 const { width } = Dimensions.get('window');
@@ -54,10 +56,32 @@ export default function Challenges() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avallonFontLoaded, setAvallonFontLoaded] = useState(false);
+  const [glacialFontLoaded, setGlacialFontLoaded] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const headerFadeAnim = useRef(new Animated.Value(1)).current;
+  const headerSlideAnim = useRef(new Animated.Value(0)).current;
+
+  // Load custom fonts
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Shrikhand': require('../../assets/fonts/Shrikhand-Regular.ttf'),
+          'GlacialIndifference': require('../../assets/fonts/GlacialIndifference-Regular.otf'),
+          'GlacialIndifference-Bold': require('../../assets/fonts/GlacialIndifference-Bold.otf'),
+        });
+        setAvallonFontLoaded(true);
+        setGlacialFontLoaded(true);
+      } catch (error) {
+        console.log('Error loading fonts:', error);
+      }
+    }
+    loadFonts();
+  }, []);
 
   React.useEffect(() => {
     // Animate in the content when component mounts
@@ -74,6 +98,29 @@ export default function Challenges() {
       }),
     ]).start();
   }, []);
+
+  // Animate header when tab is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset header animations
+      headerFadeAnim.setValue(0);
+      headerSlideAnim.setValue(-30);
+      
+      // Animate header in
+      Animated.parallel([
+        Animated.timing(headerFadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [])
+  );
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -243,17 +290,17 @@ export default function Challenges() {
 
   if (loading) {
     return (
-      <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
+      <PurpleSkyBackground overlayOpacity={0.4}>
         <View style={styles.loadingContainer}>
           <Target size={48} color="#ffffff" strokeWidth={1.5} />
           <Text style={styles.loadingText}>Loading your growth journey...</Text>
         </View>
-      </GradientBackground>
+      </PurpleSkyBackground>
     );
   }
 
   return (
-    <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
+    <PurpleSkyBackground overlayOpacity={0.4}>
       <View style={styles.container}>
         {/* Hero Header */}
         <Animated.View 
@@ -265,49 +312,73 @@ export default function Challenges() {
             }
           ]}
         >
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#ffffff', '#f8fafc']}
-              style={styles.logoBackground}
-            >
-              <Target size={32} color="#667eea" strokeWidth={2} />
-            </LinearGradient>
-            <Text style={styles.logoText}>Growth Challenges</Text>
-            <Text style={styles.logoSubtext}>Transform through daily practice</Text>
-          </View>
+                                <Animated.View style={[
+            styles.logoContainer,
+            {
+              opacity: headerFadeAnim,
+              transform: [{ translateY: headerSlideAnim }],
+            }
+          ]}>
+            <Text style={[
+              styles.logoText,
+              { fontFamily: avallonFontLoaded ? 'Shrikhand' : 'Inter-Bold' }
+            ]}>Growth</Text>
+            <Text style={[
+              styles.logoSubtext,
+              { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+            ]}>Transform through daily practice</Text>
+          </Animated.View>
 
           {/* Compact Stats Row */}
           <View style={styles.compactStatsContainer}>
             <View style={styles.compactStatCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0.45)']}
                 style={styles.compactStatGradient}
               >
                 <Trophy size={16} color="#fbbf24" strokeWidth={1.5} />
-                <Text style={styles.compactStatNumber}>{getTotalPoints()}</Text>
-                <Text style={styles.compactStatLabel}>Points</Text>
+                <Text style={[
+                  styles.compactStatNumber,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                ]}>{getTotalPoints()}</Text>
+                <Text style={[
+                  styles.compactStatLabel,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Medium' }
+                ]}>Points</Text>
               </LinearGradient>
             </View>
             
             <View style={styles.compactStatCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0.45)']}
                 style={styles.compactStatGradient}
               >
                 <TrendingUp size={16} color="#10b981" strokeWidth={1.5} />
-                <Text style={styles.compactStatNumber}>{getActiveCount()}</Text>
-                <Text style={styles.compactStatLabel}>Active</Text>
+                <Text style={[
+                  styles.compactStatNumber,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                ]}>{getActiveCount()}</Text>
+                <Text style={[
+                  styles.compactStatLabel,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Medium' }
+                ]}>Active</Text>
               </LinearGradient>
             </View>
             
             <View style={styles.compactStatCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0.45)']}
                 style={styles.compactStatGradient}
               >
                 <Award size={16} color="#8b5cf6" strokeWidth={1.5} />
-                <Text style={styles.compactStatNumber}>{getCompletedCount()}</Text>
-                <Text style={styles.compactStatLabel}>Completed</Text>
+                <Text style={[
+                  styles.compactStatNumber,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                ]}>{getCompletedCount()}</Text>
+                <Text style={[
+                  styles.compactStatLabel,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Medium' }
+                ]}>Completed</Text>
               </LinearGradient>
             </View>
           </View>
@@ -336,7 +407,7 @@ export default function Challenges() {
           {/* Featured Challenge */}
           {challenges.length > 0 && !getProgressForChallenge(challenges[0].id) && (
             <View style={styles.featuredSection}>
-              <Text style={styles.sectionTitle}>✨ Featured Challenge</Text>
+              <Text style={styles.sectionTitle}>Featured Challenge</Text>
               <FeaturedChallengeCard
                 challenge={challenges[0]}
                 onStart={() => startChallenge(challenges[0])}
@@ -347,7 +418,7 @@ export default function Challenges() {
           {/* Active Challenges */}
           {activeProgress.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🔥 Continue Your Journey</Text>
+              <Text style={styles.sectionTitle}>Continue Your Journey</Text>
               {challenges
                 .filter(challenge => getProgressForChallenge(challenge.id))
                 .map((challenge) => {
@@ -366,7 +437,7 @@ export default function Challenges() {
 
           {/* Available Challenges */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🎯 Available Challenges</Text>
+                          <Text style={styles.sectionTitle}>Available Challenges</Text>
             {challenges
               .filter(challenge => !getProgressForChallenge(challenge.id))
               .slice(challenges.length > 0 && !getProgressForChallenge(challenges[0].id) ? 1 : 0)
@@ -410,7 +481,7 @@ export default function Challenges() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <GradientBackground colors={['#667eea', '#764ba2']}>
+          <PurpleSkyBackground overlayOpacity={0.4}>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity
@@ -450,7 +521,7 @@ export default function Challenges() {
                   <TextInput
                     style={styles.responseInput}
                     placeholder="Share your thoughts, insights, and reflections..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    placeholderTextColor="#94a3b8"
                     value={dayResponse}
                     onChangeText={setDayResponse}
                     multiline
@@ -478,10 +549,10 @@ export default function Challenges() {
                 </AnimatedButton>
               </ScrollView>
             </View>
-          </GradientBackground>
+          </PurpleSkyBackground>
         </Modal>
       </View>
-    </GradientBackground>
+    </PurpleSkyBackground>
   );
 }
 
@@ -524,7 +595,7 @@ function FeaturedChallengeCard({ challenge, onStart }: FeaturedChallengeCardProp
           </View>
         </View>
         
-        <AnimatedButton onPress={onStart} style={styles.featuredButton}>
+        <AnimatedButton onPress={onStart} style={[styles.featuredButton, { backgroundColor: gradientColors[0] }]}>
           <View style={styles.featuredButtonContent}>
             <Play size={18} color="#ffffff" strokeWidth={1.5} />
             <Text style={styles.featuredButtonText}>Start Challenge</Text>
@@ -582,16 +653,11 @@ function ActiveChallengeCard({ challenge, progress, onContinue }: ActiveChalleng
           <Text style={styles.progressText}>{progress.points} points earned</Text>
         </View>
         
-        <AnimatedButton onPress={onContinue} style={styles.continueButton}>
-          <LinearGradient
-            colors={gradientColors}
-            style={styles.continueButtonGradient}
-          >
-            <View style={styles.continueButtonContent}>
-              <Play size={16} color="#ffffff" strokeWidth={1.5} />
-              <Text style={styles.continueButtonText}>Continue Day {nextDay}</Text>
-            </View>
-          </LinearGradient>
+        <AnimatedButton onPress={onContinue} style={[styles.continueButton, { backgroundColor: gradientColors[0], paddingVertical: 14, paddingHorizontal: 20 }]}>
+          <View style={styles.continueButtonContent}>
+            <Play size={16} color="#ffffff" strokeWidth={1.5} />
+            <Text style={styles.continueButtonText}>Continue Day {nextDay}</Text>
+          </View>
         </AnimatedButton>
       </LinearGradient>
     </View>
@@ -664,18 +730,13 @@ function ChallengeCard({ challenge, index, onStart, completedRuns }: ChallengeCa
           </View>
         )}
         
-        <AnimatedButton onPress={onStart} style={styles.startButton}>
-          <LinearGradient
-            colors={gradientColors}
-            style={styles.startButtonGradient}
-          >
-            <View style={styles.startButtonContent}>
-              <Play size={16} color="#ffffff" strokeWidth={1.5} />
-              <Text style={styles.startButtonText}>
-                {completedRuns.length > 0 ? 'Start Again' : 'Start Challenge'}
-              </Text>
-            </View>
-          </LinearGradient>
+        <AnimatedButton onPress={onStart} style={[styles.startButton, { backgroundColor: gradientColors[0], paddingVertical: 14, paddingHorizontal: 20 }]}>
+          <View style={styles.startButtonContent}>
+            <Play size={16} color="#ffffff" strokeWidth={1.5} />
+            <Text style={styles.startButtonText}>
+              {completedRuns.length > 0 ? 'Start Again' : 'Start Challenge'}
+            </Text>
+          </View>
         </AnimatedButton>
       </LinearGradient>
     </Animated.View>
@@ -791,9 +852,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 56,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
+    marginTop: 20,
     marginBottom: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
@@ -802,7 +864,7 @@ const styles = StyleSheet.create({
   logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     textAlign: 'center',
   },
   compactStatsContainer: {
@@ -828,7 +890,7 @@ const styles = StyleSheet.create({
   compactStatNumber: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#496FB5',
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -836,7 +898,7 @@ const styles = StyleSheet.create({
   compactStatLabel: {
     fontSize: 10,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -930,12 +992,12 @@ const styles = StyleSheet.create({
   featuredBadgeText: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
   },
   featuredTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 12,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
@@ -944,7 +1006,7 @@ const styles = StyleSheet.create({
   featuredDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     lineHeight: 24,
     marginBottom: 24,
   },
@@ -961,7 +1023,7 @@ const styles = StyleSheet.create({
   featuredStatText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   featuredButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -979,7 +1041,7 @@ const styles = StyleSheet.create({
   featuredButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
   },
   activeCard: {
     borderRadius: 20,
@@ -1013,13 +1075,13 @@ const styles = StyleSheet.create({
   activeCardTitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
   },
   activeCardProgress: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   progressBadge: {
     backgroundColor: '#10b981',
@@ -1048,7 +1110,7 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   continueButton: {
     borderRadius: 12,
@@ -1101,18 +1163,18 @@ const styles = StyleSheet.create({
   challengeCardTitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
   },
   challengeCardDuration: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   challengeCardDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     lineHeight: 24,
     marginBottom: 20,
   },
@@ -1149,7 +1211,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
   },
   completedCard: {
     borderRadius: 20,
@@ -1183,13 +1245,13 @@ const styles = StyleSheet.create({
   completedCardTitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
   },
   completedCardSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   completedCardStats: {
     alignItems: 'flex-end',
@@ -1197,12 +1259,12 @@ const styles = StyleSheet.create({
   completedCardPercentage: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#10b981',
+    color: '#ffffff',
   },
   completedCardDays: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
   },
   summaryToggle: {
     flexDirection: 'row',
@@ -1218,7 +1280,7 @@ const styles = StyleSheet.create({
   summaryToggleText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
   },
   summaryContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -1229,7 +1291,7 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     lineHeight: 20,
   },
   completedCardFooter: {
@@ -1243,7 +1305,7 @@ const styles = StyleSheet.create({
   completedDate: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#496FB5',
   },
   pointsBadge: {
     flexDirection: 'row',
@@ -1295,7 +1357,7 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#ffffff',
   },
   dayBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -1306,7 +1368,7 @@ const styles = StyleSheet.create({
   dayBadgeText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#647696',
   },
   modalContent: {
     flex: 1,
@@ -1329,7 +1391,7 @@ const styles = StyleSheet.create({
   promptText: {
     fontSize: 18,
     fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    color: '#647696',
     lineHeight: 26,
     textAlign: 'center',
   },
@@ -1339,7 +1401,7 @@ const styles = StyleSheet.create({
   responseLabel: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#647696',
     marginBottom: 12,
   },
   responseInput: {
@@ -1349,7 +1411,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     minHeight: 200,
-    color: '#ffffff',
+    color: '#647696',
     textAlignVertical: 'top',
     lineHeight: 24,
     borderWidth: 1,
@@ -1376,6 +1438,6 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#647696',
   },
 });

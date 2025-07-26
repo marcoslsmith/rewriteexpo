@@ -196,11 +196,11 @@ const styles = StyleSheet.create({
   },
   pickerText: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'white',
     fontFamily: 'Inter-Medium',
   },
   selectedPickerText: {
-    color: 'white',
+    color: '#647696',
     fontWeight: 'bold',
     fontSize: 20,
   },

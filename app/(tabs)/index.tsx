@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -13,10 +14,11 @@ import {
 } from 'react-native';
 import { Sparkles, Save, Plus, Heart, Zap, Star, ArrowRight, PenTool, BookOpen } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
 import { transformJournalEntry } from '../../lib/ai';
 import { storageService } from '../../lib/storage';
-import { getGreeting, getMotivationalGreeting } from '../../lib/greetings';
-import GradientBackground from '../../components/GradientBackground';
+
+import PurpleSkyBackground from '../../components/PurpleSkyBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 import LoadingShimmer from '../../components/LoadingShimmer';
 
@@ -31,11 +33,14 @@ export default function Journal() {
   const [showClearButton, setShowClearButton] = useState(false);
   const [showFAB, setShowFAB] = useState(true);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [avallonFontLoaded, setAvallonFontLoaded] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const promptFadeAnim = useRef(new Animated.Value(1)).current;
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = useRef(new Animated.Value(-30)).current;
 
   const quickPrompts = [
     { text: "I want to feel more confident...", icon: Star, color: '#f59e0b' },
@@ -47,6 +52,26 @@ export default function Journal() {
     { text: "I want to create...", icon: Sparkles, color: '#ec4899' },
     { text: "I'm ready to...", icon: Zap, color: '#6366f1' },
   ];
+
+  // Load custom fonts
+  const [glacialFontLoaded, setGlacialFontLoaded] = useState(false);
+  
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Shrikhand': require('../../assets/fonts/Shrikhand-Regular.ttf'),
+          'GlacialIndifference': require('../../assets/fonts/GlacialIndifference-Regular.otf'),
+          'GlacialIndifference-Bold': require('../../assets/fonts/GlacialIndifference-Bold.otf'),
+        });
+        setAvallonFontLoaded(true);
+        setGlacialFontLoaded(true);
+      } catch (error) {
+        console.log('Error loading fonts:', error);
+      }
+    }
+    loadFonts();
+  }, []);
 
   React.useEffect(() => {
     // Animate in the content when component mounts
@@ -63,6 +88,29 @@ export default function Journal() {
       }),
     ]).start();
   }, []);
+
+  // Animate header when tab is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset header animations
+      headerFadeAnim.setValue(0);
+      headerSlideAnim.setValue(-30);
+      
+      // Animate header in
+      Animated.parallel([
+        Animated.timing(headerFadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [])
+  );
 
   // Auto-rotate prompts
   useEffect(() => {
@@ -176,7 +224,7 @@ export default function Journal() {
   const IconComponent = currentPrompt.icon;
 
   return (
-    <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
+    <PurpleSkyBackground overlayOpacity={0.4}>
       <View style={styles.container}>
         <Animated.ScrollView
           style={styles.scrollView}
@@ -195,21 +243,21 @@ export default function Journal() {
               }
             ]}
           >
-            <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={['#ffffff', '#f8fafc']}
-                style={styles.logoBackground}
-              >
-                <PenTool size={32} color="#667eea" strokeWidth={2} />
-              </LinearGradient>
-              <Text style={styles.logoText}>The Rewrite</Text>
+            <Animated.View style={[
+              styles.logoContainer,
+              {
+                opacity: headerFadeAnim,
+                transform: [{ translateY: headerSlideAnim }],
+              }
+            ]}>
+              <Text style={[
+                styles.logoText,
+                { fontFamily: avallonFontLoaded ? 'Shrikhand' : 'Inter-Bold' }
+              ]}>The Rewrite</Text>
               <Text style={styles.logoSubtext}>Transform your thoughts</Text>
-            </View>
+            </Animated.View>
             
-            <View style={styles.greetingContainer}>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.motivationalText}>{getMotivationalGreeting()}</Text>
-            </View>
+
           </Animated.View>
 
           {/* Status Messages */}
@@ -227,8 +275,14 @@ export default function Journal() {
 
           {/* Rotating Quick Start Prompt */}
           <View style={styles.quickStartSection}>
-            <Text style={styles.sectionTitle}>Quick Start</Text>
-            <Text style={styles.sectionSubtitle}>Tap to get started with a prompt</Text>
+                          <Text style={[
+                styles.sectionTitle,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+              ]}>Quick Start</Text>
+                          <Text style={[
+                styles.sectionSubtitle,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+              ]}>Tap to get started with a prompt</Text>
             
             <Animated.View style={{ opacity: promptFadeAnim }}>
               <TouchableOpacity
@@ -237,7 +291,7 @@ export default function Journal() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                  colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                   style={styles.promptGradient}
                 >
                   <View style={styles.promptIconContainer}>
@@ -247,12 +301,18 @@ export default function Journal() {
                   </View>
                   
                   <View style={styles.promptTextContainer}>
-                    <Text style={styles.rotatingPromptText}>{currentPrompt.text}</Text>
-                    <Text style={styles.promptHint}>Tap to use this prompt</Text>
+                    <Text style={[
+                  styles.rotatingPromptText,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                ]}>{currentPrompt.text}</Text>
+                                          <Text style={[
+                        styles.promptHint,
+                        { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                      ]}>Tap to use this prompt</Text>
                   </View>
                   
                   <View style={styles.promptArrowContainer}>
-                    <ArrowRight size={20} color="rgba(255, 255, 255, 0.8)" strokeWidth={1.5} />
+                    <ArrowRight size={20} color="#496FB5" strokeWidth={1.5} />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -289,7 +349,10 @@ export default function Journal() {
               </View>
               
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                ]}
                 placeholder="What's on your mind today? Share your thoughts, dreams, challenges, or anything you'd like to transform into something positive..."
                 placeholderTextColor="#94a3b8"
                 value={journalEntry}
@@ -307,7 +370,7 @@ export default function Journal() {
                 ]}
               >
                 <LinearGradient
-                  colors={journalEntry.trim() && !isTransforming ? ['#667eea', '#764ba2'] : ['#94a3b8', '#64748b']}
+                  colors={journalEntry.trim() && !isTransforming ? ['#6B9FFF', '#6B9FFF'] : ['#94a3b8', '#64748b']}
                   style={styles.buttonGradient}
                 >
                   <View style={styles.buttonContent}>
@@ -316,7 +379,10 @@ export default function Journal() {
                     ) : (
                       <Sparkles size={20} color="#ffffff" strokeWidth={1.5} />
                     )}
-                    <Text style={styles.buttonText}>
+                    <Text style={[
+                      styles.buttonText,
+                      { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-SemiBold' }
+                    ]}>
                       {isTransforming ? 'Transforming...' : 'Transform'}
                     </Text>
                   </View>
@@ -335,20 +401,29 @@ export default function Journal() {
                 <View style={styles.cardHeader}>
                   <View style={styles.cardTitleContainer}>
                     <Sparkles size={24} color="#f59e0b" strokeWidth={1.5} />
-                    <Text style={styles.cardTitle}>Your Manifestation</Text>
+                    <Text style={[
+                      styles.cardTitle,
+                      { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                    ]}>Your Manifestation</Text>
                   </View>
                   {showClearButton && (
                     <TouchableOpacity
                       style={styles.clearButton}
                       onPress={clearManifestation}
                     >
-                      <Text style={styles.clearButtonText}>Clear</Text>
+                      <Text style={[
+                        styles.clearButtonText,
+                        { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-SemiBold' }
+                      ]}>Clear</Text>
                     </TouchableOpacity>
                   )}
                 </View>
                 
                 <View style={styles.manifestationContent}>
-                  <Text style={styles.manifestationText}>{transformedText}</Text>
+                  <Text style={[
+                    styles.manifestationText,
+                    { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                  ]}>{transformedText}</Text>
                 </View>
                 
               </LinearGradient>
@@ -358,26 +433,41 @@ export default function Journal() {
           {/* Tips Section */}
           <View style={styles.tipsSection}>
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)']}
+                              colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
               style={styles.tipsGradient}
             >
-              <Text style={styles.tipsTitle}>✨ Writing Tips</Text>
+              <Text style={[
+                styles.tipsTitle,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-SemiBold' }
+              ]}>✨ Writing Tips</Text>
               <View style={styles.tipsList}>
                 <View style={styles.tipItem}>
                   <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>Be honest about your current thoughts and feelings</Text>
+                  <Text style={[
+                    styles.tipText,
+                    { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                  ]}>Be honest about your current thoughts and feelings</Text>
                 </View>
                 <View style={styles.tipItem}>
                   <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>Share your challenges, fears, or limiting beliefs</Text>
+                  <Text style={[
+                    styles.tipText,
+                    { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                  ]}>Share your challenges, fears, or limiting beliefs</Text>
                 </View>
                 <View style={styles.tipItem}>
                   <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>Describe what you want to create or change</Text>
+                  <Text style={[
+                    styles.tipText,
+                    { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                  ]}>Describe what you want to create or change</Text>
                 </View>
                 <View style={styles.tipItem}>
                   <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>Your manifestations are automatically saved</Text>
+                  <Text style={[
+                    styles.tipText,
+                    { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                  ]}>Your manifestations are automatically saved</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -386,7 +476,7 @@ export default function Journal() {
           {/* Bottom padding for FAB */}
         </Animated.ScrollView>
       </View>
-    </GradientBackground>
+    </PurpleSkyBackground>
   );
 }
 
@@ -424,9 +514,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 56,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
+    marginTop: 20,
     marginBottom: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
@@ -435,29 +526,10 @@ const styles = StyleSheet.create({
   logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     textAlign: 'center',
   },
-  greetingContainer: {
-    alignItems: 'center',
-  },
-  greeting: {
-    fontSize: 18,
-    fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  motivationalText: {
-    fontSize: 22,
-    fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
-    textAlign: 'center',
-    lineHeight: 28,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
+
   errorContainer: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
@@ -543,20 +615,20 @@ const styles = StyleSheet.create({
   rotatingPromptText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
     lineHeight: 24,
   },
   promptHint: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#496FB5',
   },
   promptArrowContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -704,7 +776,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -726,7 +798,7 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     fontFamily: 'Inter-Regular',
     lineHeight: 22,
   },

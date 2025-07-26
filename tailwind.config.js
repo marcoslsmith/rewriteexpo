@@ -3,6 +3,11 @@ module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        'shrikhand': ['Shrikhand', 'sans-serif'],
+        'glacial': ['GlacialIndifference', 'sans-serif'],
+        'glacial-bold': ['GlacialIndifference-Bold', 'sans-serif'],
+      },
       colors: {
         primary: {
           50: '#faf5ff',

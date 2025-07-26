@@ -22,6 +22,20 @@
       "expo-font",
       "expo-web-browser"
     ],
+    "fonts": [
+      {
+        "asset": "./assets/fonts/Shrikhand-Regular.ttf",
+        "family": "Shrikhand"
+      },
+      {
+        "asset": "./assets/fonts/GlacialIndifference-Regular.otf",
+        "family": "GlacialIndifference"
+      },
+      {
+        "asset": "./assets/fonts/GlacialIndifference-Bold.otf",
+        "family": "GlacialIndifference-Bold"
+      }
+    ],
     "experiments": {
       "typedRoutes": true
     },

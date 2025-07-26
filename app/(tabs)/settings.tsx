@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import GradientBackground from '@/components/GradientBackground';
+import PurpleSkyBackground from '@/components/PurpleSkyBackground';
 import TimePickerScroller from '@/components/TimePickerScroller';
 import { storageService } from '@/lib/storage';
 import { defaultReminderMessages, notificationService } from '@/lib/notifications';
@@ -197,10 +197,10 @@ export default function Settings() {
       setSchedules([]);
       setSuccess('Signed out successfully!');
       
-      // Small delay to ensure sign out completes before redirect
-      setTimeout(() => {
-        router.replace('/auth/login');
-      }, 500);
+              // Small delay to ensure sign out completes before redirect
+        setTimeout(() => {
+          router.replace('/auth/login');
+        }, 500);
     } catch (error: any) {
       setError(error.message);
     }
@@ -443,7 +443,7 @@ export default function Settings() {
   const getActiveSchedules = () => schedules.filter(s => s.is_active).length;
 
   return (
-    <GradientBackground colors={['#667eea', '#764ba2', '#f093fb']}>
+    <PurpleSkyBackground>
       <View style={styles.container}>
         {/* Compact Header */}
         <View style={styles.header}>
@@ -482,7 +482,7 @@ export default function Settings() {
                     style={styles.editButton}
                     onPress={openProfileEditModal}
                   >
-                    <Edit size={16} color="#ffffff" />
+                    <Edit size={16} color="#647696" />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.profileCard}>
@@ -532,7 +532,7 @@ export default function Settings() {
                       style={styles.addButton}
                       onPress={() => setShowScheduleModal(true)}
                     >
-                      <Plus size={16} color="#ffffff" />
+                      <Plus size={16} color="#647696" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -596,7 +596,7 @@ export default function Settings() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <GradientBackground colors={['#667eea', '#764ba2']}>
+          <PurpleSkyBackground>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
@@ -649,7 +649,7 @@ export default function Settings() {
                 </TouchableOpacity>
               </View>
             </View>
-          </GradientBackground>
+          </PurpleSkyBackground>
         </Modal>
 
         {/* Profile Edit Modal */}
@@ -658,7 +658,7 @@ export default function Settings() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <GradientBackground colors={['#667eea', '#764ba2']}>
+          <PurpleSkyBackground>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Edit Profile</Text>
@@ -715,7 +715,7 @@ export default function Settings() {
                 </TouchableOpacity>
               </View>
             </View>
-          </GradientBackground>
+          </PurpleSkyBackground>
         </Modal>
 
         {/* Add/Edit Schedule Modal */}
@@ -724,7 +724,7 @@ export default function Settings() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <GradientBackground colors={['#667eea', '#764ba2']}>
+          <PurpleSkyBackground>
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
@@ -957,10 +957,10 @@ export default function Settings() {
                 </TouchableOpacity>
               </ScrollView>
             </View>
-          </GradientBackground>
+          </PurpleSkyBackground>
         </Modal>
       </View>
-    </GradientBackground>
+    </PurpleSkyBackground>
   );
 }
 
@@ -994,7 +994,7 @@ function ScheduleCard({ schedule, onToggleActive, onEdit, onDelete }: ScheduleCa
             style={styles.editButton}
             onPress={onEdit}
           >
-            <Edit size={16} color="#ffffff" />
+            <Edit size={16} color="#647696" />
           </TouchableOpacity>
           <Switch
             value={schedule.is_active}
@@ -1132,26 +1132,26 @@ const styles = StyleSheet.create({
   profileEmail: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'white',
+    color: '#647696',
     marginBottom: 4,
     fontFamily: 'Inter-Medium',
   },
   profileDisplayName: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'white',
+    color: '#647696',
     marginBottom: 2,
     fontFamily: 'Inter-SemiBold',
   },
   profileUsername: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     marginBottom: 8,
     fontFamily: 'Inter-Regular',
   },
   profileJoined: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#647696',
     fontFamily: 'Inter-Regular',
   },
   compactStatsRow: {
@@ -1168,13 +1168,13 @@ const styles = StyleSheet.create({
   compactStatNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#647696',
     marginBottom: 2,
     fontFamily: 'Inter-Bold',
   },
   compactStatLabel: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#647696',
     fontFamily: 'Inter-Medium',
   },
   quoteCard: {
@@ -1188,7 +1188,7 @@ const styles = StyleSheet.create({
   quoteText: {
     fontSize: 14,
     fontStyle: 'italic',
-    color: 'white',
+    color: '#647696',
     textAlign: 'center',
     lineHeight: 20,
     fontFamily: 'Inter-Regular',
@@ -1213,13 +1213,13 @@ const styles = StyleSheet.create({
   scheduleTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'white',
+    color: '#647696',
     marginBottom: 2,
     fontFamily: 'Inter-Medium',
   },
   scheduleTime: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     fontFamily: 'Inter-Regular',
   },
   scheduleControls: {
@@ -1232,7 +1232,7 @@ const styles = StyleSheet.create({
   },
   scheduleMessage: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     marginBottom: 12,
     fontFamily: 'Inter-Regular',
   },
@@ -1249,7 +1249,7 @@ const styles = StyleSheet.create({
   },
   dayBadgeText: {
     fontSize: 12,
-    color: 'white',
+    color: '#647696',
     fontFamily: 'Inter-Medium',
   },
   emptyState: {
@@ -1259,14 +1259,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     marginTop: 12,
     marginBottom: 4,
     fontFamily: 'Inter-Medium',
   },
   emptySubtext: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#647696',
     textAlign: 'center',
     fontFamily: 'Inter-Regular',
   },
@@ -1333,7 +1333,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#647696',
     fontFamily: 'Inter-Bold',
   },
   modalCloseButton: {
@@ -1405,7 +1405,7 @@ const styles = StyleSheet.create({
   typeToggleText: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#647696',
     fontFamily: 'Inter-Medium',
   },
   typeToggleTextActive: {
@@ -1441,7 +1441,7 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     textAlign: 'center',
     fontFamily: 'Inter-Medium',
   },
@@ -1467,7 +1467,7 @@ const styles = StyleSheet.create({
   },
   manifestationOptionText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     textAlign: 'center',
     fontFamily: 'Inter-Medium',
   },
@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
   },
   manifestationText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     flex: 1,
     marginRight: 8,
     fontFamily: 'Inter-Regular',
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
   },
   dayButtonText: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#647696',
     fontFamily: 'Inter-Medium',
   },
   dayButtonTextActive: {
@@ -1557,7 +1557,7 @@ const styles = StyleSheet.create({
   },
   selectedDaysText: {
     fontSize: 14,
-    color: '#4ade80',
+    color: '#647696',
     textAlign: 'center',
     fontFamily: 'Inter-Medium',
   },

@@ -134,7 +134,7 @@ export default function TabLayout() {
                 Icon={Edit3} 
                 color={color} 
                 focused={focused}
-                gradientColors={['#667eea', '#764ba2']}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
               />
             </Animated.View>
           ),
@@ -167,73 +167,7 @@ export default function TabLayout() {
                 Icon={Heart} 
                 color={color} 
                 focused={focused}
-                gradientColors={['#f093fb', '#f5576c']}
-              />
-            </Animated.View>
-          ),
-          tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
-              style={[
-                {
-                  fontSize: 12,
-                  fontFamily: 'Inter-SemiBold',
-                  marginTop: 6,
-                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
-                },
-                { opacity: opacity }
-              ]}
-            >
-              {children}
-            </Animated.Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="breathwork"
-        options={{
-          title: 'Breathe',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Wind} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#4facfe', '#00f2fe']}
-              />
-            </Animated.View>
-          ),
-          tabBarLabel: ({ children, color, focused }) => (
-            <Animated.Text 
-              style={[
-                {
-                  fontSize: 12,
-                  fontFamily: 'Inter-SemiBold',
-                  marginTop: 6,
-                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
-                  color: color,
-                  display: focused ? 'none' : 'flex', // Completely hide label when focused
-                },
-                { opacity: opacity }
-              ]}
-            >
-              {children}
-            </Animated.Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="challenges"
-        options={{
-          title: 'Growth',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Animated.View style={{ opacity: opacity }}>
-              <TabIcon 
-                Icon={Target} 
-                color={color} 
-                focused={focused}
-                gradientColors={['#43e97b', '#38f9d7']}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
               />
             </Animated.View>
           ),
@@ -266,7 +200,73 @@ export default function TabLayout() {
                 Icon={Headphones} 
                 color={color} 
                 focused={focused}
-                gradientColors={['#a855f7', '#7c3aed']}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
+                  color: color,
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="breathwork"
+        options={{
+          title: 'Breathe',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Wind} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
+              />
+            </Animated.View>
+          ),
+          tabBarLabel: ({ children, color, focused }) => (
+            <Animated.Text 
+              style={[
+                {
+                  fontSize: 12,
+                  fontFamily: 'Inter-SemiBold',
+                  marginTop: 6,
+                  marginBottom: Platform.OS === 'ios' ? 8 : 4,
+                  color: color,
+                  display: focused ? 'none' : 'flex', // Completely hide label when focused
+                },
+                { opacity: opacity }
+              ]}
+            >
+              {children}
+            </Animated.Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          title: 'Growth',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Animated.View style={{ opacity: opacity }}>
+              <TabIcon 
+                Icon={Target} 
+                color={color} 
+                focused={focused}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
               />
             </Animated.View>
           ),
@@ -299,7 +299,7 @@ export default function TabLayout() {
                 Icon={User} 
                 color={color} 
                 focused={focused}
-                gradientColors={['#fa709a', '#fee140']}
+                gradientColors={['#BAD2FF', '#BAD2FF']}
               />
             </Animated.View>
           ),
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: 'rgba(139, 92, 246, 0.95)', // Purple with less transparency
+    backgroundColor: '#6B9FFF', // Updated to new blue color
   },
   glassOverlay: {
     position: 'absolute',

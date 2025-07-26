@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -12,13 +13,16 @@ import {
 } from 'react-native';
 import { Wind, Play, Pause, RotateCcw, ArrowLeft, Heart, Star, Zap } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { breathingPatterns, BreathingPattern } from '../../lib/breathingPatterns';
-import GradientBackground from '../../components/GradientBackground';
+import PurpleSkyBackground from '../../components/PurpleSkyBackground';
 import AnimatedButton from '../../components/AnimatedButton';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Breathwork() {
+  const insets = useSafeAreaInsets();
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(0);
@@ -27,14 +31,37 @@ export default function Breathwork() {
   const [intention, setIntention] = useState('');
   const [showIntention, setShowIntention] = useState(false);
   const [showFAB, setShowFAB] = useState(true);
+  const [avallonFontLoaded, setAvallonFontLoaded] = useState(false);
 
   const animatedValue = useRef(new Animated.Value(0.5)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = useRef(new Animated.Value(-30)).current;
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+
+  // Load custom fonts
+  const [glacialFontLoaded, setGlacialFontLoaded] = useState(false);
+  
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Shrikhand': require('../../assets/fonts/Shrikhand-Regular.ttf'),
+          'GlacialIndifference': require('../../assets/fonts/GlacialIndifference-Regular.otf'),
+          'GlacialIndifference-Bold': require('../../assets/fonts/GlacialIndifference-Bold.otf'),
+        });
+        setAvallonFontLoaded(true);
+        setGlacialFontLoaded(true);
+      } catch (error) {
+        console.log('Error loading fonts:', error);
+      }
+    }
+    loadFonts();
+  }, []);
 
   React.useEffect(() => {
     // Animate in the content when component mounts
@@ -51,6 +78,29 @@ export default function Breathwork() {
       }),
     ]).start();
   }, []);
+
+  // Animate header when tab is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset header animations
+      headerFadeAnim.setValue(0);
+      headerSlideAnim.setValue(-30);
+      
+      // Animate header in
+      Animated.parallel([
+        Animated.timing(headerFadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [])
+  );
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -193,7 +243,7 @@ export default function Breathwork() {
 
   if (selectedPattern) {
     return (
-      <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
+      <PurpleSkyBackground overlayOpacity={0.4}>
         <View style={styles.sessionContainer}>
           {/* Session Header */}
           <Animated.View 
@@ -207,7 +257,7 @@ export default function Breathwork() {
           >
             <TouchableOpacity onPress={stopSession} style={styles.backButton}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.backButtonGradient}
               >
                 <ArrowLeft size={24} color="#ffffff" strokeWidth={1.5} />
@@ -215,8 +265,14 @@ export default function Breathwork() {
             </TouchableOpacity>
             
             <View style={styles.sessionInfo}>
-              <Text style={styles.sessionTitle}>{selectedPattern.name}</Text>
-              <Text style={styles.sessionSubtitle}>Cycle {cycleCount + 1}</Text>
+                          <Text style={[
+              styles.sessionTitle,
+              { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+            ]}>{selectedPattern.name}</Text>
+            <Text style={[
+              styles.sessionSubtitle,
+              { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+            ]}>Cycle {cycleCount + 1}</Text>
             </View>
           </Animated.View>
 
@@ -304,15 +360,27 @@ export default function Breathwork() {
             
             {/* Phase Information */}
             <View style={styles.phaseInfo}>
-              <Text style={styles.phaseText}>
+              <Text style={[
+                styles.phaseText,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+              ]}>
                 {selectedPattern.phases[currentPhase].name}
               </Text>
-              <Text style={styles.instructionText}>
+              <Text style={[
+                styles.instructionText,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+              ]}>
                 {selectedPattern.phases[currentPhase].instruction}
               </Text>
               <View style={styles.timerContainer}>
-                <Text style={styles.timerText}>{timeRemaining}</Text>
-                <Text style={styles.timerLabel}>seconds</Text>
+                <Text style={[
+                  styles.timerText,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                ]}>{timeRemaining}</Text>
+                <Text style={[
+                  styles.timerLabel,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                ]}>seconds</Text>
               </View>
             </View>
           </View>
@@ -325,7 +393,10 @@ export default function Breathwork() {
                 style={styles.intentionGradient}
               >
                 <Heart size={20} color="#ffffff" strokeWidth={1.5} />
-                <Text style={styles.intentionText}>"{intention}"</Text>
+                <Text style={[
+                  styles.intentionText,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+                ]}>"{intention}"</Text>
               </LinearGradient>
             </Animated.View>
           )}
@@ -334,7 +405,7 @@ export default function Breathwork() {
           <View style={styles.sessionControls}>
             <TouchableOpacity style={styles.controlButton} onPress={resetSession}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.controlButtonGradient}
               >
                 <RotateCcw size={20} color="#ffffff" strokeWidth={1.5} />
@@ -359,50 +430,61 @@ export default function Breathwork() {
             
             <TouchableOpacity style={styles.controlButton} onPress={stopSession}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
                 style={styles.controlButtonGradient}
               >
-                <Text style={styles.stopButtonText}>Stop</Text>
+                <Text style={[
+                  styles.stopButtonText,
+                  { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : 'Inter-Bold' }
+                ]}>Stop</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
-      </GradientBackground>
+      </PurpleSkyBackground>
     );
   }
 
   return (
-    <GradientBackground colors={['#667eea', '#764ba2', '#4facfe']}>
+    <PurpleSkyBackground overlayOpacity={0.4}>
       <View style={styles.container}>
-        {/* Hero Header */}
-        <Animated.View 
-          style={[
-            styles.heroSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            }
-          ]}
-        >
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#ffffff', '#f0f9ff']}
-              style={styles.logoBackground}
-            >
-              <Wind size={32} color="#4facfe" strokeWidth={2} />
-            </LinearGradient>
-            <Text style={styles.logoText}>Breathwork</Text>
-            <Text style={styles.logoSubtext}>Find your center through breath</Text>
-          </View>
-        </Animated.View>
-
         <Animated.ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 20 }
+          ]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
+          {/* Hero Header */}
+          <Animated.View 
+            style={[
+              styles.heroSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
+            <Animated.View style={[
+              styles.logoContainer,
+              {
+                opacity: headerFadeAnim,
+                transform: [{ translateY: headerSlideAnim }],
+              }
+            ]}>
+              <Text style={[
+                styles.logoText,
+                { fontFamily: avallonFontLoaded ? 'Shrikhand' : 'Inter-Bold' }
+              ]}>Breathwork</Text>
+              <Text style={[
+                styles.logoSubtext,
+                { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : 'Inter-Regular' }
+              ]}>Find your center through breath</Text>
+            </Animated.View>
+          </Animated.View>
           {breathingPatterns.map((pattern, index) => (
             <PatternCard
               key={pattern.id}
@@ -426,7 +508,7 @@ export default function Breathwork() {
           <View style={styles.bottomPadding} />
         </Animated.ScrollView>
       </View>
-    </GradientBackground>
+    </PurpleSkyBackground>
   );
 }
 
@@ -471,12 +553,12 @@ function PatternCard({ pattern, index, onStart }: PatternCardProps) {
 
   const getPatternColors = (patternId: string) => {
     switch (patternId) {
-      case 'box': return ['#4facfe', '#00f2fe'];
-      case 'sleep478': return ['#667eea', '#764ba2'];
-      case 'wimhof': return ['#f093fb', '#f5576c'];
-      case 'coherent': return ['#43e97b', '#38f9d7'];
-      case 'physiological': return ['#fa709a', '#fee140'];
-      default: return ['#4facfe', '#00f2fe'];
+      case 'box': return ['#6B9FFF', '#6B9FFF'];
+      case 'sleep478': return ['#6B9FFF', '#6B9FFF'];
+      case 'wimhof': return ['#6B9FFF', '#6B9FFF'];
+      case 'coherent': return ['#6B9FFF', '#6B9FFF'];
+      case 'physiological': return ['#6B9FFF', '#6B9FFF'];
+      default: return ['#6B9FFF', '#6B9FFF'];
     }
   };
 
@@ -494,7 +576,7 @@ function PatternCard({ pattern, index, onStart }: PatternCardProps) {
       ]}
     >
       <LinearGradient
-        colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+        colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)']}
         style={styles.cardGradient}
       >
         <View style={styles.cardHeader}>
@@ -559,20 +641,19 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 20,
   },
   logoContainer: {
     alignItems: 'center',
+    marginBottom: 20,
   },
   logoBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -580,10 +661,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 48,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
-    marginBottom: 4,
+    marginTop: 20,
+    marginBottom: 2,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
@@ -591,7 +673,7 @@ const styles = StyleSheet.create({
   logoSubtext: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     textAlign: 'center',
   },
   scrollView: {
@@ -626,16 +708,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   cardDuration: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   iconContainer: {
     width: 56,
@@ -657,7 +736,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     marginBottom: 20,
     lineHeight: 24,
   },
@@ -678,7 +757,7 @@ const styles = StyleSheet.create({
   phaseItemText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
   },
   benefits: {
     marginBottom: 24,
@@ -686,7 +765,7 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
+    color: '#496FB5',
     marginBottom: 12,
   },
   benefitsList: {
@@ -705,7 +784,7 @@ const styles = StyleSheet.create({
   benefitText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#496FB5',
     lineHeight: 20,
     flex: 1,
   },
@@ -838,7 +917,7 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#496FB5',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -856,7 +935,7 @@ const styles = StyleSheet.create({
   timerLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#496FB5',
     marginTop: 4,
   },
   intentionDisplay: {
@@ -918,7 +997,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stopButtonText: {
-    color: '#ffffff',
+    color: '#496FB5',
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
   },
