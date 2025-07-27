@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.boltexponativewind"
+      "bundleIdentifier": "com.therewrite.therewrite"
     },
     "web": {
       "bundler": "metro",
@@ -40,7 +40,7 @@
       "typedRoutes": true
     },
     "android": {
-      "package": "com.anonymous.boltexponativewind"
+      "package": "com.therewrite.therewrite"
     },
     "extra": {
       "router": {},
