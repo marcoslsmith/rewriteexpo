@@ -61,7 +61,7 @@ export default function Library() {
         setAvallonFontLoaded(true);
         setGlacialFontLoaded(true);
       } catch (error) {
-        console.log('Error loading fonts:', error);
+        // Font loading error handled silently
       }
     }
     loadFonts();

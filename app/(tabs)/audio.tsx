@@ -95,7 +95,7 @@ export default function AudioTab() {
         });
         setAvallonFontLoaded(true);
       } catch (error) {
-        console.log('Error loading Shrikhand font:', error);
+        // Font loading error handled silently
       }
     }
     loadShrikhandFont();

@@ -26,11 +26,12 @@ export default function LoginScreen() {
     'Nunito-ExtraBold': Nunito_800ExtraBold,
   });
 
-  // Load custom fonts
-  const [shrikhandFontLoaded, setShrikhandFontLoaded] = useState(false);
-  const [glacialFontLoaded, setGlacialFontLoaded] = useState(false);
+  // Load custom fonts - optimized to prevent re-renders
+  const [customFontsLoaded, setCustomFontsLoaded] = useState(false);
   
   useEffect(() => {
+    let isMounted = true;
+    
     async function loadFonts() {
       try {
         await Font.loadAsync({
@@ -38,22 +39,35 @@ export default function LoginScreen() {
           'GlacialIndifference': require('../../assets/fonts/GlacialIndifference-Regular.otf'),
           'GlacialIndifference-Bold': require('../../assets/fonts/GlacialIndifference-Bold.otf'),
         });
-        setShrikhandFontLoaded(true);
-        setGlacialFontLoaded(true);
+        if (isMounted) {
+          setCustomFontsLoaded(true);
+        }
       } catch (error) {
-        console.log('Error loading fonts:', error);
+        // Font loading error handled silently
       }
     }
+    
     loadFonts();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    Animated.timing(cardAnim, {
+    // Only run animation once when component mounts
+    const animation = Animated.timing(cardAnim, {
       toValue: 1,
       duration: 900,
       delay: 200,
       useNativeDriver: true,
-    }).start();
+    });
+    
+    animation.start();
+    
+    return () => {
+      animation.stop();
+    };
   }, []);
 
   const handleSignIn = async () => {
@@ -119,45 +133,49 @@ export default function LoginScreen() {
             }}
           >
             <View style={styles.card}>
-              <Text style={[
-                styles.logoText,
-                { fontFamily: shrikhandFontLoaded ? 'Shrikhand' : 'Nunito-ExtraBold' }
-              ]}>The Rewrite</Text>
-              <Text style={[
-                styles.headline,
-                { fontFamily: glacialFontLoaded ? 'GlacialIndifference-Bold' : (Platform.OS === 'ios' ? 'Inter-Bold' : undefined) }
-              ]}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
-              <Text style={[
-                styles.subtext,
-                { fontFamily: glacialFontLoaded ? 'GlacialIndifference' : (Platform.OS === 'ios' ? 'Inter-Regular' : undefined) }
-              ]}>{isSignUp ? 'Sign up to get started with Rewrite' : 'Sign in to continue your journey'}</Text>
+                              <Text style={[
+                  styles.logoText,
+                  { fontFamily: customFontsLoaded ? 'Shrikhand' : 'Nunito-ExtraBold' }
+                ]}>The Rewrite</Text>
+                <Text style={[
+                  styles.headline,
+                  { fontFamily: customFontsLoaded ? 'GlacialIndifference-Bold' : (Platform.OS === 'ios' ? 'Inter-Bold' : undefined) }
+                ]}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+                <Text style={[
+                  styles.subtext,
+                  { fontFamily: customFontsLoaded ? 'GlacialIndifference' : (Platform.OS === 'ios' ? 'Inter-Regular' : undefined) }
+                ]}>{isSignUp ? 'Sign up to get started with Rewrite' : 'Sign in to continue your journey'}</Text>
               {error && <Text style={styles.error}>{error}</Text>}
               {success && <Text style={styles.success}>{success}</Text>}
               <View style={styles.inputGroup}>
                 <Mail size={18} color="#647696" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#94a3b8"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
+                                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#94a3b8"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    spellCheck={false}
+                  />
               </View>
               <View style={styles.inputGroup}>
                 <Lock size={18} color="#647696" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#94a3b8"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                />
+                                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor="#94a3b8"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    autoCorrect={false}
+                    spellCheck={false}
+                  />
                 <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeIcon}>
                   {showPassword ? <EyeOff size={18} color="#647696" /> : <Eye size={18} color="#647696" />}
                 </TouchableOpacity>

@@ -77,7 +77,7 @@ export default function Challenges() {
         setAvallonFontLoaded(true);
         setGlacialFontLoaded(true);
       } catch (error) {
-        console.log('Error loading fonts:', error);
+        // Font loading error handled silently
       }
     }
     loadFonts();
@@ -153,15 +153,11 @@ export default function Challenges() {
 
   const loadData = async () => {
     setLoading(true);
-    console.log('Loading challenges data...');
     try {
       const [challengesData, progressData] = await Promise.all([
         challengeService.getChallenges(),
         storageService.getChallengeProgress()
       ]);
-      
-      console.log('Challenges loaded:', challengesData.length);
-      console.log('Progress loaded:', progressData.length);
       
       setChallenges(challengesData);
       setActiveProgress(progressData.filter(p => p.status === 'in_progress'));

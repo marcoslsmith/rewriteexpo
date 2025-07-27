@@ -40,7 +40,6 @@ export const storageService = {
       const isAuth = await this.isAuthenticated();
       
       if (isAuth) {
-        console.log('Authenticated user, fetching from Supabase...');
         const { data, error } = await supabase
           .from('manifestations')
           .select('*')
@@ -50,19 +49,15 @@ export const storageService = {
           console.error('Supabase error:', error);
           throw error;
         }
-        console.log('Supabase data loaded:', data?.length || 0, 'manifestations');
         return data || [];
       } else {
-        console.log('Not authenticated, using local storage...');
         // Fallback to local storage
         const data = await AsyncStorage.getItem(STORAGE_KEYS.MANIFESTATIONS);
         const parsed = data ? JSON.parse(data) : [];
-        console.log('Local storage data loaded:', parsed.length, 'manifestations');
         return parsed;
       }
     } catch (error) {
       console.error('Error loading manifestations:', error);
-      console.log('Falling back to local storage due to error...');
       // Fallback to local storage
       const data = await AsyncStorage.getItem(STORAGE_KEYS.MANIFESTATIONS);
       return data ? JSON.parse(data) : [];
@@ -135,7 +130,6 @@ export const storageService = {
     };
     manifestations.unshift(newManifestation); // Add to beginning for newest first
     await this.saveManifestations(manifestations);
-    console.log('Manifestation saved locally:', newManifestation.id);
   },
   async updateManifestation(id: string, updates: ManifestationUpdate): Promise<void> {
     try {
