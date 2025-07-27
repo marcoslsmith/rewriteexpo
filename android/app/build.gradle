@@ -87,13 +87,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.boltexponativewind'
+    namespace 'com.therewrite.therewrite'
     defaultConfig {
-        applicationId 'com.anonymous.boltexponativewind'
+        applicationId 'com.therewrite.therewrite'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0.0"
+        versionName "1.0.1"
     }
     signingConfigs {
         debug {
