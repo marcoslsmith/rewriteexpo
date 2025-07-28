@@ -1566,7 +1566,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 48,
     marginTop: 20,
   },
   primaryButtonDisabled: {
