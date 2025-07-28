@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.therewrite.therewrite"
+      "bundleIdentifier": "com.therewrite.therewrite",
+      "infoPlist": {
+        "UIBackgroundModes": ["background-app-refresh"]
+      }
     },
     "web": {
       "bundler": "metro",

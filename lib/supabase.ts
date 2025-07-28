@@ -24,6 +24,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
+    debug: false,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'therewrite-ios',
+    },
   },
 });
 

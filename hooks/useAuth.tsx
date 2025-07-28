@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, AppStateStatus } from 'react-native';
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
   clearAllAuthData: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -15,6 +17,20 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Enhanced session refresh function
+  const refreshSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        setUser(null);
+      } else if (session?.user) {
+        setUser(session.user);
+      }
+    } catch (error) {
+      setUser(null);
+    }
+  };
 
   useEffect(() => {
     // Check auth state on mount
@@ -35,9 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     getUser();
 
-    // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      // Handle different auth events
+    // Listen for auth changes with enhanced handling
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       switch (event) {
         case 'SIGNED_IN':
           setUser(session?.user ?? null);
@@ -47,6 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           break;
         case 'TOKEN_REFRESHED':
           setUser(session?.user ?? null);
+          // Ensure session is persisted
+          if (session) {
+            await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
+          }
           break;
         case 'USER_UPDATED':
           setUser(session?.user ?? null);
@@ -56,8 +75,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Handle app state changes (background/foreground)
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // App came to foreground, refresh session
+        refreshSession();
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
       listener?.subscription.unsubscribe();
+      appStateSubscription?.remove();
     };
   }, []);
 
@@ -95,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, clearAllAuthData }}>
+    <AuthContext.Provider value={{ user, loading, signOut, clearAllAuthData, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
