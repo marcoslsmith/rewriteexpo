@@ -10,6 +10,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   clearAllAuthData: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  debugSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -26,23 +27,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       } else if (session?.user) {
         setUser(session.user);
+        // Ensure session is persisted
+        await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
       }
     } catch (error) {
       setUser(null);
     }
   };
 
+  // Session recovery function
+  const recoverSession = async () => {
+    try {
+      // Try to get stored session first
+      const storedSession = await AsyncStorage.getItem('supabase.auth.token');
+      if (storedSession) {
+        const session = JSON.parse(storedSession);
+        if (session?.user) {
+          setUser(session.user);
+          return;
+        }
+      }
+      
+      // Fallback to Supabase session check
+      await refreshSession();
+    } catch (error) {
+      setUser(null);
+    }
+  };
+
   useEffect(() => {
-    // Check auth state on mount
+    // Check auth state on mount with session recovery
     const getUser = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error) {
-          setUser(null);
-        } else {
-          setUser(user);
-        }
+        await recoverSession();
       } catch (e) {
         setUser(null);
       } finally {
@@ -85,9 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
+    // Set up periodic session refresh (every 30 minutes)
+    const sessionRefreshInterval = setInterval(() => {
+      refreshSession();
+    }, 30 * 60 * 1000); // 30 minutes
+
     return () => {
       listener?.subscription.unsubscribe();
       appStateSubscription?.remove();
+      clearInterval(sessionRefreshInterval);
     };
   }, []);
 
@@ -124,8 +147,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Debug session function (temporary for testing)
+  const debugSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const storedSession = await AsyncStorage.getItem('supabase.auth.token');
+      
+      console.log('=== Session Debug ===');
+      console.log('Current user:', user?.email);
+      console.log('Supabase session:', session ? 'Valid' : 'None');
+      console.log('Stored session:', storedSession ? 'Exists' : 'None');
+      console.log('Session expiry:', session?.expires_at);
+      console.log('===================');
+    } catch (error) {
+      console.log('Session debug error:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, clearAllAuthData, refreshSession }}>
+    <AuthContext.Provider value={{ user, loading, signOut, clearAllAuthData, refreshSession, debugSession }}>
       {children}
     </AuthContext.Provider>
   );
