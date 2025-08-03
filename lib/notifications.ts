@@ -52,6 +52,26 @@ export const defaultReminderMessages = {
 // Flag to prevent multiple scheduling
 let isSchedulingNotifications = false;
 
+// Helper function to validate notification schedule
+function validateNotificationSchedule(schedule: NotificationSchedule): boolean {
+  if (!schedule.time || !schedule.days || schedule.days.length === 0) {
+    return false;
+  }
+  
+  const [hours, minutes] = schedule.time.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return false;
+  }
+  
+  for (const day of schedule.days) {
+    if (day < 0 || day > 6) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 export const notificationService = {
   async requestPermissions(): Promise<boolean> {
     if (Platform.OS === 'web') {
@@ -81,6 +101,11 @@ export const notificationService = {
       throw new Error('Notification permissions not granted');
     }
 
+    // Validate the schedule before scheduling
+    if (!validateNotificationSchedule(schedule)) {
+      throw new Error('Invalid notification schedule');
+    }
+
     const notificationIds: string[] = [];
     const [hours, minutes] = schedule.time.split(':').map(Number);
     const now = new Date();
@@ -104,47 +129,55 @@ export const notificationService = {
         }
       }
 
-      // Calculate the next trigger date for this day
+      // Calculate the next occurrence of this day of week
       const today = now.getDay(); // 0 (Sun) - 6 (Sat)
       let daysUntilNext = (dayOfWeek - today + 7) % 7;
 
       // If today is the scheduled day, check if the time has already passed
       if (daysUntilNext === 0) {
-        if (
-          now.getHours() > hours ||
-          (now.getHours() === hours && now.getMinutes() >= minutes)
-        ) {
+        const scheduledTime = new Date(now);
+        scheduledTime.setHours(hours, minutes, 0, 0);
+        
+        if (now >= scheduledTime) {
           daysUntilNext = 7; // Schedule for next week
         }
       }
 
-      // Schedule the notification
-      const trigger = {
-        weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // Expo uses 1-7, Sunday=1
+      // Create the trigger following iOS notification patterns
+      const trigger: any = {
         hour: hours,
         minute: minutes,
         second: 0,
         repeats: true,
-      } as any;
+      };
 
-      // If daysUntilNext > 0, set a startDate in the future
+      // Map day of week correctly for Expo (1=Sunday, 2=Monday, etc.)
+      const expoWeekday = dayOfWeek === 0 ? 1 : dayOfWeek + 1;
+      trigger.weekday = expoWeekday;
+
+      // If we need to schedule for a future date, set the start date
       if (daysUntilNext > 0) {
-        const nextDate = new Date(now);
-        nextDate.setDate(now.getDate() + daysUntilNext);
-        nextDate.setHours(hours, minutes, 0, 0);
-        trigger.startDate = nextDate;
+        const startDate = new Date(now);
+        startDate.setDate(now.getDate() + daysUntilNext);
+        startDate.setHours(hours, minutes, 0, 0);
+        trigger.startDate = startDate;
       }
 
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: schedule.title,
-          body: message,
-          sound: true,
-        },
-        trigger,
-      });
+      try {
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: schedule.title,
+            body: message,
+            sound: true,
+            data: { scheduleId: schedule.id, dayOfWeek },
+          },
+          trigger,
+        });
 
-      notificationIds.push(notificationId);
+        notificationIds.push(notificationId);
+      } catch (error) {
+        console.error(`Failed to schedule notification for day ${dayOfWeek}:`, error);
+      }
     }
 
     return notificationIds;
@@ -254,16 +287,21 @@ export const notificationService = {
 
       console.log(`Scheduling ${activeSchedules.length} active notifications`);
 
-      // Schedule each active notification
+      // Schedule each active notification with better error handling
+      let scheduledCount = 0;
       for (const schedule of activeSchedules) {
         try {
-          await this.scheduleNotification(schedule);
+          const notificationIds = await this.scheduleNotification(schedule);
+          if (notificationIds.length > 0) {
+            scheduledCount++;
+            console.log(`Successfully scheduled ${notificationIds.length} notifications for schedule ${schedule.id}`);
+          }
         } catch (error) {
           console.error(`Error scheduling notification ${schedule.id}:`, error);
         }
       }
 
-      console.log('All active notifications scheduled successfully');
+      console.log(`Successfully scheduled ${scheduledCount} out of ${activeSchedules.length} active schedules`);
     } catch (error) {
       console.error('Error scheduling all notifications:', error);
     } finally {
