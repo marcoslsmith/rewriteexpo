@@ -21,7 +21,7 @@ import { storageService } from '@/lib/storage';
 import { defaultReminderMessages, notificationService } from '@/lib/notifications';
 import type { Database } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck } from 'lucide-react-native';
+import { Bell, User as UserIcon, Settings as SettingsIcon, LogOut, Plus, Clock, Calendar, X, Heart, MessageSquare, Trash2, CreditCard as Edit3, Check, ChevronDown, Sun, Moon, Zap, BookOpen, CreditCard as Edit, Save, UserCheck, AlertTriangle } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 const { height, width } = Dimensions.get('window');
@@ -204,6 +204,65 @@ export default function Settings() {
     } catch (error: any) {
       setError(error.message);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone and will remove all your data including manifestations, challenges, and settings.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setError(null);
+              setLoading(true);
+              
+              if (!user) {
+                setError('No user found');
+                return;
+              }
+
+              // Delete user data from Supabase
+              const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+              
+              if (deleteError) {
+                // If admin delete fails, try to delete user data manually
+                await Promise.all([
+                  // Delete manifestations
+                  supabase.from('manifestations').delete().eq('user_id', user.id),
+                  // Delete challenge progress
+                  supabase.from('challenge_progress').delete().eq('user_id', user.id),
+                  // Delete notification schedules
+                  supabase.from('notification_schedules').delete().eq('user_id', user.id),
+                  // Delete audio sessions
+                  supabase.from('audio_sessions').delete().eq('user_id', user.id),
+                  // Delete audio files
+                  supabase.from('audio_files').delete().eq('user_id', user.id),
+                  // Delete profile
+                  supabase.from('profiles').delete().eq('id', user.id),
+                ]);
+              }
+
+              // Clear all local data
+              await clearAllAuthData();
+              
+              setSuccess('Account deleted successfully!');
+              setTimeout(() => setSuccess(null), 3000);
+            } catch (error: any) {
+              setError('Failed to delete account. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleUpdateProfile = async () => {
@@ -568,6 +627,11 @@ export default function Settings() {
                 <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
                   <LogOut size={20} color="#ff6b6b" />
                   <Text style={[styles.settingText, { color: '#ff6b6b' }]}>Sign Out</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.settingItem} onPress={handleDeleteAccount}>
+                  <AlertTriangle size={20} color="#ff4757" />
+                  <Text style={[styles.settingText, { color: '#ff4757' }]}>Delete Account</Text>
                 </TouchableOpacity>
               </View>
 
