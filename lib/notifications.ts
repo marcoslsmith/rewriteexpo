@@ -133,16 +133,6 @@ export const notificationService = {
       const today = now.getDay(); // 0 (Sun) - 6 (Sat)
       let daysUntilNext = (dayOfWeek - today + 7) % 7;
 
-      // If today is the scheduled day, check if the time has already passed
-      if (daysUntilNext === 0) {
-        const scheduledTime = new Date(now);
-        scheduledTime.setHours(hours, minutes, 0, 0);
-        
-        if (now >= scheduledTime) {
-          daysUntilNext = 7; // Schedule for next week
-        }
-      }
-
       // Create the trigger following iOS notification patterns
       const trigger: any = {
         hour: hours,
@@ -155,13 +145,47 @@ export const notificationService = {
       const expoWeekday = dayOfWeek === 0 ? 1 : dayOfWeek + 1;
       trigger.weekday = expoWeekday;
 
-      // If we need to schedule for a future date, set the start date
-      if (daysUntilNext > 0) {
-        const startDate = new Date(now);
+      // Always set a start date to prevent immediate triggering
+      let startDate: Date;
+      
+      if (daysUntilNext === 0) {
+        // Today is the scheduled day, check if the time has already passed
+        const scheduledTime = new Date(now);
+        scheduledTime.setHours(hours, minutes, 0, 0);
+        
+        if (now >= scheduledTime) {
+          // Time has passed today, schedule for next week
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() + 7);
+          startDate.setHours(hours, minutes, 0, 0);
+        } else {
+          // Time hasn't passed today, schedule for today
+          startDate = new Date(now);
+          startDate.setHours(hours, minutes, 0, 0);
+        }
+      } else {
+        // Schedule for a future day
+        startDate = new Date(now);
         startDate.setDate(now.getDate() + daysUntilNext);
         startDate.setHours(hours, minutes, 0, 0);
-        trigger.startDate = startDate;
       }
+
+      trigger.startDate = startDate;
+
+      // Debug logging
+      console.log(`Scheduling notification for day ${dayOfWeek} (${expoWeekday}):`, {
+        title: schedule.title,
+        time: `${hours}:${minutes}`,
+        startDate: startDate.toISOString(),
+        daysUntilNext,
+        trigger: {
+          weekday: trigger.weekday,
+          hour: trigger.hour,
+          minute: trigger.minute,
+          repeats: trigger.repeats,
+          startDate: trigger.startDate.toISOString(),
+        }
+      });
 
       try {
         const notificationId = await Notifications.scheduleNotificationAsync({
@@ -175,6 +199,7 @@ export const notificationService = {
         });
 
         notificationIds.push(notificationId);
+        console.log(`Successfully scheduled notification ${notificationId} for day ${dayOfWeek}`);
       } catch (error) {
         console.error(`Failed to schedule notification for day ${dayOfWeek}:`, error);
       }
@@ -348,6 +373,16 @@ export const notificationService = {
       // Get all scheduled notifications
       const scheduled = await this.getAllScheduledNotifications();
       console.log('Currently scheduled notifications:', scheduled.length);
+      
+      // Log details of each scheduled notification
+      for (const notification of scheduled) {
+        console.log('Scheduled notification:', {
+          id: notification.identifier,
+          title: notification.content.title,
+          body: notification.content.body,
+          trigger: notification.trigger,
+        });
+      }
       
       // Get all schedules from storage
       const schedules = await storageService.getNotificationSchedules();
