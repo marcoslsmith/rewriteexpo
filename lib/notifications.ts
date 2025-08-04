@@ -108,7 +108,6 @@ export const notificationService = {
 
     const notificationIds: string[] = [];
     const [hours, minutes] = schedule.time.split(':').map(Number);
-    const now = new Date();
 
     for (const dayOfWeek of schedule.days) {
       let message = schedule.message;
@@ -130,27 +129,37 @@ export const notificationService = {
       }
 
       // Calculate the next occurrence of this day of week
-      const today = now.getDay(); // 0 (Sun) - 6 (Sat)
+      const today = new Date().getDay(); // 0 (Sun) - 6 (Sat)
       let daysUntilNext = (dayOfWeek - today + 7) % 7;
 
-      // Create the correct weekly recurring trigger format
-      // Use only the exact fields expo-notifications expects for weekly triggers
+      // Try a different approach - use seconds-based trigger for immediate testing
+      // This will help us determine if the issue is with the trigger format or something else
+      const now = new Date();
+      const targetTime = new Date(now);
+      targetTime.setHours(hours, minutes, 0, 0);
+      
+      // If the time has already passed today, schedule for tomorrow
+      if (targetTime <= now) {
+        targetTime.setDate(targetTime.getDate() + 1);
+      }
+      
+      const secondsUntilTarget = Math.floor((targetTime.getTime() - now.getTime()) / 1000);
+      
+      console.log(`Scheduling notification for ${targetTime.toISOString()} (${secondsUntilTarget} seconds from now)`);
+      
       const trigger = {
-        weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // 1=Sunday, 2=Monday, etc.
-        hour: hours,
-        minute: minutes,
-        repeats: true,
+        seconds: secondsUntilTarget,
+        repeats: false,
       } as any;
 
       // Debug logging
-      console.log(`Scheduling notification for day ${dayOfWeek} (${trigger.weekday}):`, {
+      console.log(`Scheduling notification for day ${dayOfWeek}:`, {
         title: schedule.title,
         time: `${hours}:${minutes}`,
-        daysUntilNext,
+        targetTime: targetTime.toISOString(),
+        secondsUntilTarget,
         trigger: {
-          weekday: trigger.weekday,
-          hour: trigger.hour,
-          minute: trigger.minute,
+          seconds: trigger.seconds,
           repeats: trigger.repeats,
         }
       });
