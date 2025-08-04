@@ -133,57 +133,25 @@ export const notificationService = {
       const today = now.getDay(); // 0 (Sun) - 6 (Sat)
       let daysUntilNext = (dayOfWeek - today + 7) % 7;
 
-      // Create the trigger following iOS notification patterns
-      const trigger: any = {
+      // Create the correct weekly recurring trigger format
+      // Use only the exact fields expo-notifications expects for weekly triggers
+      const trigger = {
+        weekday: dayOfWeek === 0 ? 1 : dayOfWeek + 1, // 1=Sunday, 2=Monday, etc.
         hour: hours,
         minute: minutes,
-        second: 0,
         repeats: true,
-      };
-
-      // Map day of week correctly for Expo (1=Sunday, 2=Monday, etc.)
-      const expoWeekday = dayOfWeek === 0 ? 1 : dayOfWeek + 1;
-      trigger.weekday = expoWeekday;
-
-      // Always set a start date to prevent immediate triggering
-      let startDate: Date;
-      
-      if (daysUntilNext === 0) {
-        // Today is the scheduled day, check if the time has already passed
-        const scheduledTime = new Date(now);
-        scheduledTime.setHours(hours, minutes, 0, 0);
-        
-        if (now >= scheduledTime) {
-          // Time has passed today, schedule for next week
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() + 7);
-          startDate.setHours(hours, minutes, 0, 0);
-        } else {
-          // Time hasn't passed today, schedule for today
-          startDate = new Date(now);
-          startDate.setHours(hours, minutes, 0, 0);
-        }
-      } else {
-        // Schedule for a future day
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() + daysUntilNext);
-        startDate.setHours(hours, minutes, 0, 0);
-      }
-
-      trigger.startDate = startDate;
+      } as any;
 
       // Debug logging
-      console.log(`Scheduling notification for day ${dayOfWeek} (${expoWeekday}):`, {
+      console.log(`Scheduling notification for day ${dayOfWeek} (${trigger.weekday}):`, {
         title: schedule.title,
         time: `${hours}:${minutes}`,
-        startDate: startDate.toISOString(),
         daysUntilNext,
         trigger: {
           weekday: trigger.weekday,
           hour: trigger.hour,
           minute: trigger.minute,
           repeats: trigger.repeats,
-          startDate: trigger.startDate.toISOString(),
         }
       });
 
