@@ -90,6 +90,7 @@ export const notificationService = {
     return finalStatus === 'granted';
   },
 
+  // NEW APPROACH: Single notification + rescheduling system
   async scheduleNotification(schedule: NotificationSchedule): Promise<string[]> {
     if (Platform.OS === 'web') {
       console.log('Notifications not supported on web');
@@ -109,77 +110,98 @@ export const notificationService = {
     const notificationIds: string[] = [];
     const [hours, minutes] = schedule.time.split(':').map(Number);
 
+    // NEW: Schedule only ONE notification per schedule (not per day)
+    // Find the next occurrence across all selected days
+    const now = new Date();
+    let nextOccurrence: Date | null = null;
+    let nextDayOfWeek: number | null = null;
+
     for (const dayOfWeek of schedule.days) {
-      let message = schedule.message;
-
-      // If using random manifestation, get a random one
-      if (schedule.use_random_manifestation) {
-        const manifestations = await storageService.getManifestations();
-        const favoriteManifestations = manifestations.filter(m => m.is_favorite);
-
-        if (favoriteManifestations.length > 0) {
-          const randomManifestation = favoriteManifestations[Math.floor(Math.random() * favoriteManifestations.length)];
-          message = randomManifestation.transformed_text;
-        } else if (manifestations.length > 0) {
-          const randomManifestation = manifestations[Math.floor(Math.random() * manifestations.length)];
-          message = randomManifestation.transformed_text;
-        } else {
-          message = 'Take a moment to reflect on your dreams and aspirations today.';
-        }
-      }
-
-      // Calculate the next occurrence of this day of week
-      const today = new Date().getDay(); // 0 (Sun) - 6 (Sat)
+      const today = now.getDay(); // 0 (Sun) - 6 (Sat)
       let daysUntilNext = (dayOfWeek - today + 7) % 7;
 
-      // Try a different approach - use seconds-based trigger for immediate testing
-      // This will help us determine if the issue is with the trigger format or something else
-      const now = new Date();
       const targetTime = new Date(now);
       targetTime.setHours(hours, minutes, 0, 0);
       
-      // If the time has already passed today, schedule for tomorrow
-      if (targetTime <= now) {
-        targetTime.setDate(targetTime.getDate() + 1);
+      // If the time has already passed today, schedule for next week
+      if (daysUntilNext === 0 && targetTime <= now) {
+        daysUntilNext = 7;
       }
       
-      const secondsUntilTarget = Math.floor((targetTime.getTime() - now.getTime()) / 1000);
+      targetTime.setDate(now.getDate() + daysUntilNext);
       
-      console.log(`Scheduling notification for ${targetTime.toISOString()} (${secondsUntilTarget} seconds from now)`);
-      
-      const trigger = {
-        seconds: secondsUntilTarget,
-        repeats: false,
-      } as any;
+      if (!nextOccurrence || targetTime < nextOccurrence) {
+        nextOccurrence = targetTime;
+        nextDayOfWeek = dayOfWeek;
+      }
+    }
 
-      // Debug logging
-      console.log(`Scheduling notification for day ${dayOfWeek}:`, {
-        title: schedule.title,
-        time: `${hours}:${minutes}`,
-        targetTime: targetTime.toISOString(),
-        secondsUntilTarget,
-        trigger: {
-          seconds: trigger.seconds,
-          repeats: trigger.repeats,
-        }
-      });
+    if (!nextOccurrence || !nextDayOfWeek) {
+      console.error('No valid next occurrence found for schedule:', schedule.id);
+      return [];
+    }
 
-      try {
+    // Get the message (handle random manifestations)
+    let message = schedule.message;
+    if (schedule.use_random_manifestation) {
+      const manifestations = await storageService.getManifestations();
+      const favoriteManifestations = manifestations.filter(m => m.is_favorite);
+
+      if (favoriteManifestations.length > 0) {
+        const randomManifestation = favoriteManifestations[Math.floor(Math.random() * favoriteManifestations.length)];
+        message = randomManifestation.transformed_text;
+      } else if (manifestations.length > 0) {
+        const randomManifestation = manifestations[Math.floor(Math.random() * manifestations.length)];
+        message = randomManifestation.transformed_text;
+      } else {
+        message = 'Take a moment to reflect on your dreams and aspirations today.';
+      }
+    }
+
+    const secondsUntilTarget = Math.floor((nextOccurrence.getTime() - now.getTime()) / 1000);
+    
+    console.log(`NEW APPROACH: Scheduling single notification for ${nextOccurrence.toISOString()} (${secondsUntilTarget} seconds from now)`);
+
+    try {
+      // For immediate testing (within 1 minute), use presentNotificationAsync
+      if (secondsUntilTarget <= 60) {
+        console.log('Using presentNotificationAsync for immediate testing');
+        await Notifications.presentNotificationAsync({
+          title: schedule.title,
+          body: message,
+          data: { 
+            scheduleId: schedule.id, 
+            dayOfWeek: nextDayOfWeek,
+            nextOccurrence: nextOccurrence.toISOString(),
+            isTest: true 
+          },
+        });
+        console.log('Immediate notification presented successfully');
+      } else {
+        // For longer delays, use scheduleNotificationAsync
         const notificationId = await Notifications.scheduleNotificationAsync({
           content: {
             title: schedule.title,
             body: message,
             sound: true,
-            data: { scheduleId: schedule.id, dayOfWeek },
+            data: { 
+              scheduleId: schedule.id, 
+              dayOfWeek: nextDayOfWeek,
+              nextOccurrence: nextOccurrence.toISOString(),
+              isTest: false 
+            },
           },
-          trigger,
+          trigger: {
+            seconds: secondsUntilTarget,
+            repeats: false,
+          } as any,
         });
 
         notificationIds.push(notificationId);
-        console.log(`Successfully scheduled notification ${notificationId} for day ${dayOfWeek}`);
-      } catch (error) {
-        console.error(`Failed to schedule notification for day ${dayOfWeek}:`, error);
+        console.log(`Successfully scheduled notification ${notificationId} for ${nextOccurrence.toISOString()}`);
       }
+    } catch (error) {
+      console.error(`Failed to schedule notification for schedule ${schedule.id}:`, error);
     }
 
     return notificationIds;
