@@ -178,7 +178,8 @@ export const notificationService = {
         });
         console.log('Immediate notification presented successfully');
       } else {
-        // For longer delays, use scheduleNotificationAsync
+        // For longer delays, use date-based trigger instead of seconds
+        console.log('Using date-based trigger for scheduled notification');
         const notificationId = await Notifications.scheduleNotificationAsync({
           content: {
             title: schedule.title,
@@ -192,7 +193,7 @@ export const notificationService = {
             },
           },
           trigger: {
-            seconds: secondsUntilTarget,
+            date: nextOccurrence,
             repeats: false,
           } as any,
         });
